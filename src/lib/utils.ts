@@ -100,6 +100,57 @@ export function getLuminance(r: number, g: number, b: number): number {
 }
 
 /**
+ * Gamma to linear and linear to gamma color space transformations
+ */
+export function sRgbToLinear(c: number): number {
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+export function linearToSRgb(c: number): number {
+  return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1.0 / 2.4) - 0.055;
+}
+
+/**
+ * Calculate object fit dimensions (contain, cover, fill)
+ */
+export function calculateFitDimensions(
+  fit: "contain" | "cover" | "fill",
+  containerWidth: number,
+  containerHeight: number,
+  srcWidth: number,
+  srcHeight: number
+): { width: number; height: number; x: number; y: number } {
+  if (fit === "fill" || srcWidth <= 0 || srcHeight <= 0) {
+    return { width: containerWidth, height: containerHeight, x: 0, y: 0 };
+  }
+
+  const containerAspect = containerWidth / containerHeight;
+  const srcAspect = srcWidth / srcHeight;
+
+  let width = containerWidth;
+  let height = containerHeight;
+
+  if (fit === "contain") {
+    if (srcAspect > containerAspect) {
+      height = containerWidth / srcAspect;
+    } else {
+      width = containerHeight * srcAspect;
+    }
+  } else if (fit === "cover") {
+    if (srcAspect > containerAspect) {
+      width = containerHeight * srcAspect;
+    } else {
+      height = containerWidth / srcAspect;
+    }
+  }
+
+  const x = (containerWidth - width) / 2;
+  const y = (containerHeight - height) / 2;
+
+  return { width, height, x, y };
+}
+
+/**
  * Format bytes into human-readable string
  */
 export function formatBytes(bytes: number, decimals = 1): string {
