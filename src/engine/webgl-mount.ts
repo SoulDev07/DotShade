@@ -357,4 +357,51 @@ export class DitherWebGLMount {
       this.gl.deleteVertexArray(this.vao);
     }
   }
+
+  /**
+   * Capture high-resolution still frame offscreen (e.g. 2x, 4x, or custom resolution)
+   */
+  public captureHighResSnapshot(width: number, height: number): ImageData | null {
+    if (!this.gl || !this.program) return null;
+
+    const offscreen = document.createElement("canvas");
+    offscreen.width = width;
+    offscreen.height = height;
+
+    const mount = new DitherWebGLMount({
+      ...this.options,
+      canvas: offscreen,
+      minPixelRatio: 1,
+    });
+
+    mount.setMediaSource(this.imageSource);
+    mount.render();
+
+    const gl = mount.gl;
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+    // Flip Y because WebGL readPixels is bottom-to-top
+    const flippedData = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      const srcRow = (height - 1 - y) * width * 4;
+      const dstRow = y * width * 4;
+      for (let x = 0; x < width * 4; x++) {
+        flippedData[dstRow + x] = pixels[srcRow + x];
+      }
+    }
+
+    mount.dispose();
+    return new ImageData(flippedData, width, height);
+  }
+
+  /**
+   * Get current frame as Blob (image/png, image/webp, image/jpeg)
+   */
+  public async getSnapshotBlob(type: "image/png" | "image/webp" | "image/jpeg" = "image/png", quality = 0.95): Promise<Blob | null> {
+    this.render();
+    return new Promise((resolve) => {
+      this.canvas.toBlob((blob) => resolve(blob), type, quality);
+    });
+  }
 }
