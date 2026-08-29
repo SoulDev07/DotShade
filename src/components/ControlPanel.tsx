@@ -119,86 +119,86 @@ export function ControlPanel({
   };
 
   return (
-    <aside className="w-full lg:w-96 bg-neutral-900/95 backdrop-blur-xl border-l border-neutral-800 flex flex-col h-full overflow-hidden shadow-2xl">
-      {/* Sidebar Navigation Tabs */}
-      <div className="flex items-center justify-between border-b border-neutral-800 p-2 bg-neutral-950/60">
+    <aside className="w-full lg:w-96 glass-panel-glow border-l border-white/10 flex flex-col h-full overflow-hidden shadow-2xl">
+      {/* Sidebar Navigation Tabs with tactile Emil buttons */}
+      <div className="flex items-center justify-between border-b border-white/10 p-2 bg-black/40">
         <button
           onClick={() => setActiveTab("media")}
           className={cn(
-            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all",
+            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-[11px] font-medium transition-all duration-140 ease-out btn-press",
             activeTab === "media"
-              ? "bg-neutral-800 text-emerald-400 border border-neutral-700 shadow-sm"
+              ? "bg-white/10 text-emerald-400 border border-white/15 shadow-sm font-semibold"
               : "text-neutral-400 hover:text-neutral-200"
           )}
         >
-          <ImageIcon className="w-4 h-4" />
+          <ImageIcon className="w-3.5 h-3.5" />
           <span>Source</span>
         </button>
 
         <button
           onClick={() => setActiveTab("dither")}
           className={cn(
-            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all",
+            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-[11px] font-medium transition-all duration-140 ease-out btn-press",
             activeTab === "dither"
-              ? "bg-neutral-800 text-emerald-400 border border-neutral-700 shadow-sm"
+              ? "bg-white/10 text-emerald-400 border border-white/15 shadow-sm font-semibold"
               : "text-neutral-400 hover:text-neutral-200"
           )}
         >
-          <Sliders className="w-4 h-4" />
+          <Sliders className="w-3.5 h-3.5" />
           <span>Dither</span>
         </button>
 
         <button
           onClick={() => setActiveTab("colors")}
           className={cn(
-            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all",
+            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-[11px] font-medium transition-all duration-140 ease-out btn-press",
             activeTab === "colors"
-              ? "bg-neutral-800 text-emerald-400 border border-neutral-700 shadow-sm"
+              ? "bg-white/10 text-emerald-400 border border-white/15 shadow-sm font-semibold"
               : "text-neutral-400 hover:text-neutral-200"
           )}
         >
-          <Palette className="w-4 h-4" />
+          <Palette className="w-3.5 h-3.5" />
           <span>Colors</span>
         </button>
 
         <button
           onClick={() => setActiveTab("adjust")}
           className={cn(
-            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all",
+            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-[11px] font-medium transition-all duration-140 ease-out btn-press",
             activeTab === "adjust"
-              ? "bg-neutral-800 text-emerald-400 border border-neutral-700 shadow-sm"
+              ? "bg-white/10 text-emerald-400 border border-white/15 shadow-sm font-semibold"
               : "text-neutral-400 hover:text-neutral-200"
           )}
         >
-          <Sun className="w-4 h-4" />
+          <Sun className="w-3.5 h-3.5" />
           <span>Transform</span>
         </button>
 
         <button
           onClick={() => setActiveTab("presets")}
           className={cn(
-            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all",
+            "flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-[11px] font-medium transition-all duration-140 ease-out btn-press",
             activeTab === "presets"
-              ? "bg-neutral-800 text-emerald-400 border border-neutral-700 shadow-sm"
+              ? "bg-white/10 text-emerald-400 border border-white/15 shadow-sm font-semibold"
               : "text-neutral-400 hover:text-neutral-200"
           )}
         >
-          <Bookmark className="w-4 h-4" />
+          <Bookmark className="w-3.5 h-3.5" />
           <span>Presets</span>
         </button>
       </div>
 
       {/* Tab Contents */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 text-sm">
+      <div className="flex-1 overflow-y-auto p-4.5 space-y-6 text-sm">
         {/* --- 1. MEDIA SOURCE TAB --- */}
         {activeTab === "media" && (
           <div className="space-y-5">
             <div>
-              <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-2">
+              <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block mb-2">
                 Input Source
               </label>
               <div className="grid grid-cols-2 gap-2">
-                <label className="flex items-center justify-center gap-2 p-3 bg-neutral-800/80 hover:bg-neutral-700/80 border border-neutral-700 rounded-xl cursor-pointer transition-all text-xs font-medium text-neutral-200">
+                <label className="flex items-center justify-center gap-2 p-3 bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 rounded-2xl cursor-pointer text-xs font-medium text-neutral-200 btn-press">
                   <ImageIcon className="w-4 h-4 text-emerald-400" />
                   <span>Upload Image</span>
                   <input
@@ -211,7 +211,7 @@ export function ControlPanel({
                   />
                 </label>
 
-                <label className="flex items-center justify-center gap-2 p-3 bg-neutral-800/80 hover:bg-neutral-700/80 border border-neutral-700 rounded-xl cursor-pointer transition-all text-xs font-medium text-neutral-200">
+                <label className="flex items-center justify-center gap-2 p-3 bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 rounded-2xl cursor-pointer text-xs font-medium text-neutral-200 btn-press">
                   <VideoIcon className="w-4 h-4 text-blue-400" />
                   <span>Upload Video</span>
                   <input
@@ -227,10 +227,10 @@ export function ControlPanel({
                 <button
                   onClick={onToggleWebcam}
                   className={cn(
-                    "flex items-center justify-center gap-2 p-3 border rounded-xl transition-all text-xs font-medium",
+                    "flex items-center justify-center gap-2 p-3 border rounded-2xl text-xs font-medium btn-press",
                     isWebcamActive
                       ? "bg-red-500/20 border-red-500/50 text-red-400"
-                      : "bg-neutral-800/80 hover:bg-neutral-700/80 border-neutral-700 text-neutral-200"
+                      : "bg-white/[0.03] hover:bg-white/[0.07] border-white/10 text-neutral-200"
                   )}
                 >
                   <Camera className="w-4 h-4 text-amber-400" />
@@ -240,10 +240,10 @@ export function ControlPanel({
                 <button
                   onClick={() => onChange({ mediaType: "procedural" })}
                   className={cn(
-                    "flex items-center justify-center gap-2 p-3 border rounded-xl transition-all text-xs font-medium",
+                    "flex items-center justify-center gap-2 p-3 border rounded-2xl text-xs font-medium btn-press",
                     settings.mediaType === "procedural"
                       ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
-                      : "bg-neutral-800/80 hover:bg-neutral-700/80 border-neutral-700 text-neutral-200"
+                      : "bg-white/[0.03] hover:bg-white/[0.07] border-white/10 text-neutral-200"
                   )}
                 >
                   <Sparkles className="w-4 h-4 text-purple-400" />
@@ -254,8 +254,8 @@ export function ControlPanel({
 
             {/* Procedural Generator Selection */}
             {settings.mediaType === "procedural" && (
-              <div className="space-y-3 p-3.5 bg-neutral-950/60 border border-neutral-800 rounded-xl">
-                <label className="text-xs font-mono uppercase tracking-wider text-emerald-400 block">
+              <div className="space-y-3 p-3.5 bg-black/40 border border-white/10 rounded-2xl">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 block">
                   Procedural Shader Shape
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -266,10 +266,10 @@ export function ControlPanel({
                       key={shape}
                       onClick={() => onChange({ proceduralShape: shape })}
                       className={cn(
-                        "py-1.5 px-2 rounded-lg text-xs capitalize border text-left transition-all",
+                        "py-2 px-2.5 rounded-xl text-xs capitalize border text-left btn-press",
                         settings.proceduralShape === shape
                           ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-semibold"
-                          : "border-neutral-800 hover:border-neutral-700 text-neutral-400"
+                          : "border-white/5 hover:border-white/15 text-neutral-400"
                       )}
                     >
                       {shape}
@@ -281,7 +281,7 @@ export function ControlPanel({
 
             {/* Sample Gallery */}
             <div>
-              <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-2">
+              <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block mb-2">
                 Sample Library
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -294,10 +294,10 @@ export function ControlPanel({
                         mediaUrl: item.url,
                       })
                     }
-                    className="p-2 bg-neutral-950/80 hover:bg-neutral-800 border border-neutral-800 rounded-lg text-left text-xs text-neutral-300 transition-all flex flex-col gap-1"
+                    className="p-2.5 bg-white/[0.02] hover:bg-white/[0.06] border border-white/10 rounded-xl text-left text-xs text-neutral-300 flex flex-col gap-1 btn-press"
                   >
                     <span className="font-medium truncate">{item.name}</span>
-                    <span className="text-[10px] text-neutral-500 uppercase">{item.type}</span>
+                    <span className="text-[10px] text-neutral-500 uppercase font-mono">{item.type}</span>
                   </button>
                 ))}
               </div>
@@ -311,31 +311,31 @@ export function ControlPanel({
             {/* Engine Mode */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-neutral-400">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
                   Dithering Engine
                 </label>
-                <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-800">
                   {settings.engineMode.toUpperCase()}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 bg-neutral-950/80 p-1 rounded-xl border border-neutral-800">
+              <div className="grid grid-cols-2 gap-2 bg-black/40 p-1 rounded-2xl border border-white/10">
                 <button
                   onClick={() => onChange({ engineMode: "gpu" })}
                   className={cn(
-                    "py-1.5 px-3 rounded-lg text-xs font-medium transition-all",
+                    "py-2 px-3 rounded-xl text-xs font-medium btn-press",
                     settings.engineMode === "gpu"
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold"
                       : "text-neutral-400 hover:text-neutral-200"
                   )}
                 >
-                  WebGL2 GPU (60fps)
+                  WebGL2 (60fps)
                 </button>
                 <button
                   onClick={() => onChange({ engineMode: "cpu" })}
                   className={cn(
-                    "py-1.5 px-3 rounded-lg text-xs font-medium transition-all",
+                    "py-2 px-3 rounded-xl text-xs font-medium btn-press",
                     settings.engineMode === "cpu"
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold"
                       : "text-neutral-400 hover:text-neutral-200"
                   )}
                 >
@@ -347,7 +347,7 @@ export function ControlPanel({
             {/* GPU Shader Algorithms */}
             {settings.engineMode === "gpu" ? (
               <div className="space-y-3">
-                <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block">
                   Shader Dither Pattern
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -358,7 +358,7 @@ export function ControlPanel({
                       { id: "2x2", label: "Bayer 2x2" },
                       { id: "16x16", label: "Bayer 16x16" },
                       { id: "noise", label: "Random Noise" },
-                      { id: "halftone", label: "Halftone Dot Screen" },
+                      { id: "halftone", label: "Halftone Screen" },
                       { id: "crosshatch", label: "Crosshatch Screen" },
                       { id: "clustered", label: "Clustered Print" },
                     ] as const
@@ -367,10 +367,10 @@ export function ControlPanel({
                       key={item.id}
                       onClick={() => onChange({ ditherType: item.id })}
                       className={cn(
-                        "p-2 rounded-lg text-xs border text-left transition-all",
+                        "p-2.5 rounded-xl text-xs border text-left btn-press",
                         settings.ditherType === item.id
-                          ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-semibold shadow-sm"
-                          : "bg-neutral-950/60 border-neutral-800 hover:border-neutral-700 text-neutral-400"
+                          ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 font-semibold shadow-sm"
+                          : "bg-white/[0.02] border-white/10 hover:border-white/20 text-neutral-400"
                       )}
                     >
                       {item.label}
@@ -381,7 +381,7 @@ export function ControlPanel({
             ) : (
               /* CPU Error Diffusion Algorithms */
               <div className="space-y-3">
-                <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block">
                   Error Diffusion Algorithm
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -400,10 +400,10 @@ export function ControlPanel({
                       key={item.id}
                       onClick={() => onChange({ cpuAlgorithm: item.id })}
                       className={cn(
-                        "p-2 rounded-lg text-xs border text-left transition-all",
+                        "p-2.5 rounded-xl text-xs border text-left btn-press",
                         settings.cpuAlgorithm === item.id
-                          ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-semibold shadow-sm"
-                          : "bg-neutral-950/60 border-neutral-800 hover:border-neutral-700 text-neutral-400"
+                          ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 font-semibold shadow-sm"
+                          : "bg-white/[0.02] border-white/10 hover:border-white/20 text-neutral-400"
                       )}
                     >
                       {item.label}
@@ -414,9 +414,9 @@ export function ControlPanel({
             )}
 
             {/* Sliders: Pixel Size & Threshold */}
-            <div className="space-y-4 pt-2 border-t border-neutral-800">
+            <div className="space-y-4 pt-2 border-t border-white/10">
               <div>
-                <div className="flex justify-between text-xs mb-1 font-mono">
+                <div className="flex justify-between text-xs mb-1.5 font-mono">
                   <span className="text-neutral-400">Pixel Grid Size</span>
                   <span className="text-emerald-400 font-semibold">{settings.pxSize} px</span>
                 </div>
@@ -427,13 +427,13 @@ export function ControlPanel({
                   step={0.5}
                   value={settings.pxSize}
                   onChange={(e) => onChange({ pxSize: parseFloat(e.target.value) })}
-                  className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                  className="w-full"
                 />
               </div>
 
               <div>
-                <div className="flex justify-between text-xs mb-1 font-mono">
-                  <span className="text-neutral-400">Dither Threshold Bias</span>
+                <div className="flex justify-between text-xs mb-1.5 font-mono">
+                  <span className="text-neutral-400">Threshold Bias</span>
                   <span className="text-emerald-400 font-semibold">{settings.threshold.toFixed(2)}</span>
                 </div>
                 <input
@@ -443,15 +443,15 @@ export function ControlPanel({
                   step={0.02}
                   value={settings.threshold}
                   onChange={(e) => onChange({ threshold: parseFloat(e.target.value) })}
-                  className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                  className="w-full"
                 />
               </div>
 
               {settings.ditherType === "halftone" && (
                 <>
                   <div>
-                    <div className="flex justify-between text-xs mb-1 font-mono">
-                      <span className="text-neutral-400">Halftone Screen Angle</span>
+                    <div className="flex justify-between text-xs mb-1.5 font-mono">
+                      <span className="text-neutral-400">Halftone Angle</span>
                       <span className="text-emerald-400 font-semibold">{settings.halftoneAngle}°</span>
                     </div>
                     <input
@@ -461,12 +461,12 @@ export function ControlPanel({
                       step={5}
                       value={settings.halftoneAngle}
                       onChange={(e) => onChange({ halftoneAngle: parseFloat(e.target.value) })}
-                      className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                      className="w-full"
                     />
                   </div>
                   <div>
-                    <div className="flex justify-between text-xs mb-1 font-mono">
-                      <span className="text-neutral-400">Halftone Dot Scale</span>
+                    <div className="flex justify-between text-xs mb-1.5 font-mono">
+                      <span className="text-neutral-400">Dot Frequency Scale</span>
                       <span className="text-emerald-400 font-semibold">{settings.halftoneScale}x</span>
                     </div>
                     <input
@@ -476,7 +476,7 @@ export function ControlPanel({
                       step={0.5}
                       value={settings.halftoneScale}
                       onChange={(e) => onChange({ halftoneScale: parseFloat(e.target.value) })}
-                      className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                      className="w-full"
                     />
                   </div>
                 </>
@@ -497,7 +497,7 @@ export function ControlPanel({
                 </div>
                 {settings.animated && (
                   <div className="mt-3">
-                    <div className="flex justify-between text-xs mb-1 font-mono">
+                    <div className="flex justify-between text-xs mb-1.5 font-mono">
                       <span className="text-neutral-400">Animation Speed</span>
                       <span className="text-emerald-400 font-semibold">{settings.animationSpeed.toFixed(1)}x</span>
                     </div>
@@ -508,7 +508,7 @@ export function ControlPanel({
                       step={0.1}
                       value={settings.animationSpeed}
                       onChange={(e) => onChange({ animationSpeed: parseFloat(e.target.value) })}
-                      className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                      className="w-full"
                     />
                   </div>
                 )}
@@ -522,7 +522,7 @@ export function ControlPanel({
           <div className="space-y-5">
             {/* Color Mode Switcher */}
             <div>
-              <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-2">
+              <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block mb-2">
                 Color Mode
               </label>
               <div className="grid grid-cols-3 gap-1.5">
@@ -539,10 +539,10 @@ export function ControlPanel({
                     key={mode.id}
                     onClick={() => onChange({ colorMode: mode.id })}
                     className={cn(
-                      "py-2 px-1 rounded-lg text-xs font-medium border text-center transition-all",
+                      "py-2.5 px-1 rounded-xl text-xs font-medium border text-center btn-press",
                       settings.colorMode === mode.id
-                        ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-semibold"
-                        : "bg-neutral-950/60 border-neutral-800 hover:border-neutral-700 text-neutral-400"
+                        ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 font-semibold shadow-sm"
+                        : "bg-white/[0.02] border-white/10 hover:border-white/20 text-neutral-400"
                     )}
                   >
                     {mode.label}
@@ -552,7 +552,7 @@ export function ControlPanel({
             </div>
 
             {/* Invert Luminance */}
-            <div className="flex items-center justify-between p-3 bg-neutral-950/80 border border-neutral-800 rounded-xl">
+            <div className="flex items-center justify-between p-3.5 bg-black/40 border border-white/10 rounded-2xl">
               <span className="text-xs font-medium text-neutral-300">Invert Luminance</span>
               <input
                 type="checkbox"
@@ -564,9 +564,9 @@ export function ControlPanel({
 
             {/* Paper 3-Color Mode Pickers */}
             {settings.colorMode === "paper" && (
-              <div className="space-y-3 p-3 bg-neutral-950/80 border border-neutral-800 rounded-xl">
-                <label className="text-xs font-mono uppercase tracking-wider text-emerald-400 block">
-                  3-Color Ramp Settings
+              <div className="space-y-3.5 p-3.5 bg-black/40 border border-white/10 rounded-2xl">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 block">
+                  3-Color Ramp Swatches
                 </label>
 
                 {/* colorBack */}
@@ -577,13 +577,13 @@ export function ControlPanel({
                       type="color"
                       value={settings.colorBack}
                       onChange={(e) => onChange({ colorBack: e.target.value })}
-                      className="w-7 h-7 rounded border border-neutral-700 bg-transparent cursor-pointer"
+                      className="w-7 h-7 rounded-lg border border-white/20 bg-transparent cursor-pointer"
                     />
                     <input
                       type="text"
                       value={settings.colorBack}
                       onChange={(e) => onChange({ colorBack: e.target.value })}
-                      className="w-20 px-2 py-1 bg-neutral-900 border border-neutral-700 rounded text-xs font-mono text-neutral-200"
+                      className="w-20 px-2 py-1 bg-black/60 border border-white/15 rounded-lg text-xs font-mono text-neutral-200"
                     />
                   </div>
                 </div>
@@ -596,13 +596,13 @@ export function ControlPanel({
                       type="color"
                       value={settings.colorFront}
                       onChange={(e) => onChange({ colorFront: e.target.value })}
-                      className="w-7 h-7 rounded border border-neutral-700 bg-transparent cursor-pointer"
+                      className="w-7 h-7 rounded-lg border border-white/20 bg-transparent cursor-pointer"
                     />
                     <input
                       type="text"
                       value={settings.colorFront}
                       onChange={(e) => onChange({ colorFront: e.target.value })}
-                      className="w-20 px-2 py-1 bg-neutral-900 border border-neutral-700 rounded text-xs font-mono text-neutral-200"
+                      className="w-20 px-2 py-1 bg-black/60 border border-white/15 rounded-lg text-xs font-mono text-neutral-200"
                     />
                   </div>
                 </div>
@@ -615,13 +615,13 @@ export function ControlPanel({
                       type="color"
                       value={settings.colorHighlight}
                       onChange={(e) => onChange({ colorHighlight: e.target.value })}
-                      className="w-7 h-7 rounded border border-neutral-700 bg-transparent cursor-pointer"
+                      className="w-7 h-7 rounded-lg border border-white/20 bg-transparent cursor-pointer"
                     />
                     <input
                       type="text"
                       value={settings.colorHighlight}
                       onChange={(e) => onChange({ colorHighlight: e.target.value })}
-                      className="w-20 px-2 py-1 bg-neutral-900 border border-neutral-700 rounded text-xs font-mono text-neutral-200"
+                      className="w-20 px-2 py-1 bg-black/60 border border-white/15 rounded-lg text-xs font-mono text-neutral-200"
                     />
                   </div>
                 </div>
@@ -630,9 +630,9 @@ export function ControlPanel({
 
             {/* Duotone Mode */}
             {settings.colorMode === "duotone" && (
-              <div className="space-y-3 p-3 bg-neutral-950/80 border border-neutral-800 rounded-xl">
-                <label className="text-xs font-mono uppercase tracking-wider text-emerald-400 block">
-                  Duotone Colors
+              <div className="space-y-3.5 p-3.5 bg-black/40 border border-white/10 rounded-2xl">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 block">
+                  Duotone Shades
                 </label>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-neutral-400 font-mono">Dark Tone</span>
@@ -640,7 +640,7 @@ export function ControlPanel({
                     type="color"
                     value={settings.colorBack}
                     onChange={(e) => onChange({ colorBack: e.target.value })}
-                    className="w-8 h-8 rounded border border-neutral-700 bg-transparent cursor-pointer"
+                    className="w-8 h-8 rounded-lg border border-white/20 bg-transparent cursor-pointer"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -649,7 +649,7 @@ export function ControlPanel({
                     type="color"
                     value={settings.colorFront}
                     onChange={(e) => onChange({ colorFront: e.target.value })}
-                    className="w-8 h-8 rounded border border-neutral-700 bg-transparent cursor-pointer"
+                    className="w-8 h-8 rounded-lg border border-white/20 bg-transparent cursor-pointer"
                   />
                 </div>
               </div>
@@ -657,7 +657,7 @@ export function ControlPanel({
 
             {/* Original Color Steps */}
             {settings.colorMode === "original" && (
-              <div className="space-y-3 p-3 bg-neutral-950/80 border border-neutral-800 rounded-xl">
+              <div className="space-y-3.5 p-3.5 bg-black/40 border border-white/10 rounded-2xl">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-400">Color Quantization Steps</span>
                   <span className="text-emerald-400 font-semibold">{settings.colorSteps} levels</span>
@@ -669,7 +669,7 @@ export function ControlPanel({
                   step={1}
                   value={settings.colorSteps}
                   onChange={(e) => onChange({ colorSteps: parseInt(e.target.value, 10) })}
-                  className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                  className="w-full"
                 />
               </div>
             )}
@@ -677,7 +677,7 @@ export function ControlPanel({
             {/* Retro Palettes Library */}
             {settings.colorMode === "palette" && (
               <div className="space-y-4">
-                <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block">
                   Retro Color Palettes
                 </label>
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -691,21 +691,21 @@ export function ControlPanel({
                         })
                       }
                       className={cn(
-                        "w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between gap-3",
+                        "w-full p-3 rounded-2xl border text-left flex items-center justify-between gap-3 btn-press",
                         settings.paletteId === pal.id
-                          ? "bg-neutral-800 border-emerald-500 shadow-sm"
-                          : "bg-neutral-950/60 border-neutral-800 hover:border-neutral-700"
+                          ? "bg-white/10 border-emerald-400 shadow-md font-semibold"
+                          : "bg-white/[0.02] border-white/10 hover:border-white/20"
                       )}
                     >
                       <div className="min-w-0">
                         <div className="text-xs font-semibold text-neutral-200 truncate">{pal.name}</div>
-                        <div className="text-[10px] text-neutral-500">{pal.colors.length} colors</div>
+                        <div className="text-[10px] text-neutral-500 font-mono">{pal.colors.length} colors</div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {pal.colors.slice(0, 5).map((c, i) => (
                           <div
                             key={i}
-                            className="w-3.5 h-3.5 rounded-full border border-black/40"
+                            className="w-3.5 h-3.5 rounded-full border border-black/50 shadow-sm"
                             style={{ backgroundColor: c }}
                           />
                         ))}
@@ -715,9 +715,9 @@ export function ControlPanel({
                 </div>
 
                 {/* Custom Palette Builder */}
-                <div className="p-3 bg-neutral-950/80 border border-neutral-800 rounded-xl space-y-3">
+                <div className="p-3.5 bg-black/40 border border-white/10 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase tracking-wider text-emerald-400">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-400">
                       Active Palette Swatches
                     </span>
                     <span className="text-[10px] font-mono text-neutral-500">
@@ -729,13 +729,13 @@ export function ControlPanel({
                     {settings.customPalette.map((col, idx) => (
                       <div key={idx} className="relative group">
                         <div
-                          className="w-6 h-6 rounded-md border border-neutral-700 cursor-pointer"
+                          className="w-6 h-6 rounded-lg border border-white/20 cursor-pointer shadow-sm"
                           style={{ backgroundColor: col }}
                         />
                         {settings.customPalette.length > 2 && (
                           <button
                             onClick={() => removeCustomColor(idx)}
-                            className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-600 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-600 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             ×
                           </button>
@@ -749,11 +749,11 @@ export function ControlPanel({
                       type="color"
                       value={newColorInput}
                       onChange={(e) => setNewColorInput(e.target.value)}
-                      className="w-7 h-7 rounded border border-neutral-700 bg-transparent cursor-pointer"
+                      className="w-7 h-7 rounded-lg border border-white/20 bg-transparent cursor-pointer"
                     />
                     <button
                       onClick={addCustomColor}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-medium transition-colors"
+                      className="flex items-center gap-1 px-3 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-medium btn-press"
                     >
                       <Plus className="w-3 h-3" /> Add Color
                     </button>
@@ -769,7 +769,7 @@ export function ControlPanel({
           <div className="space-y-5">
             {/* Object Fit */}
             <div>
-              <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-2">
+              <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block mb-2">
                 Object Fit
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -778,10 +778,10 @@ export function ControlPanel({
                     key={fit}
                     onClick={() => onChange({ fit })}
                     className={cn(
-                      "py-1.5 px-2 rounded-lg text-xs capitalize border transition-all",
+                      "py-2 px-2.5 rounded-xl text-xs capitalize border btn-press",
                       settings.fit === fit
-                        ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-semibold"
-                        : "bg-neutral-950/60 border-neutral-800 hover:border-neutral-700 text-neutral-400"
+                        ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 font-semibold"
+                        : "bg-white/[0.02] border-white/10 hover:border-white/20 text-neutral-400"
                     )}
                   >
                     {fit}
@@ -792,7 +792,7 @@ export function ControlPanel({
 
             {/* Scale / Zoom */}
             <div>
-              <div className="flex justify-between text-xs mb-1 font-mono">
+              <div className="flex justify-between text-xs mb-1.5 font-mono">
                 <span className="text-neutral-400">Scale / Zoom</span>
                 <span className="text-emerald-400 font-semibold">{settings.scale.toFixed(2)}x</span>
               </div>
@@ -803,13 +803,13 @@ export function ControlPanel({
                 step={0.05}
                 value={settings.scale}
                 onChange={(e) => onChange({ scale: parseFloat(e.target.value) })}
-                className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                className="w-full"
               />
             </div>
 
             {/* Rotation */}
             <div>
-              <div className="flex justify-between text-xs mb-1 font-mono">
+              <div className="flex justify-between text-xs mb-1.5 font-mono">
                 <span className="text-neutral-400">Rotation Angle</span>
                 <span className="text-emerald-400 font-semibold">{settings.rotation}°</span>
               </div>
@@ -820,13 +820,13 @@ export function ControlPanel({
                 step={5}
                 value={settings.rotation}
                 onChange={(e) => onChange({ rotation: parseFloat(e.target.value) })}
-                className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                className="w-full"
               />
             </div>
 
             {/* Brightness */}
             <div>
-              <div className="flex justify-between text-xs mb-1 font-mono">
+              <div className="flex justify-between text-xs mb-1.5 font-mono">
                 <span className="text-neutral-400">Brightness</span>
                 <span className="text-emerald-400 font-semibold">{settings.brightness > 0 ? `+${settings.brightness.toFixed(2)}` : settings.brightness.toFixed(2)}</span>
               </div>
@@ -837,13 +837,13 @@ export function ControlPanel({
                 step={0.02}
                 value={settings.brightness}
                 onChange={(e) => onChange({ brightness: parseFloat(e.target.value) })}
-                className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                className="w-full"
               />
             </div>
 
             {/* Contrast */}
             <div>
-              <div className="flex justify-between text-xs mb-1 font-mono">
+              <div className="flex justify-between text-xs mb-1.5 font-mono">
                 <span className="text-neutral-400">Contrast</span>
                 <span className="text-emerald-400 font-semibold">{settings.contrast.toFixed(2)}x</span>
               </div>
@@ -854,13 +854,13 @@ export function ControlPanel({
                 step={0.05}
                 value={settings.contrast}
                 onChange={(e) => onChange({ contrast: parseFloat(e.target.value) })}
-                className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                className="w-full"
               />
             </div>
 
             {/* Saturation */}
             <div>
-              <div className="flex justify-between text-xs mb-1 font-mono">
+              <div className="flex justify-between text-xs mb-1.5 font-mono">
                 <span className="text-neutral-400">Saturation</span>
                 <span className="text-emerald-400 font-semibold">{settings.saturation.toFixed(2)}x</span>
               </div>
@@ -871,13 +871,13 @@ export function ControlPanel({
                 step={0.05}
                 value={settings.saturation}
                 onChange={(e) => onChange({ saturation: parseFloat(e.target.value) })}
-                className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                className="w-full"
               />
             </div>
 
             {/* Gamma */}
             <div>
-              <div className="flex justify-between text-xs mb-1 font-mono">
+              <div className="flex justify-between text-xs mb-1.5 font-mono">
                 <span className="text-neutral-400">Gamma Curve</span>
                 <span className="text-emerald-400 font-semibold">{settings.gamma.toFixed(2)}</span>
               </div>
@@ -888,7 +888,7 @@ export function ControlPanel({
                 step={0.05}
                 value={settings.gamma}
                 onChange={(e) => onChange({ gamma: parseFloat(e.target.value) })}
-                className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+                className="w-full"
               />
             </div>
           </div>
@@ -897,7 +897,7 @@ export function ControlPanel({
         {/* --- 5. PRESETS TAB --- */}
         {activeTab === "presets" && (
           <div className="space-y-4">
-            <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block">
+            <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block">
               Curated Style Presets
             </label>
 
@@ -984,7 +984,7 @@ export function ControlPanel({
                 <button
                   key={idx}
                   onClick={() => onApplyPreset(item.preset)}
-                  className="w-full p-3 bg-neutral-950/80 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/40 rounded-xl text-left transition-all group"
+                  className="w-full p-3.5 bg-white/[0.02] hover:bg-white/[0.06] border border-white/10 hover:border-emerald-500/40 rounded-2xl text-left btn-press group"
                 >
                   <div className="text-xs font-semibold text-neutral-200 group-hover:text-emerald-400 transition-colors">
                     {item.name}
@@ -998,13 +998,13 @@ export function ControlPanel({
       </div>
 
       {/* Sidebar Footer Export Button */}
-      <div className="p-4 border-t border-neutral-800 bg-neutral-950/90">
+      <div className="p-4 border-t border-white/10 bg-black/40">
         <button
           onClick={onOpenExport}
-          className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-neutral-950 font-semibold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
+          className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-2xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 btn-press"
         >
           <Share2 className="w-4 h-4" />
-          <span>Export & Copy Code</span>
+          <span>Export Suite</span>
         </button>
       </div>
     </aside>

@@ -11,6 +11,10 @@ interface SplitCompareSliderProps {
   initialPosition?: number; // 0 to 100
 }
 
+/**
+ * Emil Kowalski's Hardware-Accelerated Clip-Path Comparison Slider.
+ * Uses clip-path: inset(0 X% 0 0) with pointer-capture for jitter-free 60fps drag.
+ */
 export function SplitCompareSlider({
   originalElement,
   ditheredElement,
@@ -21,7 +25,7 @@ export function SplitCompareSlider({
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleMove = useCallback((clientX: number) => {
+  const updatePosition = useCallback((clientX: number) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
@@ -29,89 +33,76 @@ export function SplitCompareSlider({
     setSplitPos(percent);
   }, []);
 
-  const handleMouseDown = useCallback(() => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDragging(true);
-  }, []);
+    updatePosition(e.clientX);
+  };
 
-  const handleTouchStart = useCallback(() => {
-    setIsDragging(true);
-  }, []);
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      updatePosition(e.clientX);
+    }
+  };
 
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      handleMove(e.clientX);
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
-        handleMove(e.touches[0].clientX);
-      }
-    };
-
-    const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
       setIsDragging(false);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("touchmove", handleTouchMove);
-    window.addEventListener("touchend", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleMouseUp);
-    };
-  }, [isDragging, handleMove]);
+    }
+  };
 
   return (
     <div
       ref={containerRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       className={cn(
-        "relative w-full h-full overflow-hidden select-none group cursor-ew-resize",
+        "relative w-full h-full overflow-hidden select-none cursor-ew-resize touch-none",
         className
       )}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
     >
-      {/* Right side: Dithered Layer */}
+      {/* Base Layer: Dithered Shader */}
       <div className="absolute inset-0 w-full h-full pointer-events-none">
         {ditheredElement}
       </div>
 
-      {/* Left side: Original Layer clipped */}
+      {/* Top Layer: Original Media clipped using Emil's hardware-accelerated clip-path */}
       <div
-        className="absolute inset-0 h-full overflow-hidden pointer-events-none transition-none"
-        style={{ width: `${splitPos}%` }}
+        className="absolute inset-0 w-full h-full pointer-events-none will-change-[clip-path]"
+        style={{
+          clipPath: `inset(0 ${100 - splitPos}% 0 0)`,
+        }}
       >
+        {originalElement}
+      </div>
+
+      {/* Split Divider Line */}
+      <div
+        className="absolute top-0 bottom-0 w-px bg-white/40 pointer-events-none z-20 will-change-[left]"
+        style={{
+          left: `${splitPos}%`,
+          boxShadow: "0 0 12px rgba(16, 185, 129, 0.4), 0 0 2px rgba(255, 255, 255, 0.8)",
+        }}
+      >
+        {/* Floating Tactile Drag Handle */}
         <div
-          className="absolute inset-0 h-full"
-          style={{
-            width: containerRef.current ? `${containerRef.current.offsetWidth}px` : "100%",
-          }}
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-neutral-900/90 backdrop-blur-md border border-neutral-700 text-neutral-200 flex items-center justify-center shadow-xl transition-transform duration-150 ease-out",
+            isDragging ? "scale-110 border-emerald-400 text-emerald-400 ring-2 ring-emerald-500/30" : "hover:scale-105"
+          )}
         >
-          {originalElement}
+          <MoveHorizontal className="w-3.5 h-3.5" />
         </div>
       </div>
 
-      {/* Split Divider Line & Draggable Badge */}
-      <div
-        className="absolute top-0 bottom-0 w-0.5 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)] pointer-events-none z-20"
-        style={{ left: `${splitPos}%` }}
-      >
-        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-neutral-900 border-2 border-emerald-400 text-emerald-400 flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
-          <MoveHorizontal className="w-4 h-4" />
-        </div>
-      </div>
-
-      {/* Labels */}
-      <div className="absolute top-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded text-xs font-mono text-neutral-300 pointer-events-none z-10">
+      {/* Elegant Micro-Badges */}
+      <div className="absolute top-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-md text-[11px] font-mono text-neutral-300 pointer-events-none z-10 transition-opacity duration-200">
         Original
       </div>
-      <div className="absolute top-3 right-3 px-2 py-1 bg-emerald-950/80 backdrop-blur-md border border-emerald-500/30 rounded text-xs font-mono text-emerald-300 pointer-events-none z-10">
+      <div className="absolute top-3 right-3 px-2.5 py-1 bg-emerald-950/70 backdrop-blur-md border border-emerald-500/30 rounded-md text-[11px] font-mono text-emerald-300 pointer-events-none z-10 transition-opacity duration-200">
         Dithered
       </div>
     </div>

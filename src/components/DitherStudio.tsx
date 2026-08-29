@@ -11,6 +11,7 @@ import {
   Share2,
   Layers,
   Zap,
+  Command,
 } from "lucide-react";
 import { PersonalDither, type PersonalDitherHandle } from "./ui/PersonalDither";
 import { ControlPanel, type StudioSettings } from "./ControlPanel";
@@ -159,7 +160,7 @@ export function DitherStudio() {
     }
   };
 
-  // Global Keyboard Shortcuts
+  // Global Keyboard Shortcuts (instant execution without delay)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -254,7 +255,7 @@ export function DitherStudio() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-screen h-screen overflow-hidden bg-neutral-950 text-neutral-100 font-sans select-none">
+    <div className="flex flex-col lg:flex-row w-screen h-screen overflow-hidden bg-[#08080a] text-neutral-100 font-sans select-none">
       {/* Hidden Video element for video & webcam playback */}
       <video
         ref={videoElementRef}
@@ -267,65 +268,67 @@ export function DitherStudio() {
       />
 
       {/* Main Studio Viewport */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-neutral-950 relative">
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Top Studio Header Bar */}
-        <header className="h-14 border-b border-neutral-800/80 bg-neutral-950/80 backdrop-blur-md px-4 flex items-center justify-between z-30 shrink-0">
+        <header className="h-14 border-b border-white/10 bg-black/40 backdrop-blur-xl px-5 flex items-center justify-between z-30 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
               <Zap className="w-4 h-4 text-neutral-950 font-bold" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-neutral-100 tracking-tight font-mono">
-                Dither Studio
-              </h1>
-              <p className="text-[10px] text-neutral-400 font-mono">
-                Personal Local-First Shader Engine
-              </p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xs font-bold text-neutral-100 tracking-wider uppercase font-mono">
+                  Dither Studio
+                </h1>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                  PRO
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Header Action Buttons */}
+          {/* Header Action Buttons with Emil Tactile Micro-Interactions */}
           <div className="flex items-center gap-2">
             {/* Split Comparison Toggle */}
             <button
               onClick={() => setIsSplitView((prev) => !prev)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono border btn-press",
                 isSplitView
-                  ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-semibold"
-                  : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200"
+                  ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 font-semibold ring-1 ring-emerald-400/30"
+                  : "bg-white/[0.03] border-white/10 text-neutral-400 hover:text-neutral-200"
               )}
-              title="Toggle Before / After Split View (Tab)"
+              title="Toggle Split Comparison (Tab)"
             >
-              <SplitSquareHorizontal className="w-4 h-4" />
+              <SplitSquareHorizontal className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Split View</span>
             </button>
 
             {/* Reset Settings */}
             <button
               onClick={handleReset}
-              className="p-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-neutral-200 rounded-lg text-xs font-mono transition-colors"
+              className="p-2 bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 text-neutral-400 hover:text-neutral-200 rounded-xl text-xs font-mono btn-press"
               title="Reset Settings (R)"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
             </button>
 
             {/* Fullscreen Toggle */}
             <button
               onClick={toggleFullscreen}
-              className="p-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-neutral-200 rounded-lg text-xs font-mono transition-colors"
+              className="p-2 bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 text-neutral-400 hover:text-neutral-200 rounded-xl text-xs font-mono btn-press"
               title="Toggle Fullscreen"
             >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </button>
 
             {/* Export Trigger */}
             <button
               onClick={() => setIsExportOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 rounded-lg text-xs font-mono font-semibold transition-all active:scale-[0.98] shadow-sm shadow-emerald-500/20"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 rounded-xl text-xs font-mono font-bold btn-press shadow-md shadow-emerald-500/20"
               title="Export Media & Code (Ctrl+S)"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-3.5 h-3.5" />
               <span>Export</span>
             </button>
           </div>
@@ -339,7 +342,7 @@ export function DitherStudio() {
           className="flex-1 relative flex items-center justify-center p-4 lg:p-8 overflow-hidden subtle-grid"
         >
           {/* Main Visual Stage Wrapper */}
-          <div className="relative w-full h-full max-w-5xl max-h-[82vh] rounded-2xl overflow-hidden border border-neutral-800/80 bg-neutral-900/60 shadow-2xl flex items-center justify-center crt-glow">
+          <div className="relative w-full h-full max-w-5xl max-h-[82vh] rounded-3xl overflow-hidden glass-panel-glow flex items-center justify-center">
             {/* Split Comparison Mode */}
             {isSplitView ? (
               <SplitCompareSlider
@@ -441,8 +444,8 @@ export function DitherStudio() {
               />
             )}
 
-            {/* Drag and drop overlay hint */}
-            <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/60 backdrop-blur-md border border-neutral-800 rounded-lg text-[11px] font-mono text-neutral-400 pointer-events-none hidden md:block">
+            {/* Drag and drop overlay badge */}
+            <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-[11px] font-mono text-neutral-400 pointer-events-none hidden md:block">
               Drop image/video or paste (Ctrl+V)
             </div>
           </div>

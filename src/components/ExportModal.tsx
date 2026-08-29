@@ -34,13 +34,12 @@ export function ExportModal({
 }: ExportModalProps) {
   const [activeTab, setActiveTab] = useState<"image" | "video" | "gif" | "code">("image");
   const [imageFormat, setImageFormat] = useState<"png" | "webp" | "jpeg">("png");
-  const [scaleFactor, setScaleFactor] = useState<number>(1);
   const [isExporting, setIsExporting] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Video recording states
   const [isRecording, setIsRecording] = useState(false);
-  const [recordDuration, setRecordDuration] = useState(5); // seconds
+  const [recordDuration, setRecordDuration] = useState(5);
   const [recordProgress, setRecordProgress] = useState(0);
 
   // GIF states
@@ -53,9 +52,9 @@ export function ExportModal({
   // Trigger celebration confetti on successful export
   const fireConfetti = () => {
     confetti({
-      particleCount: 60,
-      spread: 70,
-      origin: { y: 0.7 },
+      particleCount: 50,
+      spread: 60,
+      origin: { y: 0.65 },
       colors: ["#10b981", "#34d399", "#6ee7b7", "#ffffff"],
     });
   };
@@ -160,7 +159,7 @@ export function ExportModal({
           mediaRecorder.stop();
         }
       }
-    }, 100);
+    }, 80);
   };
 
   // Export Animated GIF
@@ -247,49 +246,52 @@ export function DitherDemo() {
   const copyCodeToClipboard = () => {
     navigator.clipboard.writeText(generatedReactCode);
     setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+    setTimeout(() => setCopiedCode(false), 1800);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md transition-opacity duration-200 ease-out">
+      <div className="relative w-full max-w-xl glass-panel-glow rounded-3xl overflow-hidden flex flex-col modal-enter">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800 bg-neutral-950/60">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-sm font-semibold text-neutral-100 uppercase tracking-wider font-mono">
-              Export Media & Code
+        <div className="flex items-center justify-between px-6 py-4.5 border-b border-white/10 bg-white/[0.02]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+              <Sparkles className="w-3.5 h-3.5" />
+            </div>
+            <h2 className="text-xs font-semibold text-neutral-100 uppercase tracking-widest font-mono">
+              Export Suite & Code
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-neutral-400 hover:text-neutral-200 rounded-lg hover:bg-neutral-800 transition-colors"
+            className="p-1.5 text-neutral-400 hover:text-neutral-200 rounded-xl hover:bg-white/5 btn-press"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Modal Tabs */}
-        <div className="flex border-b border-neutral-800 bg-neutral-950/40 px-6 pt-2">
+        <div className="flex border-b border-white/10 bg-black/20 px-6 pt-2">
           {[
-            { id: "image", label: "Image (PNG/WebP)", icon: ImageIcon },
-            { id: "video", label: "Video (WebM/MP4)", icon: Video },
-            { id: "gif", label: "Animated GIF", icon: Film },
-            { id: "code", label: "React Component", icon: Code2 },
+            { id: "image", label: "Image", icon: ImageIcon },
+            { id: "video", label: "Video", icon: Video },
+            { id: "gif", label: "GIF", icon: Film },
+            { id: "code", label: "React Code", icon: Code2 },
           ].map((tab) => {
             const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all",
-                  activeTab === tab.id
-                    ? "border-emerald-400 text-emerald-400"
+                  "flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors duration-140 ease-out",
+                  isActive
+                    ? "border-emerald-400 text-emerald-400 font-semibold"
                     : "border-transparent text-neutral-400 hover:text-neutral-200"
                 )}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -302,8 +304,8 @@ export function DitherDemo() {
           {activeTab === "image" && (
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-2">
-                  Image Format
+                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block mb-2">
+                  Format
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {(["png", "webp", "jpeg"] as const).map((fmt) => (
@@ -311,10 +313,10 @@ export function DitherDemo() {
                       key={fmt}
                       onClick={() => setImageFormat(fmt)}
                       className={cn(
-                        "py-2 px-3 rounded-xl border text-xs font-mono uppercase font-medium transition-all",
+                        "py-2.5 px-3 rounded-xl border text-xs font-mono uppercase font-semibold btn-press",
                         imageFormat === fmt
-                          ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold"
-                          : "bg-neutral-950/60 border-neutral-800 hover:border-neutral-700 text-neutral-400"
+                          ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 ring-1 ring-emerald-400/40"
+                          : "bg-white/[0.03] border-white/10 hover:border-white/20 text-neutral-400"
                       )}
                     >
                       .{fmt}
@@ -327,16 +329,16 @@ export function DitherDemo() {
                 <button
                   onClick={handleExportImage}
                   disabled={isExporting}
-                  className="flex-1 py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="flex-1 py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 btn-press disabled:opacity-50"
                 >
                   <Download className="w-4 h-4" />
-                  <span>{isExporting ? "Processing..." : "Download Image"}</span>
+                  <span>{isExporting ? "Rendering..." : "Download Image"}</span>
                 </button>
 
                 <button
                   onClick={handleCopyImage}
                   disabled={isExporting}
-                  className="py-3 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-medium rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+                  className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-200 font-medium rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 btn-press"
                   title="Copy directly to clipboard"
                 >
                   <Copy className="w-4 h-4" />
@@ -350,8 +352,8 @@ export function DitherDemo() {
           {activeTab === "video" && (
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-2">
-                  Recording Duration
+                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block mb-2">
+                  Duration
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[3, 5, 10].map((dur) => (
@@ -359,30 +361,30 @@ export function DitherDemo() {
                       key={dur}
                       onClick={() => setRecordDuration(dur)}
                       className={cn(
-                        "py-2 px-3 rounded-xl border text-xs font-mono font-medium transition-all",
+                        "py-2.5 px-3 rounded-xl border text-xs font-mono font-medium btn-press",
                         recordDuration === dur
-                          ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold"
-                          : "bg-neutral-950/60 border-neutral-800 hover:border-neutral-700 text-neutral-400"
+                          ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 font-semibold ring-1 ring-emerald-400/40"
+                          : "bg-white/[0.03] border-white/10 hover:border-white/20 text-neutral-400"
                       )}
                     >
-                      {dur} Seconds
+                      {dur}s Clip
                     </button>
                   ))}
                 </div>
               </div>
 
               {isRecording && (
-                <div className="space-y-2 p-3 bg-neutral-950/80 border border-neutral-800 rounded-xl">
+                <div className="space-y-2 p-3.5 bg-black/40 border border-red-500/30 rounded-2xl">
                   <div className="flex justify-between text-xs font-mono">
-                    <span className="text-red-400 animate-pulse flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-red-500" />
-                      Recording Canvas Stream...
+                    <span className="text-red-400 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                      Capturing Canvas Stream...
                     </span>
                     <span className="text-neutral-400">{recordProgress}%</span>
                   </div>
-                  <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden">
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-red-500 transition-all duration-100"
+                      className="h-full bg-red-500 transition-all duration-75"
                       style={{ width: `${recordProgress}%` }}
                     />
                   </div>
@@ -392,10 +394,10 @@ export function DitherDemo() {
               <button
                 onClick={handleRecordVideo}
                 disabled={isRecording}
-                className="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 btn-press disabled:opacity-50"
               >
                 <Video className="w-4 h-4" />
-                <span>{isRecording ? `Recording (${recordProgress}%)...` : `Record ${recordDuration}s WebM Clip`}</span>
+                <span>{isRecording ? `Recording (${recordProgress}%)...` : `Record ${recordDuration}s WebM`}</span>
               </button>
             </div>
           )}
@@ -403,30 +405,30 @@ export function DitherDemo() {
           {/* --- 3. GIF EXPORT --- */}
           {activeTab === "gif" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-1">
-                    Frame Count
+                  <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block mb-1">
+                    Frames
                   </label>
                   <select
                     value={gifFrames}
                     onChange={(e) => setGifFrames(parseInt(e.target.value, 10))}
-                    className="w-full p-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs font-mono text-neutral-200 focus:outline-none focus:border-emerald-500"
+                    className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl text-xs font-mono text-neutral-200 focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="15">15 Frames (~1.0s)</option>
-                    <option value="30">30 Frames (~2.0s)</option>
-                    <option value="45">45 Frames (~3.0s)</option>
+                    <option value="15">15 Frames (~1s)</option>
+                    <option value="30">30 Frames (~2s)</option>
+                    <option value="45">45 Frames (~3s)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-neutral-400 block mb-1">
-                    Frame Rate (FPS)
+                  <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block mb-1">
+                    Frame Rate
                   </label>
                   <select
                     value={gifFps}
                     onChange={(e) => setGifFps(parseInt(e.target.value, 10))}
-                    className="w-full p-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs font-mono text-neutral-200 focus:outline-none focus:border-emerald-500"
+                    className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl text-xs font-mono text-neutral-200 focus:outline-none focus:border-emerald-500"
                   >
                     <option value="10">10 FPS</option>
                     <option value="15">15 FPS</option>
@@ -436,14 +438,14 @@ export function DitherDemo() {
               </div>
 
               {isExporting && (
-                <div className="space-y-2 p-3 bg-neutral-950/80 border border-neutral-800 rounded-xl">
+                <div className="space-y-2 p-3.5 bg-black/40 border border-emerald-500/30 rounded-2xl">
                   <div className="flex justify-between text-xs font-mono">
-                    <span className="text-emerald-400">Encoding GIF LZW Blocks...</span>
+                    <span className="text-emerald-400">LZW Compression...</span>
                     <span className="text-neutral-400">{gifProgress}%</span>
                   </div>
-                  <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden">
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-emerald-500 transition-all duration-100"
+                      className="h-full bg-emerald-500 transition-all duration-75"
                       style={{ width: `${gifProgress}%` }}
                     />
                   </div>
@@ -453,7 +455,7 @@ export function DitherDemo() {
               <button
                 onClick={handleExportGif}
                 disabled={isExporting}
-                className="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 btn-press disabled:opacity-50"
               >
                 <Film className="w-4 h-4" />
                 <span>{isExporting ? `Encoding (${gifProgress}%)...` : "Export Animated GIF"}</span>
@@ -465,19 +467,19 @@ export function DitherDemo() {
           {activeTab === "code" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-wider text-neutral-400">
-                  Ready-to-Use Component Code
+                <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
+                  Drop-in React Component
                 </span>
                 <button
                   onClick={copyCodeToClipboard}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-mono transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-mono btn-press"
                 >
                   {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedCode ? "Copied!" : "Copy Code"}</span>
+                  <span>{copiedCode ? "Copied!" : "Copy JSX"}</span>
                 </button>
               </div>
 
-              <pre className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed max-h-64">
+              <pre className="p-4 bg-black/60 border border-white/10 rounded-2xl text-xs font-mono text-emerald-300/90 overflow-x-auto leading-relaxed max-h-64 shadow-inner">
                 <code>{generatedReactCode}</code>
               </pre>
             </div>
