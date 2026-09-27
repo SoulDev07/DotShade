@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
+  <!-- Pixelated Black & White Badge Base -->
+  <rect width="32" height="32" fill="#000000" />
+  <rect x="1" y="1" width="30" height="30" fill="#09090b" stroke="#27272a" stroke-width="1" />
+
+  <!-- Corner 1-Bit Dither Accents (Bayer Micro Dots) -->
+  <g fill="#ffffff" opacity="0.3">
+    <rect x="3" y="3" width="1" height="1" />
+    <rect x="5" y="5" width="1" height="1" />
+    <rect x="28" y="3" width="1" height="1" />
+    <rect x="26" y="5" width="1" height="1" />
+    <rect x="3" y="28" width="1" height="1" />
+    <rect x="5" y="26" width="1" height="1" />
+    <rect x="28" y="28" width="1" height="1" />
+    <rect x="26" y="26" width="1" height="1" />
+  </g>
+
+  <!-- Left Stem of D: Solid White Pixel Column -->
+  <rect x="6" y="6" width="4" height="20" fill="#ffffff" />
+
+  <!-- Horizontal Top and Bottom Beams -->
+  <rect x="10" y="6" width="8" height="3" fill="#ffffff" />
+  <rect x="10" y="23" width="8" height="3" fill="#ffffff" />
+
+  <!-- Stepped Pixel Contour of the D Arch (Solid White) -->
+  <rect x="18" y="6" width="3" height="3" fill="#ffffff" />
+  <rect x="21" y="8" width="2" height="3" fill="#ffffff" />
+  <rect x="23" y="10" width="2" height="3" fill="#ffffff" />
+  <rect x="24" y="13" width="2" height="6" fill="#ffffff" />
+  <rect x="23" y="19" width="2" height="3" fill="#ffffff" />
+  <rect x="21" y="21" width="2" height="3" fill="#ffffff" />
+  <rect x="18" y="23" width="3" height="3" fill="#ffffff" />
+
+  <!-- Inner Monochrome Pixel Dither Shading -->
+  <g fill="#a1a1aa">
+    <rect x="18" y="9" width="2" height="2" />
+    <rect x="20" y="11" width="2" height="2" />
+    <rect x="21" y="13" width="2" height="6" />
+    <rect x="20" y="19" width="2" height="2" />
+    <rect x="18" y="21" width="2" height="2" />
+  </g>
+  <g fill="#52525b">
+    <rect x="16" y="11" width="2" height="2" />
+    <rect x="18" y="13" width="2" height="6" />
+    <rect x="16" y="19" width="2" height="2" />
+  </g>
+
+  <!-- Outer Pixel Halftone Dissolve (Bayer Ordered Dither Dispersion) -->
+  <g fill="#ffffff">
+    <rect x="26" y="11" width="1" height="1" />
+    <rect x="27" y="12" width="1" height="1" />
+    <rect x="26" y="13" width="1" height="1" />
+    <rect x="27" y="14" width="1" height="1" />
+    <rect x="26" y="15" width="1" height="1" />
+    <rect x="27" y="16" width="1" height="1" />
+    <rect x="28" y="15" width="1" height="1" />
+    <rect x="28" y="16" width="1" height="1" />
+    <rect x="26" y="17" width="1" height="1" />
+    <rect x="27" y="18" width="1" height="1" />
+    <rect x="26" y="19" width="1" height="1" />
+    <rect x="27" y="20" width="1" height="1" />
+    <!-- Fine outer fringe pixels -->
+    <rect x="29" y="14" width="1" height="1" opacity="0.6" />
+    <rect x="29" y="16" width="1" height="1" opacity="0.6" />
+    <rect x="28" y="12" width="1" height="1" opacity="0.5" />
+    <rect x="28" y="19" width="1" height="1" opacity="0.5" />
+  </g>
+
+  <!-- Center Focal Dot: Sharp 3x3 Pixel Core in Pure White -->
+  <rect x="12" y="14" width="3" height="3" fill="#ffffff" />
+</svg>

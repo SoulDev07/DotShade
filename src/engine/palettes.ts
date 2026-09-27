@@ -129,6 +129,79 @@ export const RETRO_PALETTES: ColorPalette[] = [
     colors: ["#2d3142", "#ef8354", "#4f5d75", "#bfc0c0", "#ffffff"],
     description: "Soft modern pastel tones with balanced warm and cool contrast.",
   },
+  {
+    id: "pico-8",
+    name: "PICO-8",
+    category: "retro",
+    colors: [
+      "#000000", "#1d2b53", "#7e2553", "#008751",
+      "#ab5236", "#5f574f", "#c2c3c7", "#fff1e8",
+      "#ff004d", "#ffa300", "#ffec27", "#00e436",
+      "#29adff", "#83769c", "#ff77a8", "#ffccaa"
+    ],
+    description: "Lexaloffle's beloved 16-color fantasy console palette, widely celebrated in pixel art.",
+  },
+  {
+    id: "thermal-flir",
+    name: "Thermal FLIR",
+    category: "stylized",
+    colors: ["#000004", "#320a5e", "#781c6d", "#bb3754", "#ed6925", "#fbb41a", "#fcffa4"],
+    description: "False-color infrared thermal heatmap gradient from deep violet to yellow-white.",
+  },
+  {
+    id: "risograph-pop",
+    name: "Risograph Pop",
+    category: "paper",
+    colors: ["#f6f4ee", "#fedb00", "#ff48b0", "#003882"],
+    description: "Spot color Risograph print: warm cream paper, sunflower yellow, fluorescent pink, and federal blue.",
+  },
+  {
+    id: "nord-frost",
+    name: "Nord Frost",
+    category: "stylized",
+    colors: ["#2e3440", "#3b4252", "#434c5e", "#88c0d0", "#81a1c1", "#8fbcbb", "#eceff4"],
+    description: "Arctic, north-bluish clean developer palette with high readability.",
+  },
+  {
+    id: "dracula",
+    name: "Dracula",
+    category: "stylized",
+    colors: ["#282a36", "#44475a", "#6272a4", "#bd93f9", "#ff79c6", "#50fa7b", "#f8f8f2"],
+    description: "Classic dark theme with vibrant pastel neon accents.",
+  },
+  {
+    id: "teletext",
+    name: "Teletext Ceefax",
+    category: "retro",
+    colors: ["#000000", "#ff0000", "#00ff00", "#ffff00", "#0000ff", "#ff00ff", "#00ffff", "#ffffff"],
+    description: "1976 BBC broadcast teletext 3-bit RGB 8-color graphics.",
+  },
+  {
+    id: "sepia-vintage",
+    name: "Vintage Sepia",
+    category: "monochrome",
+    colors: ["#1a0f07", "#4d2e18", "#8c5b32", "#c49a6c", "#f3e5cb"],
+    description: "Warm antique albumen and daguerreotype photographic tones.",
+  },
+  {
+    id: "gameboy-color",
+    name: "Game Boy Color",
+    category: "retro",
+    colors: ["#000000", "#006395", "#e40058", "#ffffff"],
+    description: "Iconic high-contrast 4-color boot palette from Nintendo Game Boy Color.",
+  },
+  {
+    id: "sega-genesis",
+    name: "Sega Genesis",
+    category: "retro",
+    colors: [
+      "#000000", "#181818", "#383838", "#585858",
+      "#002040", "#005080", "#2080c0", "#60b0e0",
+      "#800000", "#d02000", "#f07000", "#f8b000",
+      "#005800", "#209020", "#58d058", "#f8f8f8"
+    ],
+    description: "Authentic 16-color arcade palette from the 16-bit Sega Genesis / Mega Drive.",
+  },
 ];
 
 export const PALETTE_MAP = new Map<string, ColorPalette>(

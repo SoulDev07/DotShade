@@ -1,28 +1,22 @@
 import { getLuminance, hexToRgb, parseColorToNormalizedRgba } from "@/lib/utils";
 import { findClosestPaletteColor } from "./palettes";
+import type { CpuAlgorithm, ColorMode } from "./types";
 
-export type CpuDitherAlgorithm =
-  | "floyd-steinberg"
-  | "atkinson"
-  | "sierra3"
-  | "sierra-lite"
-  | "burkes"
-  | "stucki"
-  | "jarvis";
+export type { CpuAlgorithm } from "./types";
 
 export interface CpuDitherOptions {
-  algorithm: CpuDitherAlgorithm;
-  colorMode: "paper" | "duotone" | "original" | "palette" | "grayscale";
-  colorBack?: string;
-  colorFront?: string;
-  colorHighlight?: string;
-  palette?: string[];
-  colorSteps?: number;
-  threshold?: number;
-  brightness?: number;
-  contrast?: number;
-  gamma?: number;
-  inverted?: boolean;
+  algorithm: CpuAlgorithm;
+  colorMode: ColorMode;
+  colorBack: string;
+  colorFront: string;
+  colorHighlight: string;
+  palette: string[];
+  colorSteps: number;
+  threshold: number;
+  brightness: number;
+  contrast: number;
+  gamma: number;
+  inverted: boolean;
 }
 
 interface DiffusionMatrix {
@@ -30,7 +24,7 @@ interface DiffusionMatrix {
   offsets: [number, number, number][]; // [dx, dy, weight]
 }
 
-const DIFFUSION_MATRICES: Record<CpuDitherAlgorithm, DiffusionMatrix> = {
+const DIFFUSION_MATRICES: Record<CpuAlgorithm, DiffusionMatrix> = {
   "floyd-steinberg": {
     divisor: 16,
     offsets: [

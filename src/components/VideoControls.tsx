@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Repeat, Gauge } from "lucide-react";
+import { Play, Pause, ArrowCounterClockwise, SpeakerHigh, SpeakerSlash, Repeat, Speedometer } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface VideoControlsProps {
@@ -9,7 +9,7 @@ interface VideoControlsProps {
   className?: string;
 }
 
-export function VideoControls({ videoRef, className }: VideoControlsProps) {
+export const VideoControls = React.memo(function VideoControls({ videoRef, className }: VideoControlsProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -93,11 +93,10 @@ export function VideoControls({ videoRef, className }: VideoControlsProps) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-2.5 p-3.5 glass-panel-glow rounded-2xl text-neutral-200",
+        "flex flex-col gap-2.5 p-3.5 glass-panel-glow rounded-xl text-foreground",
         className
       )}
     >
-      {/* Precision Scrubber Bar */}
       <div className="relative group/bar flex items-center h-4 cursor-pointer">
         <input
           type="range"
@@ -108,53 +107,46 @@ export function VideoControls({ videoRef, className }: VideoControlsProps) {
           onChange={handleSeek}
           className="w-full z-10 opacity-0 cursor-pointer absolute inset-0"
         />
-        {/* Track Background */}
-        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden transition-[height] duration-150 ease-out group-hover/bar:h-2">
-          {/* Active Fill with subtle glow */}
+        <div className="w-full h-1 bg-muted rounded-full overflow-hidden transition-[height] duration-150 ease-out group-hover/bar:h-1.5">
           <div
-            className="h-full bg-emerald-400 rounded-full transition-all duration-75 ease-out"
+            className="h-full bg-primary rounded-full transition-all duration-75 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
       </div>
 
-      {/* Control Buttons and Time Display */}
       <div className="flex items-center justify-between gap-2 text-xs font-mono">
         <div className="flex items-center gap-1.5">
-          {/* Play/Pause Button with Emil tactile press */}
           <button
             onClick={togglePlay}
-            className="p-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl btn-press"
+            className="p-1.5 bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-md transition-colors btn-press"
             title={isPlaying ? "Pause (Space)" : "Play (Space)"}
           >
             {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Restart */}
           <button
             onClick={() => {
               if (videoRef.current) videoRef.current.currentTime = 0;
             }}
-            className="p-2 hover:bg-white/5 text-neutral-400 hover:text-neutral-200 rounded-xl btn-press"
+            className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-md transition-colors btn-press"
             title="Restart"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <ArrowCounterClockwise className="w-3.5 h-3.5" />
           </button>
 
-          {/* Time Code */}
-          <span className="text-[11px] text-neutral-400 pl-1 font-mono tracking-tight">
-            {formatTime(currentTime)} <span className="text-neutral-600">/</span> {formatTime(duration)}
+          <span className="text-[11px] text-muted-foreground pl-1 font-mono tracking-tight tabular-nums">
+            {formatTime(currentTime)} <span className="text-muted-foreground/60">/</span> {formatTime(duration)}
           </span>
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Speed Selector */}
-          <div className="flex items-center gap-1 bg-white/5 border border-white/10 px-2 py-1 rounded-lg">
-            <Gauge className="w-3 h-3 text-neutral-400" />
+          <div className="flex items-center gap-1 bg-secondary border border-border px-1.5 py-0.5 rounded-md">
+            <Speedometer className="w-3 h-3 text-muted-foreground" />
             <select
               value={playbackRate}
               onChange={(e) => changeRate(parseFloat(e.target.value))}
-              className="bg-transparent text-neutral-300 text-[11px] font-mono focus:outline-none cursor-pointer"
+              className="bg-transparent text-foreground text-[11px] font-mono focus:outline-none cursor-pointer"
             >
               <option value="0.25">0.25x</option>
               <option value="0.5">0.5x</option>
@@ -164,30 +156,28 @@ export function VideoControls({ videoRef, className }: VideoControlsProps) {
             </select>
           </div>
 
-          {/* Loop */}
           <button
             onClick={toggleLoop}
             className={cn(
-              "p-2 rounded-xl border btn-press",
+              "p-1.5 rounded-md border transition-colors btn-press",
               isLooping
-                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                : "border-transparent text-neutral-500 hover:text-neutral-300"
+                ? "bg-card border-primary/50 text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
             title="Toggle Loop"
           >
             <Repeat className="w-3.5 h-3.5" />
           </button>
 
-          {/* Mute */}
           <button
             onClick={toggleMute}
-            className="p-2 hover:bg-white/5 text-neutral-400 hover:text-neutral-200 rounded-xl btn-press"
+            className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-md transition-colors btn-press"
             title={isMuted ? "Unmute" : "Mute"}
           >
-            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            {isMuted ? <SpeakerSlash className="w-3.5 h-3.5" /> : <SpeakerHigh className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
     </div>
   );
-}
+});

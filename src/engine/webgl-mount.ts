@@ -1,38 +1,11 @@
 import { ditherVertexShader, ditherFragmentShader } from "./shaders/dither.glsl";
 import { parseColorToNormalizedRgba } from "@/lib/utils";
 import { paletteToVec4Array } from "./palettes";
+import type { DitherSettings } from "./types";
 
-export interface DitherMountOptions {
-  canvas: HTMLCanvasElement;
-  ditherType?: "noise" | "2x2" | "4x4" | "8x8" | "16x16" | "halftone" | "crosshatch" | "clustered";
-  pxSize?: number;
-  threshold?: number;
-  halftoneAngle?: number;
-  halftoneScale?: number;
-  colorMode?: "paper" | "duotone" | "original" | "palette" | "grayscale";
-  colorBack?: string;
-  colorFront?: string;
-  colorHighlight?: string;
-  palette?: string[];
-  colorSteps?: number;
-  inverted?: boolean;
-  fit?: "contain" | "cover" | "fill";
-  scale?: number;
-  rotation?: number;
-  offsetX?: number;
-  offsetY?: number;
-  brightness?: number;
-  contrast?: number;
-  saturation?: number;
-  gamma?: number;
-  proceduralShape?: "simplex" | "warp" | "dots" | "waves" | "ripple" | "swirl" | "sphere";
-  animated?: boolean;
-  animationSpeed?: number;
-  minPixelRatio?: number;
-  maxPixelCount?: number;
-}
+export type DitherMountOptions = DitherSettings;
 
-const DITHER_TYPES = {
+const DITHER_TYPES: Record<string, number> = {
   noise: 1,
   "2x2": 2,
   "4x4": 3,
@@ -41,23 +14,23 @@ const DITHER_TYPES = {
   halftone: 6,
   crosshatch: 7,
   clustered: 8,
-} as const;
+};
 
-const COLOR_MODES = {
+const COLOR_MODES: Record<string, number> = {
   paper: 1,
   duotone: 2,
   original: 3,
   palette: 4,
   grayscale: 5,
-} as const;
+};
 
-const FIT_MODES = {
+const FIT_MODES: Record<string, number> = {
   contain: 1,
   cover: 2,
   fill: 3,
-} as const;
+};
 
-const PROCEDURAL_SHAPES = {
+const PROCEDURAL_SHAPES: Record<string, number> = {
   simplex: 1,
   warp: 2,
   dots: 3,
@@ -65,7 +38,7 @@ const PROCEDURAL_SHAPES = {
   ripple: 5,
   swirl: 6,
   sphere: 7,
-} as const;
+};
 
 export class DitherWebGLMount {
   public canvas: HTMLCanvasElement;
@@ -77,15 +50,15 @@ export class DitherWebGLMount {
   private rafId: number | null = null;
   private lastTime = 0;
   private currentTime = 0;
-  private options: DitherMountOptions;
+  private options: DitherSettings;
   private isDisposed = false;
 
   private imageSource: HTMLImageElement | HTMLVideoElement | ImageBitmap | null = null;
   private imageAspectRatio = 1;
   private hasImage = false;
 
-  constructor(options: DitherMountOptions) {
-    this.canvas = options.canvas;
+  constructor(canvas: HTMLCanvasElement, options: DitherSettings) {
+    this.canvas = canvas;
     this.options = { ...options };
 
     const gl = this.canvas.getContext("webgl2", {
@@ -120,34 +93,31 @@ export class DitherWebGLMount {
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
       const info = gl.getShaderInfoLog(shader);
       gl.deleteShader(shader);
-      throw new Error(`GLSL compilation error: ${info}`);
+      throw new Error("WebGL Shader compile error: " + info);
     }
     return shader;
   }
 
   private initGL() {
     const gl = this.gl;
-
-    const vertShader = this.createShader(gl.VERTEX_SHADER, ditherVertexShader);
-    const fragShader = this.createShader(gl.FRAGMENT_SHADER, ditherFragmentShader);
+    const vs = this.createShader(gl.VERTEX_SHADER, ditherVertexShader);
+    const fs = this.createShader(gl.FRAGMENT_SHADER, ditherFragmentShader);
 
     const program = gl.createProgram();
     if (!program) throw new Error("Failed to create WebGL program.");
 
-    gl.attachShader(program, vertShader);
-    gl.attachShader(program, fragShader);
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
     gl.linkProgram(program);
 
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       const info = gl.getProgramInfoLog(program);
-      gl.deleteProgram(program);
-      throw new Error(`WebGL Program link error: ${info}`);
+      throw new Error("WebGL program link error: " + info);
     }
 
     this.program = program;
-    gl.useProgram(program);
 
-    // Full-screen quad geometry
+    // Full-screen quad
     const positions = new Float32Array([
       -1, -1,
        1, -1,
@@ -157,8 +127,9 @@ export class DitherWebGLMount {
        1,  1,
     ]);
 
-    this.vao = gl.createVertexArray();
-    gl.bindVertexArray(this.vao);
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    this.vao = vao;
 
     const posBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
@@ -168,23 +139,32 @@ export class DitherWebGLMount {
     gl.enableVertexAttribArray(posAttr);
     gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
 
-    // Texture unit
-    this.texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    // Initial 1x1 white texture
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      1,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      new Uint8Array([255, 255, 255, 255])
+    );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    this.texture = texture;
   }
 
   private getUniformLocation(name: string): WebGLUniformLocation | null {
-    if (!this.program) return null;
-    if (!this.uniformLocs.has(name)) {
-      const loc = this.gl.getUniformLocation(this.program, name);
-      this.uniformLocs.set(name, loc);
-      return loc;
+    if (!this.uniformLocs.has(name) && this.gl && this.program) {
+      this.uniformLocs.set(name, this.gl.getUniformLocation(this.program, name));
     }
-    return this.uniformLocs.get(name) || null;
+    return this.uniformLocs.get(name) ?? null;
   }
 
   public setMediaSource(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
@@ -220,9 +200,10 @@ export class DitherWebGLMount {
     );
   }
 
-  public updateOptions(newOptions: Partial<DitherMountOptions>) {
-    this.options = { ...this.options, ...newOptions };
-    if (newOptions.animated !== undefined) {
+  public updateOptions(newOptions: DitherSettings) {
+    const wasAnimated = this.options.animated;
+    this.options = { ...newOptions };
+    if (newOptions.animated !== wasAnimated) {
       if (newOptions.animated) {
         this.startAnimation();
       } else {
@@ -244,77 +225,62 @@ export class DitherWebGLMount {
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
 
-    // If source is an active video, upload current frame
     if (this.imageSource instanceof HTMLVideoElement && !this.imageSource.paused) {
       this.updateTexture();
     }
 
     const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const effectiveDpr = Math.max(1, this.options.minPixelRatio ?? dpr);
 
-    // Set Uniforms
     gl.uniform2f(this.getUniformLocation("u_resolution"), width, height);
-    gl.uniform1f(this.getUniformLocation("u_pixelRatio"), effectiveDpr);
+    gl.uniform1f(this.getUniformLocation("u_pixelRatio"), dpr);
     gl.uniform1f(this.getUniformLocation("u_time"), this.currentTime);
     gl.uniform1f(this.getUniformLocation("u_imageAspectRatio"), this.imageAspectRatio);
     gl.uniform1i(this.getUniformLocation("u_hasImage"), this.hasImage ? 1 : 0);
 
-    // Dither mode
-    const dType = DITHER_TYPES[this.options.ditherType || "8x8"] || 4;
+    const dType = DITHER_TYPES[this.options.ditherType] || 4;
     gl.uniform1i(this.getUniformLocation("u_ditherType"), dType);
-    gl.uniform1f(this.getUniformLocation("u_pxSize"), this.options.pxSize ?? 2);
-    gl.uniform1f(this.getUniformLocation("u_threshold"), this.options.threshold ?? 0.5);
-    gl.uniform1f(this.getUniformLocation("u_halftoneAngle"), this.options.halftoneAngle ?? 45);
-    gl.uniform1f(this.getUniformLocation("u_halftoneScale"), this.options.halftoneScale ?? 2);
+    gl.uniform1f(this.getUniformLocation("u_pxSize"), this.options.pxSize);
+    gl.uniform1f(this.getUniformLocation("u_threshold"), this.options.threshold);
+    gl.uniform1f(this.getUniformLocation("u_halftoneAngle"), this.options.halftoneAngle);
+    gl.uniform1f(this.getUniformLocation("u_halftoneScale"), this.options.halftoneScale);
 
-    // Color mode
-    const cMode = COLOR_MODES[this.options.colorMode || "paper"] || 1;
+    const cMode = COLOR_MODES[this.options.colorMode] || 1;
     gl.uniform1i(this.getUniformLocation("u_colorMode"), cMode);
 
-    const backRgba = parseColorToNormalizedRgba(this.options.colorBack || "#000c38");
-    const frontRgba = parseColorToNormalizedRgba(this.options.colorFront || "#94ffaf");
-    const hlRgba = parseColorToNormalizedRgba(this.options.colorHighlight || "#eaff94");
+    const backRgba = parseColorToNormalizedRgba(this.options.colorBack);
+    const frontRgba = parseColorToNormalizedRgba(this.options.colorFront);
+    const hlRgba = parseColorToNormalizedRgba(this.options.colorHighlight);
 
     gl.uniform4fv(this.getUniformLocation("u_colorBack"), backRgba);
     gl.uniform4fv(this.getUniformLocation("u_colorFront"), frontRgba);
     gl.uniform4fv(this.getUniformLocation("u_colorHighlight"), hlRgba);
 
-    // Multi-color palette array
-    const paletteColors = this.options.palette || ["#000000", "#ffffff"];
+    const paletteColors = this.options.palette.length > 0 ? this.options.palette : ["#000000", "#ffffff"];
     const palArray = paletteToVec4Array(paletteColors, 16);
     gl.uniform4fv(this.getUniformLocation("u_palette"), palArray);
     gl.uniform1i(this.getUniformLocation("u_paletteCount"), paletteColors.length);
 
-    gl.uniform1f(this.getUniformLocation("u_colorSteps"), this.options.colorSteps ?? 2);
+    gl.uniform1f(this.getUniformLocation("u_colorSteps"), this.options.colorSteps);
     gl.uniform1i(this.getUniformLocation("u_inverted"), this.options.inverted ? 1 : 0);
 
-    // Transforms
-    const fitMode = FIT_MODES[this.options.fit || "cover"] || 2;
+    const fitMode = FIT_MODES[this.options.fit] || 2;
     gl.uniform1i(this.getUniformLocation("u_fit"), fitMode);
-    gl.uniform1f(this.getUniformLocation("u_scale"), this.options.scale ?? 1);
-    gl.uniform1f(this.getUniformLocation("u_rotation"), this.options.rotation ?? 0);
-    gl.uniform2f(
-      this.getUniformLocation("u_offset"),
-      this.options.offsetX ?? 0,
-      this.options.offsetY ?? 0
-    );
+    gl.uniform1f(this.getUniformLocation("u_scale"), this.options.scale);
+    gl.uniform1f(this.getUniformLocation("u_rotation"), this.options.rotation);
+    gl.uniform2f(this.getUniformLocation("u_offset"), this.options.offsetX, this.options.offsetY);
 
-    // Adjustments
-    gl.uniform1f(this.getUniformLocation("u_brightness"), this.options.brightness ?? 0);
-    gl.uniform1f(this.getUniformLocation("u_contrast"), this.options.contrast ?? 1);
-    gl.uniform1f(this.getUniformLocation("u_saturation"), this.options.saturation ?? 1);
-    gl.uniform1f(this.getUniformLocation("u_gamma"), this.options.gamma ?? 1);
+    gl.uniform1f(this.getUniformLocation("u_brightness"), this.options.brightness);
+    gl.uniform1f(this.getUniformLocation("u_contrast"), this.options.contrast);
+    gl.uniform1f(this.getUniformLocation("u_saturation"), this.options.saturation);
+    gl.uniform1f(this.getUniformLocation("u_gamma"), this.options.gamma);
 
-    // Procedural Shape
-    const pShape = PROCEDURAL_SHAPES[this.options.proceduralShape || "simplex"] || 1;
+    const pShape = PROCEDURAL_SHAPES[this.options.proceduralShape] || 1;
     gl.uniform1i(this.getUniformLocation("u_proceduralShape"), pShape);
 
-    // Texture binding unit 0
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.uniform1i(this.getUniformLocation("u_image"), 0);
 
-    // Draw
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 
@@ -327,7 +293,7 @@ export class DitherWebGLMount {
       const delta = (time - this.lastTime) * 0.001;
       this.lastTime = time;
 
-      const speed = this.options.animationSpeed ?? 1.0;
+      const speed = this.options.animationSpeed;
       this.currentTime += delta * speed;
 
       this.render(time);
@@ -349,57 +315,22 @@ export class DitherWebGLMount {
     this.stopAnimation();
     if (this.gl && this.program) {
       this.gl.deleteProgram(this.program);
+      this.program = null;
     }
     if (this.gl && this.texture) {
       this.gl.deleteTexture(this.texture);
+      this.texture = null;
     }
     if (this.gl && this.vao) {
       this.gl.deleteVertexArray(this.vao);
+      this.vao = null;
     }
   }
 
-  /**
-   * Capture high-resolution still frame offscreen (e.g. 2x, 4x, or custom resolution)
-   */
-  public captureHighResSnapshot(width: number, height: number): ImageData | null {
-    if (!this.gl || !this.program) return null;
-
-    const offscreen = document.createElement("canvas");
-    offscreen.width = width;
-    offscreen.height = height;
-
-    const mount = new DitherWebGLMount({
-      ...this.options,
-      canvas: offscreen,
-      minPixelRatio: 1,
-    });
-
-    mount.setMediaSource(this.imageSource);
-    mount.render();
-
-    const gl = mount.gl;
-    const pixels = new Uint8Array(width * height * 4);
-    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-
-    // Flip Y because WebGL readPixels is bottom-to-top
-    const flippedData = new Uint8ClampedArray(width * height * 4);
-    for (let y = 0; y < height; y++) {
-      const srcRow = (height - 1 - y) * width * 4;
-      const dstRow = y * width * 4;
-      for (let x = 0; x < width * 4; x++) {
-        flippedData[dstRow + x] = pixels[srcRow + x];
-      }
-    }
-
-    mount.dispose();
-    return new ImageData(flippedData, width, height);
-  }
-
-  /**
-   * Get current frame as Blob (image/png, image/webp, image/jpeg)
-   */
-  public async getSnapshotBlob(type: "image/png" | "image/webp" | "image/jpeg" = "image/png", quality = 0.95): Promise<Blob | null> {
-    this.render();
+  public async getSnapshotBlob(
+    type: "image/png" | "image/webp" | "image/jpeg" = "image/png",
+    quality = 0.95
+  ): Promise<Blob | null> {
     return new Promise((resolve) => {
       this.canvas.toBlob((blob) => resolve(blob), type, quality);
     });

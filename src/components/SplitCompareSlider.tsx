@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { MoveHorizontal } from "lucide-react";
+import { ArrowsLeftRight } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface SplitCompareSliderProps {
@@ -12,10 +12,9 @@ interface SplitCompareSliderProps {
 }
 
 /**
- * Emil Kowalski's Hardware-Accelerated Clip-Path Comparison Slider.
- * Uses clip-path: inset(0 X% 0 0) with pointer-capture for jitter-free 60fps drag.
+ * Comparison slider using clip-path with pointer-capture.
  */
-export function SplitCompareSlider({
+export const SplitCompareSlider = React.memo(function SplitCompareSlider({
   originalElement,
   ditheredElement,
   className,
@@ -69,7 +68,7 @@ export function SplitCompareSlider({
         {ditheredElement}
       </div>
 
-      {/* Top Layer: Original Media clipped using Emil's hardware-accelerated clip-path */}
+      {/* Top Layer: Original Media */}
       <div
         className="absolute inset-0 w-full h-full pointer-events-none will-change-[clip-path]"
         style={{
@@ -81,30 +80,31 @@ export function SplitCompareSlider({
 
       {/* Split Divider Line */}
       <div
-        className="absolute top-0 bottom-0 w-px bg-white/40 pointer-events-none z-20 will-change-[left]"
+        className="absolute top-0 bottom-0 w-px bg-neutral-400/80 pointer-events-none z-20 will-change-[left]"
         style={{
           left: `${splitPos}%`,
-          boxShadow: "0 0 12px rgba(16, 185, 129, 0.4), 0 0 2px rgba(255, 255, 255, 0.8)",
         }}
       >
-        {/* Floating Tactile Drag Handle */}
+        {/* Floating Drag Handle */}
         <div
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-neutral-900/90 backdrop-blur-md border border-neutral-700 text-neutral-200 flex items-center justify-center shadow-xl transition-transform duration-150 ease-out",
-            isDragging ? "scale-110 border-emerald-400 text-emerald-400 ring-2 ring-emerald-500/30" : "hover:scale-105"
+            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-card border text-foreground flex items-center justify-center shadow-lg transition-all duration-100 ease-out",
+            isDragging
+              ? "scale-110 border-primary text-primary shadow-primary/25"
+              : "border-border hover:border-primary/50 hover:scale-105"
           )}
         >
-          <MoveHorizontal className="w-3.5 h-3.5" />
+          <ArrowsLeftRight className="w-3.5 h-3.5" />
         </div>
       </div>
 
-      {/* Elegant Micro-Badges */}
-      <div className="absolute top-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-md text-[11px] font-mono text-neutral-300 pointer-events-none z-10 transition-opacity duration-200">
+      {/* Micro-Badges */}
+      <div className="absolute top-3 left-3 px-2.5 py-1 bg-card/90 border border-border rounded-md text-[10px] font-mono text-muted-foreground pointer-events-none z-10 backdrop-blur-sm shadow-md">
         Original
       </div>
-      <div className="absolute top-3 right-3 px-2.5 py-1 bg-emerald-950/70 backdrop-blur-md border border-emerald-500/30 rounded-md text-[11px] font-mono text-emerald-300 pointer-events-none z-10 transition-opacity duration-200">
-        Dithered
+      <div className="absolute top-3 right-3 px-2.5 py-1 bg-card/90 border border-primary/40 rounded-md text-[10px] font-mono text-primary pointer-events-none z-10 backdrop-blur-sm shadow-md flex items-center gap-1.5">
+        <span>Dithered</span>
       </div>
     </div>
   );
-}
+});
