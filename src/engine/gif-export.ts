@@ -1,20 +1,29 @@
+
+
 /**
- * Lightweight, zero-dependency client-side GIF89a encoder with LZW compression.
- * Enables instant animated GIF export directly in the browser from Canvas / Video frames.
+ * Client-side Animated GIF89a Encoder:
+ * Pure TypeScript implementation producing valid binary GIF files directly in the browser
+ * without external dependencies, Node.js binaries, or WebAssembly overhead.
+ * Supports arbitrary palettes, Netscape 2.0 infinite loops, and variable frame delays.
  */
 
 export interface GifFrameOptions {
-  delay?: number; // Delay in milliseconds (e.g. 50ms = 20fps)
-  palette?: number[][]; // [ [r,g,b], ... ] max 256 colors
+  /** Frame duration in milliseconds (default: 100ms) */
+  delay?: number; 
+  /** Optional custom local palette */
+  palette?: number[][]; 
 }
 
+/**
+ * GIF89a stream encoder with variable-length LZW compression and Netscape 2.0 loop extension.
+ */
 export class ClientGifEncoder {
   private width: number;
   private height: number;
   private buffer: number[] = [];
   private globalPalette: number[][] = [];
   private colorDepth = 8;
-  private loopCount = 0; // 0 = infinite loop
+  private loopCount = 0; 
 
   constructor(width: number, height: number) {
     this.width = width;
@@ -22,13 +31,15 @@ export class ClientGifEncoder {
   }
 
   /**
-   * Start encoding GIF stream
+   * Initializes the GIF stream header, logical screen descriptor, and global color table.
+   *
+   * @param palette - Array of hex colors for the global color table (up to 256 colors)
+   * @param loop - Loop count (0 = infinite loop)
    */
   public start(palette: string[] = ["#000000", "#ffffff"], loop = 0) {
     this.buffer = [];
     this.loopCount = loop;
 
-    // Convert hex palette to RGB numbers
     this.globalPalette = palette.slice(0, 256).map((hex) => {
       const h = hex.replace("#", "");
       return [
@@ -38,7 +49,6 @@ export class ClientGifEncoder {
       ];
     });
 
-    // Pad palette to power of 2 (at least 2, max 256)
     while (
       this.globalPalette.length < 2 ||
       (this.globalPalette.length & (this.globalPalette.length - 1)) !== 0
@@ -76,12 +86,11 @@ export class ClientGifEncoder {
       sizeBits++;
     }
 
-    const packed = 0x80 | 0x70 | sizeBits; // Global color table flag + 8-bit depth + table size
+    const packed = 0x80 | 0x70 | sizeBits; 
     this.buffer.push(packed);
-    this.buffer.push(0); // Background color index
-    this.buffer.push(0); // Pixel aspect ratio
+    this.buffer.push(0); 
+    this.buffer.push(0); 
 
-    // Write Global Color Table
     for (let i = 0; i < this.globalPalette.length; i++) {
       this.buffer.push(this.globalPalette[i][0]);
       this.buffer.push(this.globalPalette[i][1]);
@@ -90,24 +99,30 @@ export class ClientGifEncoder {
   }
 
   private writeNetscapeApplicationExtension() {
-    this.buffer.push(0x21); // Extension Introducer
-    this.buffer.push(0xff); // Application Extension Label
-    this.buffer.push(11); // Block Size
+    // Netscape 2.0 application extension for looping
+    this.buffer.push(0x21); // Extension introducer
+    this.buffer.push(0xff); // Application extension label
+    this.buffer.push(11); // Block size
     this.writeString("NETSCAPE2.0");
-    this.buffer.push(3); // Sub-block Size
+    this.buffer.push(3); // Sub-block size
     this.buffer.push(1); // Loop sub-block ID
-    this.writeShort(this.loopCount); // Loop count (0 = forever)
-    this.buffer.push(0); // Block Terminator
+    this.writeShort(this.loopCount); // 0 = loop forever
+    this.buffer.push(0); // Block terminator
   }
 
   /**
-   * Add a frame from ImageData (RGBA)
+   * Encodes a single frame from raw ImageData into the GIF stream.
+   * Maps RGBA pixels to the closest global palette color index, writes the Graphic Control Extension,
+   * writes the Image Descriptor block, and executes variable-length LZW raster data compression.
+   *
+   * @param imageData - Raw RGBA image data for this frame
+   * @param delayMs - Frame duration in milliseconds (default: 100ms)
    */
   public addFrame(imageData: ImageData, delayMs = 100) {
     const data = imageData.data;
     const indexedPixels: number[] = [];
 
-    // Map each RGBA pixel to nearest palette index
+    // Map each RGBA pixel to the closest palette color index in Euclidean RGB space
     for (let i = 0; i < data.length; i += 4) {
       const r = data[i];
       const g = data[i + 1];
@@ -129,29 +144,34 @@ export class ClientGifEncoder {
       indexedPixels.push(bestIdx);
     }
 
-    // Write Graphic Control Extension
-    this.buffer.push(0x21); // Extension
+    // Graphic Control Extension (0x21 0xF9): specifies frame timing and disposal
+    this.buffer.push(0x21); // Extension Introducer
     this.buffer.push(0xf9); // Graphic Control Label
-    this.buffer.push(4); // Block Size
-    this.buffer.push(0x00); // Packed fields (no transparency)
-    const delayHundredths = Math.max(1, Math.round(delayMs / 10));
+    this.buffer.push(4); // Block size (always 4 bytes)
+    this.buffer.push(0x00); // Packed fields (no transparency, no disposal method)
+    const delayHundredths = Math.max(1, Math.round(delayMs / 10)); // Delay in 1/100ths of a second
     this.writeShort(delayHundredths);
     this.buffer.push(0); // Transparent color index
-    this.buffer.push(0); // Terminator
+    this.buffer.push(0); // Block terminator
 
-    // Write Image Descriptor
-    this.buffer.push(0x2c); // Image Separator
-    this.writeShort(0); // Left
-    this.writeShort(0); // Top
+    // Image Descriptor (0x2C): defines local frame geometry
+    this.buffer.push(0x2c); // Image separator
+    this.writeShort(0); // Left position (0)
+    this.writeShort(0); // Top position (0)
     this.writeShort(this.width);
     this.writeShort(this.height);
-    this.buffer.push(0); // No local color table
+    this.buffer.push(0); // Packed fields (no local color table)
 
-    // LZW Encode image data
+    // LZW compress raster indices and append data sub-blocks
     this.lzwEncode(indexedPixels);
   }
 
+  /**
+   * Compresses stream of palette color indices using variable-length LZW compression.
+   * Emits sub-blocks of up to 254 bytes terminated with a null block (0x00).
+   */
   private lzwEncode(pixels: number[]) {
+    // Determine minimum code size based on palette length
     let minCodeSize = 2;
     while (1 << minCodeSize < this.globalPalette.length) {
       minCodeSize++;
@@ -179,6 +199,7 @@ export class ClientGifEncoder {
     let bitCount = 0;
     const packet: number[] = [];
 
+    // Helper to push variable-bit-width codes into 8-bit byte packets
     const writeBits = (code: number, size: number) => {
       bitBuffer |= code << bitCount;
       bitCount += size;
@@ -188,6 +209,7 @@ export class ClientGifEncoder {
         bitBuffer >>= 8;
         bitCount -= 8;
 
+        // Flush sub-block when reaching maximum sub-block size (254 bytes)
         if (packet.length === 254) {
           this.buffer.push(packet.length);
           for (let i = 0; i < packet.length; i++) {
@@ -198,6 +220,7 @@ export class ClientGifEncoder {
       }
     };
 
+    // Output initial Clear Code
     writeBits(clearCode, codeSize);
 
     let prefix = String(pixels[0]);
@@ -210,12 +233,14 @@ export class ClientGifEncoder {
       } else {
         writeBits(dictionary.get(prefix)!, codeSize);
 
+        // Expand dictionary up to 12-bit max (4096 entries)
         if (nextCode < 4096) {
           dictionary.set(combined, nextCode++);
           if (nextCode > 1 << codeSize && codeSize < 12) {
             codeSize++;
           }
         } else {
+          // Dictionary full: reset and emit Clear Code
           writeBits(clearCode, codeSize);
           resetDictionary();
         }
@@ -224,13 +249,16 @@ export class ClientGifEncoder {
       }
     }
 
+    // Flush remaining prefix and emit End of Information code
     writeBits(dictionary.get(prefix)!, codeSize);
     writeBits(endCode, codeSize);
 
+    // Flush remaining buffered bits
     if (bitCount > 0) {
       packet.push(bitBuffer & 0xff);
     }
 
+    // Flush final packet block
     if (packet.length > 0) {
       this.buffer.push(packet.length);
       for (let i = 0; i < packet.length; i++) {
@@ -238,14 +266,18 @@ export class ClientGifEncoder {
       }
     }
 
-    this.buffer.push(0); // Sub-block Terminator
+    // Terminate raster data sub-blocks with 0-length byte
+    this.buffer.push(0); 
   }
 
   /**
-   * Finalize and export Uint8Array Blob
+   * Finalizes the GIF stream by appending the GIF trailer byte (0x3B ';')
+   * and packaging the bytes into an image/gif Blob.
+   *
+   * @returns Binary Blob formatted as image/gif
    */
   public finish(): Blob {
-    this.buffer.push(0x3b); // Trailer
+    this.buffer.push(0x3b); // GIF Trailer
     return new Blob([new Uint8Array(this.buffer)], { type: "image/gif" });
   }
 }

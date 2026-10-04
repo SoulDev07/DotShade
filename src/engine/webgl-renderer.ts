@@ -1,1 +1,0 @@
-export { DitherWebGLMount as DitherWebGLRenderer, DitherWebGLMount } from "./webgl-mount";

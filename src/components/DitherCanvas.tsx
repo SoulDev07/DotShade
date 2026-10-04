@@ -14,27 +14,52 @@ import type { DitherSettings } from "@/engine/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+/**
+ * Union of active GPU mount instances (WebGL2 or WebGPU/vgpu).
+ */
 export type ActiveDitherMount = DitherWebGLMount | DitherVgpuMount;
 
+/**
+ * Props for the core DitherCanvas rendering component.
+ */
 export interface DitherCanvasProps {
+  /** Current dither configuration settings */
   settings: DitherSettings;
+  /** Image URL, HTMLImageElement, HTMLVideoElement, or null */
   src?: string | HTMLImageElement | HTMLVideoElement | null;
+  /** Optional custom container CSS classes */
   className?: string;
+  /** Optional container style object */
   style?: React.CSSProperties;
+  /** Callback fired when the GPU mount is compiled and ready */
   onReady?: (mount: ActiveDitherMount) => void;
+  /** Callback fired if hardware acceleration or shader compilation fails */
   onError?: (error: unknown) => void;
 }
 
+/**
+ * Imperative ref methods exposed by DitherCanvas.
+ */
 export interface DitherCanvasHandle {
+  /** Reference to the active GPU mount */
   mount: ActiveDitherMount | null;
+  /** Reference to the underlying HTMLCanvasElement */
   canvas: HTMLCanvasElement | null;
+  /** Imperatively requests a single frame redraw */
   render: () => void;
+  /** Captures the current canvas contents as an image Blob */
   getSnapshotBlob: (
     type?: "image/png" | "image/webp" | "image/jpeg",
     quality?: number
   ) => Promise<Blob | null>;
 }
 
+/**
+ * DitherCanvas:
+ * Core responsive viewport managing WebGL2 and WebGPU canvas lifecycles.
+ * Handles automatic fallback from WebGPU to WebGL2, DPR-aware high-DPI scaling,
+ * container ResizeObserver events, and media source streaming.
+ */
 export const DitherCanvas = React.memo(
   forwardRef<DitherCanvasHandle, DitherCanvasProps>(function DitherCanvas(
     { settings, src, className, style, onReady, onError },
@@ -91,7 +116,6 @@ export const DitherCanvas = React.memo(
       }
     }, []);
 
-    // Initialize Mount on the fresh canvas
     useEffect(() => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
@@ -109,7 +133,6 @@ export const DitherCanvas = React.memo(
       let activeMount: ActiveDitherMount | null = null;
 
       const initMount = async () => {
-        // 1. Try vgpu (WebGPU) if selected and supported
         if (activeEngine === "vgpu" && typeof navigator !== "undefined" && "gpu" in navigator) {
           try {
             const vgpuMount = new DitherVgpuMount(canvas, settings);
@@ -132,7 +155,6 @@ export const DitherCanvas = React.memo(
               toast.warning("WebGPU unavailable on this device", {
                 description: "Switched to WebGL2 engine automatically.",
               });
-              // Switch to WebGL2 and recreate a fresh canvas element to avoid WebGPU context collision
               setActiveEngine("webgl");
               setEngineVersion((v) => v + 1);
               return;
@@ -140,7 +162,6 @@ export const DitherCanvas = React.memo(
           }
         }
 
-        // 2. WebGL2 engine (default for 'webgl' or fallback)
         try {
           const webglMount = new DitherWebGLMount(canvas, settings);
           if (isCancelled) {
@@ -180,19 +201,16 @@ export const DitherCanvas = React.memo(
       };
     }, [activeEngine, engineVersion]);
 
-    // Update Mount Settings when options change
     useEffect(() => {
       mountRef.current?.updateOptions(settings);
     }, [settings]);
 
-    // Update Media Source
     useEffect(() => {
       if (mountRef.current) {
         applySource(mountRef.current, src);
       }
     }, [src, applySource]);
 
-    // Forward ref imperative methods
     useImperativeHandle(
       ref,
       () => ({
@@ -211,6 +229,7 @@ export const DitherCanvas = React.memo(
         className={cn("relative w-full h-full overflow-hidden select-none", className)}
         style={style}
       >
+        {/* Key forces fresh canvas DOM element on engine switch to prevent WebGPU / WebGL2 context collisions */}
         <canvas
           key={`${activeEngine}-${engineVersion}`}
           ref={canvasRef}
@@ -222,6 +241,3 @@ export const DitherCanvas = React.memo(
   })
 );
 
-// Backward-compatible exports
-export { DitherCanvas as PersonalDither };
-export type { DitherCanvasProps as PersonalDitherProps, DitherCanvasHandle as PersonalDitherHandle };

@@ -19,18 +19,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="antialiased bg-neutral-950 text-neutral-100 min-h-screen">
+      <body className="bg-background text-foreground min-h-screen" style={{ fontFamily: "'Courier New', Courier, monospace", imageRendering: "pixelated" }}>
         {children}
         <Toaster
           theme="dark"
-          position="bottom-right"
-          richColors
+          position="bottom-left"
           closeButton
           toastOptions={{
             style: {
-              background: "#121214",
-              border: "1px solid #27272a",
-              color: "#f4f4f5",
+              background: "#000000",
+              border: "1px solid #ffffff",
+              color: "#ffffff",
+              fontFamily: "'Courier New', Courier, monospace",
+              fontSize: "12px",
+              borderRadius: "0",
+              boxShadow: "3px 3px 0 rgba(255,255,255,0.25)",
             },
           }}
         />

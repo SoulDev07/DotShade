@@ -38,6 +38,12 @@ const PROCEDURAL_SHAPES: Record<string, number> = {
   sphere: 7,
 };
 
+/**
+ * Modern WebGPU Rendering Engine Mount via vgpu (https://vgpu.sh/):
+ * Leverages native WebGPU render pipelines, WGSL shader compilation,
+ * uniform buffers, and hardware textures for GPU-accelerated dithering.
+ * Automatically handles texture re-allocations on media changes and dynamic imports.
+ */
 export class DitherVgpuMount {
   public canvas: HTMLCanvasElement;
   private options: DitherSettings;
@@ -61,6 +67,13 @@ export class DitherVgpuMount {
   private vgpuLib: any = null;
   private initPromise: Promise<boolean> | null = null;
 
+  /**
+   * Initializes the vgpu mount instance.
+   * Note: WebGPU context initialization is asynchronous; call `.init()` to prepare pipelines.
+   *
+   * @param canvas - Target HTML canvas
+   * @param options - Dither rendering configuration
+   */
   constructor(canvas: HTMLCanvasElement, options: DitherSettings) {
     this.canvas = canvas;
     this.options = { ...options };
@@ -83,6 +96,12 @@ export class DitherVgpuMount {
     );
   }
 
+  /**
+   * Asynchronously initializes the WebGPU device, vgpu surface, dummy fallback texture,
+   * and WGSL dither effect pipeline.
+   *
+   * @returns Promise resolving to true if initialization succeeds
+   */
   public async init(): Promise<boolean> {
     if (this.initPromise) return this.initPromise;
     this.initPromise = this.doInit();
@@ -95,7 +114,7 @@ export class DitherVgpuMount {
     }
 
     try {
-      // Import vgpu (https://vgpu.sh/)
+      // Dynamic import of vgpu library (local bundle with CDN fallback)
       let vgpu: any;
       try {
         vgpu = await (Function('return import("vgpu")')());
@@ -108,12 +127,14 @@ export class DitherVgpuMount {
       this.gpu = await init();
       if (!this.gpu || this.isDisposed) return false;
 
+      // Create WebGPU surface mapped to HTML canvas
       this.vgpuSurface = surface(this.gpu, this.canvas, { dpr: 1 });
       this.defaultSampler = sampler(this.gpu, {
         minFilter: "linear",
         magFilter: "linear",
       });
 
+      // Allocate 1x1 dummy neutral gray texture for shader binding when no image is loaded
       this.dummyTexture = texture(this.gpu, {
         kind: "2d",
         size: [1, 1],
@@ -136,6 +157,7 @@ export class DitherVgpuMount {
         );
       }
 
+      // Compile WGSL shader effect
       this.ditherEffect = effect(this.gpu, ditherWgslShader);
       this.isReady = true;
 
@@ -152,6 +174,9 @@ export class DitherVgpuMount {
     }
   }
 
+  /**
+   * Sets or clears the active media image, video element, or image bitmap.
+   */
   public setImage(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
     if (this.isDisposed) return;
     this.imageSource = source;
@@ -181,6 +206,17 @@ export class DitherVgpuMount {
     this.render();
   }
 
+  /**
+   * Alias for setImage providing polymorphism with WebGL mount.
+   */
+  public setMediaSource(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
+    this.setImage(source);
+  }
+
+  /**
+   * Recreates or updates the GPUTexture holding the source image/video frame
+   * using WebGPU queue.copyExternalImageToTexture.
+   */
   private updateSourceTexture(source: any, width: number, height: number) {
     if (!this.gpu) return;
 
@@ -191,11 +227,17 @@ export class DitherVgpuMount {
       const rawQueue = this.getRawQueue();
       if (!rawQueue) return;
 
-      if (
-        !this.sourceTexture ||
-        this.sourceTexture.size?.[0] !== w ||
-        this.sourceTexture.size?.[1] !== h
-      ) {
+      const currentW =
+        this.sourceTexture?.size?.[0] ??
+        this.sourceTexture?.width ??
+        this.sourceTexture?.gpuTexture?.width;
+      const currentH =
+        this.sourceTexture?.size?.[1] ??
+        this.sourceTexture?.height ??
+        this.sourceTexture?.gpuTexture?.height;
+
+      // Reallocate texture if dimensions changed
+      if (!this.sourceTexture || currentW !== w || currentH !== h) {
         if (this.sourceTexture?.destroy) {
           this.sourceTexture.destroy();
         }
@@ -211,7 +253,7 @@ export class DitherVgpuMount {
         } else {
           const rawDevice = this.getRawDevice();
           if (rawDevice) {
-            // GPUTextureUsage.TEXTURE_BINDING (4) | GPUTextureUsage.COPY_DST (2) | GPUTextureUsage.RENDER_ATTACHMENT (16)
+            // GPUTextureUsage: TEXTURE_BINDING (4) | COPY_DST (2) | RENDER_ATTACHMENT (16)
             this.sourceTexture = rawDevice.createTexture({
               size: [w, h, 1],
               format: "rgba8unorm",
@@ -221,6 +263,7 @@ export class DitherVgpuMount {
         }
       }
 
+      // Upload pixels from HTMLImageElement / HTMLVideoElement / ImageBitmap into GPU memory
       const rawTexture =
         this.sourceTexture?.gpu ?? this.sourceTexture?.gpuTexture ?? this.sourceTexture;
       if (rawTexture) {
@@ -248,6 +291,9 @@ export class DitherVgpuMount {
     this.render();
   }
 
+  /**
+   * Dispatches a WebGPU render pass using vgpu, updating uniforms and drawing to the canvas surface.
+   */
   public render() {
     if (this.isDisposed || !this.isReady || !this.ditherEffect || !this.gpu || !this.vgpuSurface) return;
     if (this.isRendering) return;
@@ -257,6 +303,7 @@ export class DitherVgpuMount {
     const now = performance.now();
     const elapsedTime = ((now - this.startTime) / 1000) * (opt.animationSpeed || 1);
 
+    // Sync active video frame if playing
     if (
       this.imageSource instanceof HTMLVideoElement &&
       this.imageSource.readyState >= 2 &&
@@ -315,6 +362,9 @@ export class DitherVgpuMount {
           gamma: opt.gamma,
           proceduralShape: PROCEDURAL_SHAPES[opt.proceduralShape] || 1,
           paletteCount: Math.min(16, opt.palette.length),
+          pad0: 0,
+          pad1: 0,
+          pad2: 0,
           colorBack: cBack,
           colorFront: cFront,
           colorHighlight: cHighlight,
@@ -359,6 +409,10 @@ export class DitherVgpuMount {
     }
   }
 
+  /**
+   * Captures the current frame as an image Blob.
+   * Tries WebGPU texture buffer copy first, with fallback to canvas.toBlob.
+   */
   public async getSnapshotBlob(
     type: "image/png" | "image/webp" | "image/jpeg" = "image/png",
     quality = 0.95
@@ -381,13 +435,16 @@ export class DitherVgpuMount {
         }
       }
     } catch {
-      // fallback to direct canvas.toBlob
+      // Fallback to direct canvas.toBlob
     }
     return new Promise((resolve) => {
       this.canvas.toBlob((blob) => resolve(blob), type, quality);
     });
   }
 
+  /**
+   * Cleanly destroys all GPU textures, surface bindings, and animation frames.
+   */
   public dispose() {
     this.isDisposed = true;
     this.stopAnimation();

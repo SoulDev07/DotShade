@@ -17,6 +17,11 @@ interface SliderControlProps {
   className?: string;
 }
 
+/**
+ * Numeric slider control with retro aesthetic styling.
+ * Supports scrubbing, quick reset to defaultValue, and clicking the value label
+ * to open an inline number input for precision manual typing.
+ */
 export function SliderControl({
   label,
   value,
@@ -57,8 +62,8 @@ export function SliderControl({
 
   return (
     <div className={cn("space-y-1.5 select-none", className)}>
-      <div className="flex items-center justify-between font-mono text-[11px]">
-        <span className="text-muted-foreground font-medium">
+      <div className="flex items-center justify-between font-mono text-xs">
+        <span className="text-neutral-200 font-bold uppercase tracking-wide">
           {label}
         </span>
 
@@ -67,10 +72,10 @@ export function SliderControl({
             <button
               type="button"
               onClick={() => onChange(defaultValue)}
-              className="text-muted-foreground/60 hover:text-primary transition-colors p-0.5"
+              className="text-neutral-400 hover:text-white transition-colors p-0.5"
               title={`Reset to default (${defaultValue}${unit ? ` ${unit}` : ""})`}
             >
-              <ArrowCounterClockwise className="w-2.5 h-2.5" />
+              <ArrowCounterClockwise className="w-3 h-3" />
             </button>
           )}
 
@@ -91,13 +96,13 @@ export function SliderControl({
                   setInputValue(value.toString());
                 }
               }}
-              className="w-14 px-1 py-0.5 text-right bg-background border border-primary rounded text-foreground text-[10px] font-mono outline-none"
+              className="w-16 px-1.5 py-0.5 text-right bg-black border border-white text-white text-xs font-mono outline-none"
             />
           ) : (
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="text-foreground/90 hover:text-foreground tabular-nums text-[10px] font-mono font-medium hover:underline transition-colors"
+              className="text-white hover:text-neutral-300 tabular-nums text-xs font-mono font-bold hover:underline transition-colors"
               title="Click to edit value"
             >
               {formattedDisplay}
@@ -106,10 +111,12 @@ export function SliderControl({
         </div>
       </div>
 
-      <div className="relative flex items-center h-4 w-full group cursor-pointer">
-        <div className="absolute inset-x-0 h-1 rounded-full bg-muted overflow-hidden">
+      <div className="relative flex items-center h-5 w-full group cursor-pointer">
+        
+        <div className="absolute inset-x-0 h-2 bg-neutral-900 overflow-hidden border border-neutral-700">
+          
           <div
-            className="h-full bg-primary rounded-full transition-[width] duration-75"
+            className="h-full pixel-progress"
             style={{ width: `${percentage}%` }}
           />
         </div>
@@ -125,7 +132,7 @@ export function SliderControl({
         />
 
         <div
-          className="absolute z-20 w-3 h-3 -ml-1.5 rounded-full bg-foreground border border-background shadow pointer-events-none transition-transform duration-100 ease-out group-hover:scale-125"
+          className="absolute z-20 w-4 h-4 -ml-2 bg-white border border-black shadow pointer-events-none group-hover:scale-110 transition-transform duration-75"
           style={{ left: `${percentage}%` }}
         />
       </div>

@@ -1,13 +1,26 @@
 import { hexToRgb, parseColorToNormalizedRgba } from "@/lib/utils";
 
+/**
+ * Representation of a predefined or user-curated color quantization palette.
+ */
 export interface ColorPalette {
+  /** Unique palette identifier (e.g. "gameboy-dmg", "cga-mode1") */
   id: string;
+  /** Human-readable display label */
   name: string;
+  /** Palette aesthetic categorization */
   category: "retro" | "monochrome" | "paper" | "stylized" | "custom";
+  /** Hex color strings defining the palette ramp/entries */
   colors: string[];
+  /** Detailed background context or historical hardware origin */
   description: string;
 }
 
+/**
+ * Collection of curated historical hardware and stylized retro palettes.
+ * Spans classic 1-bit systems (Macintosh), 2-bit consoles (Game Boy DMG),
+ * vintage microcomputers (CGA, Commodore 64, ZX Spectrum), and modern aesthetic ramps.
+ */
 export const RETRO_PALETTES: ColorPalette[] = [
   {
     id: "paper-mint",
@@ -204,12 +217,23 @@ export const RETRO_PALETTES: ColorPalette[] = [
   },
 ];
 
+/**
+ * Map of palette ID to palette definition for quick O(1) lookups.
+ */
 export const PALETTE_MAP = new Map<string, ColorPalette>(
   RETRO_PALETTES.map((palette) => [palette.id, palette])
 );
 
 /**
- * Finds the closest color index in an array of Hex colors using Euclidean distance in sRGB
+ * Finds the closest color in a target hex color palette using perceptually-weighted
+ * Euclidean distance in RGB color space.
+ * Weights (0.30 R, 0.59 G, 0.11 B) account for human eye sensitivity to green wavelengths.
+ *
+ * @param r - Source red component [0..255]
+ * @param g - Source green component [0..255]
+ * @param b - Source blue component [0..255]
+ * @param palette - Array of hex color strings to quantize against
+ * @returns The closest [r, g, b] color tuple from the palette
  */
 export function findClosestPaletteColor(
   r: number,
@@ -222,7 +246,7 @@ export function findClosestPaletteColor(
 
   for (let i = 0; i < palette.length; i++) {
     const palRgb = hexToRgb(palette[i]);
-    // Weighted Euclidean distance (human perception favors green, then red, then blue)
+    // Weighted Euclidean distance (human perception: 0.299 R, 0.587 G, 0.114 B)
     const dr = r - palRgb[0];
     const dg = g - palRgb[1];
     const db = b - palRgb[2];
@@ -238,8 +262,13 @@ export function findClosestPaletteColor(
 }
 
 /**
- * Flattens an array of hex colors into a Float32Array suitable for WebGL uniforms (vec4 array)
- * Pads up to maxColors (default 16).
+ * Converts an array of hex colors into a flat Float32Array suitable for
+ * binding to WebGL vec4 uniform arrays or WebGPU uniform storage buffers.
+ * Automatically clamps/pads to maxColors (default 16 entries = 64 floats).
+ *
+ * @param colors - Array of hex color strings
+ * @param maxColors - Maximum number of vec4 entries to allocate (default: 16)
+ * @returns Packed Float32Array of length maxColors * 4
  */
 export function paletteToVec4Array(colors: string[], maxColors = 16): Float32Array {
   const result = new Float32Array(maxColors * 4);

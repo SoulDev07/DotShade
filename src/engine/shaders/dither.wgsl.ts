@@ -1,11 +1,17 @@
-// WGSL dither shader for vgpu (https://vgpu.sh/) and native WebGPU
 
+/**
+ * WebGPU WGSL (WebGPU Shading Language) Shader Module:
+ * Provides hardware-accelerated real-time ordered dithering, procedural pattern generation,
+ * Bayer matrices, halftone screens, and retro color quantization for WebGPU pipelines.
+ */
 export const ditherWgslShader = `
+// Full-screen triangle vertex output
 struct FullscreenVertexOut {
   @builtin(position) position: vec4f,
   @location(0) uv: vec2f,
 };
 
+// Generates an oversized full-screen triangle covering [-1, 1] without vertex buffers
 @vertex
 fn vs_main(@builtin(vertex_index) vi: u32) -> FullscreenVertexOut {
   var pos = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
@@ -16,6 +22,7 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> FullscreenVertexOut {
   return out;
 }
 
+// Uniform buffer memory layout matching DitherVgpuMount
 struct Params {
   resolution: vec2f,
   pixelRatio: f32,
@@ -41,6 +48,9 @@ struct Params {
   gamma: f32,
   proceduralShape: u32,
   paletteCount: u32,
+  pad0: u32,
+  pad1: u32,
+  pad2: u32,
   colorBack: vec4f,
   colorFront: vec4f,
   colorHighlight: vec4f,
@@ -69,14 +79,12 @@ struct Params {
 const PI: f32 = 3.14159265359;
 const TWO_PI: f32 = 6.28318530718;
 
-// Hash function
 fn hash21(p_in: vec2f) -> f32 {
   var p = fract(p_in * vec2f(233.34, 851.73));
   p += dot(p, p + 23.45);
   return fract(p.x * p.y);
 }
 
-// 2D Simplex Noise in WGSL
 fn mod289_3(x: vec3f) -> vec3f {
   return x - floor(x * (1.0 / 289.0)) * 289.0;
 }
@@ -124,13 +132,11 @@ fn snoise2(v: vec2f) -> f32 {
   return 130.0 * (m.x * g0 + m.y * g12.x + m.z * g12.y);
 }
 
-// Bayer 2x2
 fn bayer2(p: vec2u) -> f32 {
   let m = array<f32, 4>(0.0, 2.0, 3.0, 1.0);
   return m[(p.y % 2u) * 2u + (p.x % 2u)] / 4.0;
 }
 
-// Bayer 4x4
 fn bayer4(p: vec2u) -> f32 {
   let m = array<f32, 16>(
     0.0,  8.0,  2.0, 10.0,
@@ -141,7 +147,6 @@ fn bayer4(p: vec2u) -> f32 {
   return m[(p.y % 4u) * 4u + (p.x % 4u)] / 16.0;
 }
 
-// Bayer 8x8
 fn bayer8(p: vec2u) -> f32 {
   let m = array<f32, 64>(
     0.0, 32.0,  8.0, 40.0,  2.0, 34.0, 10.0, 42.0,
@@ -156,7 +161,6 @@ fn bayer8(p: vec2u) -> f32 {
   return m[(p.y % 8u) * 8u + (p.x % 8u)] / 64.0;
 }
 
-// Clustered 8x8 for newsprint
 fn clustered8(p: vec2u) -> f32 {
   let m = array<f32, 64>(
     24.0, 10.0, 12.0, 26.0, 35.0, 47.0, 49.0, 37.0,
@@ -171,6 +175,7 @@ fn clustered8(p: vec2u) -> f32 {
   return m[(p.y % 8u) * 8u + (p.x % 8u)] / 64.0;
 }
 
+// Evaluates the normalized [0..1] threshold for the chosen dither pattern
 fn getDitherPattern(coord: vec2f, ditherType: u32) -> f32 {
   let p = vec2u(coord);
   switch (ditherType) {
@@ -186,24 +191,25 @@ fn getDitherPattern(coord: vec2f, ditherType: u32) -> f32 {
     case 4u: { // Bayer 8x8
       return bayer8(p);
     }
-    case 5u: { // Bayer 16x16 approximated
+    case 5u: { // Bayer 16x16 approximated from hierarchical 4x4
       let coarse = bayer4(p / 4u);
       let fine = bayer4(p);
       return (coarse * 16.0 + fine) / 256.0;
     }
-    case 6u: { // Halftone Dot Screen
+    case 6u: { // Halftone Dot Screen rotated by halftoneAngle
       let rad = radians(params.halftoneAngle);
       let rot = mat2x2f(cos(rad), -sin(rad), sin(rad), cos(rad));
-      let htP = rot * coord / max(params.halftoneScale * params.pxSize, 1.0);
-      let d = length(fract(htP) - vec2f(0.5));
-      return clamp(d * 1.414, 0.0, 1.0);
+      let rotPos = (rot * (coord * max(1.0, params.pxSize * params.pixelRatio))) / max(params.halftoneScale * max(1.0, params.pxSize * params.pixelRatio), 1.0);
+      let dotPattern = (sin(rotPos.x) + sin(rotPos.y) + 2.0) * 0.25;
+      return dotPattern;
     }
-    case 7u: { // Crosshatch
-      let diag1 = fract((coord.x + coord.y) / (4.0 * params.pxSize));
-      let diag2 = fract((coord.x - coord.y) / (4.0 * params.pxSize));
-      return (diag1 + diag2) * 0.5;
+    case 7u: { // Dual diagonal crosshatching
+      let sz = max(params.pxSize * 4.0, 2.0);
+      let line1 = select(0.0, 1.0, (coord.x + coord.y) % sz < (params.pxSize * 2.0));
+      let line2 = select(0.0, 1.0, (coord.x - coord.y + sz * 2.0) % sz < (params.pxSize * 2.0));
+      return (line1 + line2) * 0.5;
     }
-    case 8u: { // Clustered
+    case 8u: { // Clustered newsprint dot matrix
       return clustered8(p);
     }
     default: {
@@ -212,7 +218,7 @@ fn getDitherPattern(coord: vec2f, ditherType: u32) -> f32 {
   }
 }
 
-// Procedural visual generators
+// Procedural real-time texture generator synthesized on GPU
 fn generateProceduralColor(uv: vec2f) -> vec3f {
   let t = params.time * 0.5;
   let p = (uv - 0.5) * 2.0;
@@ -255,7 +261,7 @@ fn generateProceduralColor(uv: vec2f) -> vec3f {
       let val = 0.5 + 0.5 * sin(theta * 4.0);
       return vec3f(val);
     }
-    case 7u: { // Sphere 3D shading
+    case 7u: { // Sphere with 3D normal lighting
       let r = length(p);
       if (r > 0.9) { return vec3f(0.05); }
       let z = sqrt(max(0.0, 0.81 - r * r));
@@ -293,17 +299,17 @@ fn getPaletteColor(index: u32) -> vec4f {
 
 @fragment
 fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
-  // Quantize coordinate to pixel block size
+  // Quantize coordinate to discrete pixel block size
   let px = max(1.0, params.pxSize);
   let pixelCoord = floor((uv * params.resolution) / px);
   let sampleUv = (pixelCoord * px + vec2f(px * 0.5)) / params.resolution;
 
-  // Media Aspect Ratio & UV fitting
+  // Media Aspect Ratio & UV fitting (Cover / Contain / Fill)
   var texUv = sampleUv;
   let canvasAspect = params.resolution.x / max(params.resolution.y, 1.0);
   let imgAspect = max(0.001, params.imageAspectRatio);
 
-  if (params.fit == 2u) { // Cover
+  if (params.fit == 2u) { // Cover: crop excess edges to fill viewport
     if (canvasAspect > imgAspect) {
       let scaleY = imgAspect / canvasAspect;
       texUv.y = (texUv.y - 0.5) * scaleY + 0.5;
@@ -311,7 +317,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
       let scaleX = canvasAspect / imgAspect;
       texUv.x = (texUv.x - 0.5) * scaleX + 0.5;
     }
-  } else if (params.fit == 1u) { // Contain
+  } else if (params.fit == 1u) { // Contain: letterbox/pillarbox to show complete media
     if (canvasAspect > imgAspect) {
       let scaleX = canvasAspect / imgAspect;
       texUv.x = (texUv.x - 0.5) * scaleX + 0.5;
@@ -321,7 +327,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     }
   }
 
-  // User transformations: Center -> Scale -> Rotate -> Offset
+  // User transformations: Center -> Rotate -> Scale -> Pan Offset
   var tUv = texUv - vec2f(0.5);
   let ang = radians(params.rotation);
   let rotMat = mat2x2f(cos(ang), -sin(ang), sin(ang), cos(ang));
@@ -329,6 +335,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   tUv = tUv / max(params.scale, 0.001);
   tUv += vec2f(0.5) - vec2f(params.offsetX, -params.offsetY);
 
+  // Sample media texture or synthesize procedural pattern
   var baseColor: vec3f;
   if (params.hasImage == 1u) {
     if (tUv.x < 0.0 || tUv.x > 1.0 || tUv.y < 0.0 || tUv.y > 1.0) {
@@ -341,7 +348,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     baseColor = generateProceduralColor(tUv);
   }
 
-  // Adjustments: Brightness, Contrast, Saturation, Gamma
+  // Adjustments: Brightness -> Contrast -> Saturation -> Gamma
   baseColor += vec3f(params.brightness);
   baseColor = (baseColor - vec3f(0.5)) * max(params.contrast, 0.0) + vec3f(0.5);
   let luma = dot(baseColor, vec3f(0.299, 0.587, 0.114));
@@ -349,53 +356,66 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   baseColor = pow(max(baseColor, vec3f(0.0)), vec3f(1.0 / max(params.gamma, 0.001)));
   baseColor = clamp(baseColor, vec3f(0.0), vec3f(1.0));
 
-  var gray = dot(baseColor, vec3f(0.299, 0.587, 0.114));
+  // Calculate ITU-R BT.709 perceived luminance
+  var gray = dot(baseColor, vec3f(0.2126, 0.7152, 0.0722));
   if (params.inverted == 1u) {
     gray = 1.0 - gray;
     baseColor = vec3f(1.0) - baseColor;
   }
 
-  // Dither threshold matrix
-  let thresholdVal = getDitherPattern(pixelCoord, params.ditherType);
-  let ditherBias = (thresholdVal - 0.5);
-  let ditherStrength = 0.5;
+  // Evaluate dither matrix threshold
+  var thresholdVal = getDitherPattern(pixelCoord, params.ditherType);
+  let bias = (params.threshold - 0.5) * 0.8;
+  thresholdVal = clamp(thresholdVal - bias, 0.0, 1.0);
+  let ditherOffset = thresholdVal - 0.5;
 
   let steps = max(params.colorSteps, 1.0);
-  let steppedLuma = clamp(gray + ditherBias * ditherStrength + (params.threshold - 0.5), 0.0, 1.0);
-  let quantLevel = floor(steppedLuma * steps + 0.5) / steps;
+  let modulatedLum = clamp(gray + ditherOffset / steps, 0.0, 1.0);
+  let quantLum = floor(modulatedLum * steps + 0.5) / steps;
 
   var outColor: vec4f;
 
   switch (params.colorMode) {
-    case 1u: { // Paper 3-Color Ramp (Dark, Mid/Front, Highlight)
-      if (quantLevel < 0.45) {
-        let tRamp = quantLevel / 0.45;
-        outColor = mix(params.colorBack, params.colorFront, tRamp);
-      } else {
-        let tRamp = (quantLevel - 0.45) / 0.55;
-        outColor = mix(params.colorFront, params.colorHighlight, tRamp);
-      }
+    case 1u: { // Paper 3-Tone Ramp (Back, Front, Highlight accent)
+      var fg = params.colorFront.rgb * params.colorFront.a;
+      var fgA = params.colorFront.a;
+      let bg = params.colorBack.rgb * params.colorBack.a;
+      let bgA = params.colorBack.a;
+      let hl = params.colorHighlight.rgb * params.colorHighlight.a;
+      let hlA = params.colorHighlight.a;
+
+      let hlStep = select(0.0, 1.0, modulatedLum >= (1.02 - 0.02 * steps));
+      fg = mix(fg, hl, hlStep);
+      fgA = mix(fgA, hlA, hlStep);
+
+      var col = fg * quantLum;
+      var alpha = fgA * quantLum;
+      col = col + bg * (1.0 - alpha);
+      alpha = alpha + bgA * (1.0 - alpha);
+      outColor = vec4f(col, alpha);
     }
     case 2u: { // Duotone (Back to Front)
-      outColor = mix(params.colorBack, params.colorFront, quantLevel);
+      let bit = select(0.0, 1.0, modulatedLum >= 0.5);
+      let col = mix(params.colorBack.rgb, params.colorFront.rgb, bit);
+      let alpha = mix(params.colorBack.a, params.colorFront.a, bit);
+      outColor = vec4f(col, alpha);
     }
     case 3u: { // Original Colors Quantized
-      let ditheredR = clamp(floor((baseColor.r + ditherBias * 0.35) * steps + 0.5) / steps, 0.0, 1.0);
-      let ditheredG = clamp(floor((baseColor.g + ditherBias * 0.35) * steps + 0.5) / steps, 0.0, 1.0);
-      let ditheredB = clamp(floor((baseColor.b + ditherBias * 0.35) * steps + 0.5) / steps, 0.0, 1.0);
-      outColor = vec4f(ditheredR, ditheredG, ditheredB, 1.0);
+      let normColor = baseColor / max(gray, 0.001);
+      let quantizedRgb = clamp(normColor * quantLum, vec3f(0.0), vec3f(1.0));
+      outColor = vec4f(quantizedRgb, 1.0);
     }
-    case 4u: { // Palette Array Quantized
-      let count = max(params.paletteCount, 2u);
+    case 4u: { // Palette Array Quantized with perceptual distance
+      let count = max(params.paletteCount, 1u);
       var bestIdx = 0u;
-      var bestDist = 999.0;
-      let targetRgb = baseColor + vec3f(ditherBias * (0.8 / f32(count)));
+      var bestDist = 99999.0;
+      let ditheredRgb = clamp(baseColor + vec3f(ditherOffset * (1.0 / steps)), vec3f(0.0), vec3f(1.0));
 
       for (var i = 0u; i < 16u; i = i + 1u) {
         if (i >= count) { break; }
         let palCol = getPaletteColor(i).rgb;
-        let diff = palCol - targetRgb;
-        let dist = dot(diff, diff);
+        let diff = ditheredRgb - palCol;
+        let dist = 0.3 * diff.r * diff.r + 0.59 * diff.g * diff.g + 0.11 * diff.b * diff.b;
         if (dist < bestDist) {
           bestDist = dist;
           bestIdx = i;
@@ -404,13 +424,13 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
       outColor = getPaletteColor(bestIdx);
     }
     case 5u: { // Grayscale
-      outColor = vec4f(vec3f(quantLevel), 1.0);
+      outColor = vec4f(vec3f(quantLum), 1.0);
     }
     default: {
-      outColor = vec4f(vec3f(quantLevel), 1.0);
+      outColor = vec4f(vec3f(quantLum), 1.0);
     }
   }
 
-  return vec4f(outColor.rgb, 1.0);
+  return vec4f(outColor.rgb, outColor.a);
 }
 `;

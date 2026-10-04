@@ -2,15 +2,21 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**
- * Merge Tailwind class names safely
+ * Merges Tailwind CSS class names safely using clsx and tailwind-merge.
+ * Resolves conflicting Tailwind utility classes cleanly.
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * Parse any CSS color (Hex #fff, #ffffff, #ffffff80, rgb(r, g, b), rgba(r, g, b, a), hsl, hsla)
- * into normalized RGBA float array [0..1] suitable for GLSL shaders.
+ * Parses any common CSS color format into normalized RGBA floats in the range [0, 1].
+ * Supports:
+ *  - 3-digit hex (#rgb)
+ *  - 6-digit hex (#rrggbb)
+ *  - 8-digit hex (#rrggbbaa)
+ *  - rgb(...) and rgba(...) functions with optional percentage alpha
+ * Returns `[r, g, b, a]` normalized for WebGL/WGSL uniforms (defaulting to opaque black `[0, 0, 0, 1]`).
  */
 export function parseColorToNormalizedRgba(color: string): [number, number, number, number] {
   if (!color || typeof color !== "string") {
@@ -19,7 +25,7 @@ export function parseColorToNormalizedRgba(color: string): [number, number, numb
 
   const trimmed = color.trim();
 
-  // Hex colors
+  // Hex format support: #RGB, #RRGGBB, #RRGGBBAA
   if (trimmed.startsWith("#")) {
     const hex = trimmed.slice(1);
     if (hex.length === 3) {
@@ -43,7 +49,7 @@ export function parseColorToNormalizedRgba(color: string): [number, number, numb
     }
   }
 
-  // RGB / RGBA
+  // Functional rgb/rgba formats: rgb(r, g, b) or rgba(r, g, b, a)
   const rgbaMatch = trimmed.match(
     /rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d+(?:\.\d+)?%?))?\s*\)/i
   );
@@ -65,12 +71,12 @@ export function parseColorToNormalizedRgba(color: string): [number, number, numb
     ];
   }
 
-  // Fallback default black
+  // Fallback to opaque black if unparseable
   return [0, 0, 0, 1];
 }
 
 /**
- * Parse Hex color to 0-255 RGB integer tuple
+ * Converts a hex color string into integer [r, g, b] channels in [0, 255].
  */
 export function hexToRgb(hex: string): [number, number, number] {
   const normalized = parseColorToNormalizedRgba(hex);
@@ -82,7 +88,7 @@ export function hexToRgb(hex: string): [number, number, number] {
 }
 
 /**
- * Convert 0-255 RGB integers to Hex string #RRGGBB
+ * Converts integer RGB values [0..255] into a standard 6-digit hex string (#RRGGBB).
  */
 export function rgbToHex(r: number, g: number, b: number): string {
   const toHex = (n: number) => {
@@ -93,25 +99,32 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
- * Relative luminance (perceived brightness)
+ * Computes standard ITU-R BT.709 relative luminance from 0..255 RGB channels.
+ * Weight factors reflect human eye sensitivity (green > red > blue).
  */
 export function getLuminance(r: number, g: number, b: number): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 /**
- * Gamma to linear and linear to gamma color space transformations
+ * Converts a single sRGB gamma-compressed channel [0..1] to linear color space.
  */
 export function sRgbToLinear(c: number): number {
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
+/**
+ * Converts a single linear color space channel [0..1] to sRGB gamma-compressed.
+ */
 export function linearToSRgb(c: number): number {
   return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1.0 / 2.4) - 0.055;
 }
 
 /**
- * Calculate object fit dimensions (contain, cover, fill)
+ * Calculates target bounding dimensions and centered offsets for media fitting:
+ *  - "contain": maintains aspect ratio so media fits completely within container.
+ *  - "cover": maintains aspect ratio so media fills container, cropping edges.
+ *  - "fill": stretches media to completely match container width and height.
  */
 export function calculateFitDimensions(
   fit: "contain" | "cover" | "fill",
@@ -151,7 +164,7 @@ export function calculateFitDimensions(
 }
 
 /**
- * Format bytes into human-readable string
+ * Formats a file size in raw bytes into human-readable representation (e.g. "1.5 MB").
  */
 export function formatBytes(bytes: number, decimals = 1): string {
   if (bytes === 0) return "0 B";

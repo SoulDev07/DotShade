@@ -9,6 +9,7 @@ import {
   DownloadSimple,
   Eye,
   EyeSlash,
+  DiceFive,
 } from "@phosphor-icons/react";
 import { DitherCanvas, type DitherCanvasHandle } from "./DitherCanvas";
 import { ControlPanel } from "./ControlPanel";
@@ -16,7 +17,8 @@ import { SplitCompareSlider } from "./SplitCompareSlider";
 import { VideoControls } from "./VideoControls";
 import { ExportModal } from "./ExportModal";
 import { processCpuDithering } from "@/engine/cpu-dither";
-import type { DitherSettings } from "@/engine/types";
+import { RETRO_PALETTES } from "@/engine/palettes";
+import type { DitherSettings, DitherPattern, ColorMode } from "@/engine/types";
 import { DotShadeLogo } from "./ui/DotShadeLogo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -31,13 +33,13 @@ const INITIAL_SETTINGS: DitherSettings = {
   threshold: 0.5,
   halftoneAngle: 45,
   halftoneScale: 2,
-  colorMode: "paper",
-  colorBack: "#000c38",
-  colorFront: "#94ffaf",
-  colorHighlight: "#eaff94",
-  paletteId: "paper-mint",
-  palette: ["#000c38", "#94ffaf", "#eaff94"],
-  colorSteps: 2,
+  colorMode: "original",
+  colorBack: "#000000",
+  colorFront: "#ffffff",
+  colorHighlight: "#e5e5e5",
+  paletteId: "macintosh-1bit",
+  palette: ["#000000", "#ffffff"],
+  colorSteps: 4,
   inverted: false,
   fit: "contain",
   scale: 1,
@@ -53,6 +55,12 @@ const INITIAL_SETTINGS: DitherSettings = {
   animationSpeed: 1,
 };
 
+/**
+ * Top-level DotShade workstation component:
+ * Manages global reactive settings, hardware rendering viewport,
+ * drag-and-drop file imports, live webcam streaming, split comparison mode,
+ * CPU error-diffusion fallback processing, and export dialogs.
+ */
 export function DitherStudio() {
   const [settings, setSettings] = useState<DitherSettings>(INITIAL_SETTINGS);
   const deferredSettings = useDeferredValue(settings);
@@ -75,7 +83,6 @@ export function DitherStudio() {
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHeldRef = useRef(false);
 
-  // Clean up timer on unmount
   useEffect(() => {
     return () => {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
@@ -132,7 +139,6 @@ export function DitherStudio() {
     setSettings((prev) => ({ ...prev, ...updater }));
   }, []);
 
-  // Handle Drag & Drop
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -149,7 +155,6 @@ export function DitherStudio() {
     }
   }, [updateSettings]);
 
-  // Handle Clipboard Paste (Ctrl+V)
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (e.clipboardData && e.clipboardData.files.length > 0) {
@@ -165,7 +170,6 @@ export function DitherStudio() {
     return () => window.removeEventListener("paste", handlePaste);
   }, [updateSettings]);
 
-  // Handle Webcam
   const toggleWebcam = useCallback(async () => {
     if (isWebcamActive) {
       if (webcamStreamRef.current) {
@@ -207,7 +211,6 @@ export function DitherStudio() {
     toast.success("Uploaded video", { description: file.name });
   }, [updateSettings]);
 
-  // Track media natural dimensions for pixel-perfect aspect framing
   useEffect(() => {
     if (settings.mediaType === "image" && settings.mediaUrl) {
       const img = new Image();
@@ -241,7 +244,6 @@ export function DitherStudio() {
     }
   }, [settings.mediaType, settings.mediaUrl]);
 
-  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -249,6 +251,18 @@ export function DitherStudio() {
         e.target instanceof HTMLTextAreaElement ||
         e.target instanceof HTMLSelectElement
       ) {
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (isExportOpen) {
+          setIsExportOpen(false);
+        } else if (isViewingOriginal) {
+          setIsViewingOriginal(false);
+        } else if (isSplitView) {
+          setIsSplitView(false);
+        }
         return;
       }
 
@@ -260,6 +274,8 @@ export function DitherStudio() {
         setIsSplitView((prev) => !prev);
       } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey) {
         handleReset();
+      } else if (e.key.toLowerCase() === "x" && !e.ctrlKey && !e.metaKey) {
+        handleRandomize();
       } else if (e.key.toLowerCase() === "f") {
         toggleFullscreen();
       } else if ((e.key.toLowerCase() === "o" || e.key === "\\") && !e.ctrlKey && !e.metaKey) {
@@ -277,13 +293,55 @@ export function DitherStudio() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleOriginalClick]);
+  }, [handleOriginalClick, isExportOpen, isViewingOriginal, isSplitView]);
 
   const handleReset = () => {
     setSettings(INITIAL_SETTINGS);
     setIsViewingOriginal(false);
     toast.info("Settings reset to defaults");
   };
+
+  const handleRandomize = useCallback(() => {
+    const patterns: DitherPattern[] = [
+      "8x8", "4x4", "2x2", "16x16", "noise", "halftone", "crosshatch", "clustered"
+    ];
+    const randomPattern = patterns[Math.floor(Math.random() * patterns.length)];
+
+    const colorModes: ColorMode[] = ["paper", "duotone", "palette", "original", "grayscale"];
+    const randomMode = colorModes[Math.floor(Math.random() * colorModes.length)];
+
+    const randomPalette = RETRO_PALETTES[Math.floor(Math.random() * RETRO_PALETTES.length)];
+    const randomPxSize = Number((1 + Math.random() * 3).toFixed(1)); // 1.0 to 4.0
+    const randomThreshold = Number((0.35 + Math.random() * 0.3).toFixed(2)); // 0.35 to 0.65
+    const randomColorSteps = Math.floor(2 + Math.random() * 6); // 2 to 7
+
+    const randomAngle = Math.floor(Math.random() * 12) * 15; // 0, 15, 30...
+    const randomHalftoneScale = Number((1 + Math.random() * 3).toFixed(1));
+
+    const colorBack = randomPalette.colors[0] || "#000000";
+    const colorFront = randomPalette.colors[randomPalette.colors.length - 1] || "#ffffff";
+    const colorHighlight =
+      randomPalette.colors[1] || randomPalette.colors[randomPalette.colors.length - 1] || "#ffffff";
+
+    setSettings((prev) => ({
+      ...prev,
+      ditherType: randomPattern,
+      colorMode: randomMode,
+      paletteId: randomPalette.id,
+      palette: [...randomPalette.colors],
+      colorBack,
+      colorFront,
+      colorHighlight,
+      pxSize: randomPxSize,
+      threshold: randomThreshold,
+      colorSteps: randomColorSteps,
+      halftoneAngle: randomAngle,
+      halftoneScale: randomHalftoneScale,
+    }));
+
+    setIsViewingOriginal(false);
+    toast.success(`Randomized: ${randomPattern.toUpperCase()} • ${randomPalette.name}`);
+  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -295,8 +353,6 @@ export function DitherStudio() {
     }
   };
 
-  // CPU dither pipeline fallback execution
-  // Uses deferredSettings and requestAnimationFrame so rapid slider drags don't choke the main thread
   useEffect(() => {
     if (deferredSettings.engine !== "cpu" || !cpuCanvasRef.current) return;
     const canvas = cpuCanvasRef.current;
@@ -411,7 +467,6 @@ export function DitherStudio() {
       ? settings.mediaUrl
       : null;
 
-  // Memoize DitherCanvas node using deferredSettings for interruptible rendering
   const ditherCanvasElement = useMemo(
     () => (
       <DitherCanvas
@@ -423,7 +478,6 @@ export function DitherStudio() {
     [deferredSettings, activeMediaSrc]
   );
 
-  // Memoize original element for SplitCompareSlider
   const originalMediaElement = useMemo(() => {
     if (settings.mediaType === "video") {
       return (
@@ -472,13 +526,13 @@ export function DitherStudio() {
   return (
     <div className="flex flex-col lg:flex-row w-screen h-screen overflow-hidden bg-background text-foreground font-sans select-none">
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="h-12 border-b border-border bg-card px-4 flex items-center justify-between z-30 shrink-0 gap-3">
+        <header className="h-12 border-b border-border bg-card px-4 flex items-center justify-between z-30 shrink-0 gap-3" style={{ boxShadow: "0 1px 0 rgba(255,255,255,0.08)" }}>
           <div className="flex items-center gap-2.5 shrink-0">
             <DotShadeLogo size={20} />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-foreground">
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
               DotShade
             </span>
-            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-secondary border border-border text-muted-foreground font-medium">
+            <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-secondary border border-border text-foreground font-medium" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)" }}>
               {settings.engine}
             </span>
             {mediaDimensions && (
@@ -488,7 +542,7 @@ export function DitherStudio() {
             )}
           </div>
 
-          <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border">
+          <div className="flex items-center bg-secondary/80 p-0.5 border border-border" style={{ gap: "1px" }}>
             <button
               type="button"
               onClick={() => {
@@ -496,13 +550,13 @@ export function DitherStudio() {
                 setIsSplitView(false);
               }}
               className={cn(
-                "px-2.5 py-1 rounded-md text-xs font-mono transition-all btn-press",
+                "px-2.5 py-1 text-xs font-mono transition-all btn-press",
                 !isViewingOriginal && !isSplitView
-                  ? "bg-card text-foreground font-semibold shadow-sm border border-border/80"
-                  : "text-muted-foreground hover:text-foreground border border-transparent"
+                  ? "bg-primary text-primary-foreground font-bold border border-primary"
+                  : "text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
               )}
             >
-              Dither
+              DITHER
             </button>
             <button
               type="button"
@@ -516,17 +570,17 @@ export function DitherStudio() {
               }}
               disabled={settings.mediaType === "procedural" && !isWebcamActive}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-all btn-press",
+                "flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono transition-all btn-press",
                 settings.mediaType === "procedural" && !isWebcamActive
                   ? "opacity-40 cursor-not-allowed text-muted-foreground/50 border border-transparent"
                   : isSplitView
-                  ? "bg-card text-foreground font-semibold shadow-sm border border-border/80"
-                  : "text-muted-foreground hover:text-foreground border border-transparent"
+                  ? "bg-primary text-primary-foreground font-bold border border-primary"
+                  : "text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
               )}
               title="Split Comparison (Tab)"
             >
               <SquareSplitHorizontal className="w-3.5 h-3.5" />
-              <span>Split</span>
+              <span>SPLIT</span>
             </button>
             <button
               type="button"
@@ -536,59 +590,59 @@ export function DitherStudio() {
               onPointerLeave={handleOriginalPointerLeave}
               disabled={settings.mediaType === "procedural" && !isWebcamActive}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-all btn-press",
+                "flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono transition-all btn-press",
                 settings.mediaType === "procedural" && !isWebcamActive
                   ? "opacity-40 cursor-not-allowed text-muted-foreground/50 border border-transparent"
                   : isViewingOriginal
-                  ? "bg-card text-foreground font-semibold shadow-sm border border-border/80"
-                  : "text-muted-foreground hover:text-foreground border border-transparent"
+                  ? "bg-primary text-primary-foreground font-bold border border-primary"
+                  : "text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
               )}
               title="View Original (Click to toggle, hold to peek, or press 'O')"
             >
               {isViewingOriginal ? (
-                <EyeSlash className="w-3.5 h-3.5 text-primary" />
+                <EyeSlash className="w-3.5 h-3.5" />
               ) : (
                 <Eye className="w-3.5 h-3.5" />
               )}
-              <span>Original</span>
+              <span>SOURCE</span>
             </button>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden md:flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border">
+            <div className="hidden md:flex items-center bg-secondary/80 p-0.5 border border-border" style={{ gap: "1px" }}>
               <button
                 type="button"
                 onClick={() => updateSettings({ fit: "contain" })}
                 className={cn(
-                  "px-2 py-0.5 rounded text-[11px] font-mono transition-all btn-press",
+                  "px-2 py-0.5 text-[11px] font-mono transition-all btn-press",
                   settings.fit === "contain"
-                    ? "bg-card text-foreground font-semibold shadow-sm border border-border/80"
+                    ? "bg-primary text-primary-foreground font-bold border border-primary"
                     : "text-muted-foreground hover:text-foreground border border-transparent"
                 )}
                 title="Fit to stage"
               >
-                Fit
+                FIT
               </button>
               <button
                 type="button"
                 onClick={() => updateSettings({ fit: "cover" })}
                 className={cn(
-                  "px-2 py-0.5 rounded text-[11px] font-mono transition-all btn-press",
+                  "px-2 py-0.5 text-[11px] font-mono transition-all btn-press",
                   settings.fit === "cover"
-                    ? "bg-card text-foreground font-semibold shadow-sm border border-border/80"
+                    ? "bg-primary text-primary-foreground font-bold border border-primary"
                     : "text-muted-foreground hover:text-foreground border border-transparent"
                 )}
                 title="Fill stage"
               >
-                Fill
+                FILL
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center bg-secondary/80 rounded-lg border border-border px-1 py-0.5">
+            <div className="hidden sm:flex items-center bg-secondary/80 border border-border px-1 py-0.5" style={{ gap: "1px" }}>
               <button
                 type="button"
                 onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.15).toFixed(2))))}
-                className="w-5 h-5 flex items-center justify-center text-xs font-mono text-muted-foreground hover:text-foreground rounded transition-colors btn-press"
+                className="w-5 h-5 flex items-center justify-center text-xs font-mono text-muted-foreground hover:text-primary transition-colors btn-press"
                 title="Zoom out (-)"
               >
                 -
@@ -596,7 +650,7 @@ export function DitherStudio() {
               <button
                 type="button"
                 onClick={() => setZoom(1)}
-                className="px-1.5 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+                className="px-1.5 text-[11px] font-mono text-primary hover:text-foreground transition-colors tabular-nums"
                 title="Reset zoom (0)"
               >
                 {Math.round(zoom * 100)}%
@@ -604,7 +658,7 @@ export function DitherStudio() {
               <button
                 type="button"
                 onClick={() => setZoom((z) => Math.min(3, Number((z + 0.15).toFixed(2))))}
-                className="w-5 h-5 flex items-center justify-center text-xs font-mono text-muted-foreground hover:text-foreground rounded transition-colors btn-press"
+                className="w-5 h-5 flex items-center justify-center text-xs font-mono text-muted-foreground hover:text-primary transition-colors btn-press"
                 title="Zoom in (+)"
               >
                 +
@@ -612,8 +666,17 @@ export function DitherStudio() {
             </div>
 
             <button
+              onClick={handleRandomize}
+              className="flex items-center gap-1 px-2 py-1 bg-secondary hover:bg-neutral-800 border border-border hover:border-neutral-400 text-neutral-200 hover:text-white text-xs font-mono transition-colors btn-press"
+              title="Randomize style (X)"
+            >
+              <DiceFive className="w-3.5 h-3.5 text-primary" />
+              <span className="hidden sm:inline font-bold">RANDOM</span>
+            </button>
+
+            <button
               onClick={handleReset}
-              className="p-1.5 bg-secondary hover:bg-secondary/80 border border-border hover:border-border-hover text-muted-foreground hover:text-foreground rounded-lg text-xs font-mono transition-colors btn-press"
+              className="p-1.5 bg-secondary hover:bg-secondary/80 border border-border hover:border-border-hover text-muted-foreground hover:text-foreground text-xs font-mono transition-colors btn-press"
               title="Reset Settings (R)"
             >
               <ArrowCounterClockwise className="w-3.5 h-3.5" />
@@ -621,7 +684,7 @@ export function DitherStudio() {
 
             <button
               onClick={toggleFullscreen}
-              className="p-1.5 bg-secondary hover:bg-secondary/80 border border-border hover:border-border-hover text-muted-foreground hover:text-foreground rounded-lg text-xs font-mono transition-colors btn-press"
+              className="p-1.5 bg-secondary hover:bg-secondary/80 border border-border hover:border-border-hover text-muted-foreground hover:text-foreground text-xs font-mono transition-colors btn-press"
               title="Toggle Fullscreen (F)"
             >
               {isFullscreen ? <CornersIn className="w-3.5 h-3.5" /> : <CornersOut className="w-3.5 h-3.5" />}
@@ -629,11 +692,12 @@ export function DitherStudio() {
 
             <button
               onClick={handleOpenExport}
-              className="flex items-center gap-1.5 px-3 py-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-xs font-mono font-semibold transition-colors btn-press shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-neutral-200 text-black text-xs font-mono font-bold transition-colors btn-press border border-white"
               title="Export (Ctrl+S)"
+              style={{ boxShadow: "2px 2px 0 rgba(255,255,255,0.3)" }}
             >
               <DownloadSimple className="w-3.5 h-3.5" />
-              <span>Export</span>
+              <span>EXPORT</span>
             </button>
           </div>
         </header>
@@ -655,19 +719,19 @@ export function DitherStudio() {
           className="flex-1 relative flex items-center justify-center p-4 lg:p-6 overflow-hidden bg-background"
         >
           {isDraggingOver && (
-            <div className="absolute inset-4 z-50 flex flex-col items-center justify-center bg-background/90 backdrop-blur-md border-2 border-dashed border-primary rounded-2xl pointer-events-none modal-enter">
-              <div className="text-sm font-mono font-semibold text-primary uppercase tracking-widest">
-                Drop Media to Dither
+            <div className="absolute inset-4 z-50 flex flex-col items-center justify-center bg-black/95 border-2 border-white pointer-events-none modal-enter dither-drop">
+              <div className="text-sm font-mono font-bold text-white uppercase tracking-widest">
+                ▓ DROP MEDIA TO DITHER ▓
               </div>
-              <div className="text-[11px] font-mono text-muted-foreground mt-1">
+              <div className="text-[11px] font-mono text-neutral-300 mt-1">
                 Release image or video to load into studio
               </div>
             </div>
           )}
 
           <div
-            className="relative rounded-xl border border-border bg-card/90 overflow-hidden flex items-center justify-center shadow-xl transition-[transform] duration-150 ease-out"
-            style={stageContainerStyle}
+            className="relative border border-border bg-card/90 overflow-hidden flex items-center justify-center transition-[transform] duration-150 ease-out"
+            style={{ ...stageContainerStyle, boxShadow: "0 0 0 1px rgba(255,255,255,0.18), 2px 2px 0 rgba(0,0,0,1)" }}
           >
             <video
               ref={videoElementRef}
@@ -712,17 +776,17 @@ export function DitherStudio() {
             )}
 
             {isViewingOriginal && (
-              <div className="absolute top-3 left-3 z-20 flex items-center gap-2 px-3 py-1.5 bg-card/95 border border-primary/40 rounded-md text-xs font-mono text-primary shadow-xl backdrop-blur-md">
-                <Eye className="w-3.5 h-3.5 text-primary" />
-                <span className="font-semibold uppercase tracking-wider text-[11px]">
-                  Original {settings.mediaType === "video" || isWebcamActive ? "Video" : "Photo"}
+              <div className="absolute top-3 left-3 z-20 flex items-center gap-2 px-3 py-1.5 bg-black border border-white text-xs font-mono text-white" style={{ boxShadow: "2px 2px 0 rgba(0,0,0,1)" }}>
+                <Eye className="w-3.5 h-3.5 text-white" />
+                <span className="font-bold uppercase tracking-wider text-[11px]">
+                  SOURCE {settings.mediaType === "video" || isWebcamActive ? "VIDEO" : "PHOTO"}
                 </span>
-                <span className="text-[10px] text-muted-foreground border-l border-border pl-2">
-                  Raw Source
+                <span className="text-[10px] text-neutral-300 border-l border-neutral-700 pl-2">
+                  RAW
                 </span>
                 <button
                   onClick={() => setIsViewingOriginal(false)}
-                  className="ml-1 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  className="ml-1 p-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   title="Return to dithered (O)"
                 >
                   <EyeSlash className="w-3.5 h-3.5" />

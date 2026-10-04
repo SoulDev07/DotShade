@@ -11,6 +11,9 @@ interface ColorSwatchPickerProps {
   className?: string;
 }
 
+/**
+ * Color picker widget featuring an interactive color-well swatch and text hex input.
+ */
 export function ColorSwatchPicker({
   label,
   color,
@@ -22,16 +25,16 @@ export function ColorSwatchPicker({
   return (
     <div
       className={cn(
-        "flex items-center justify-between p-2 rounded-lg bg-secondary/50 border border-border hover:border-border-hover transition-colors",
+        "flex items-center justify-between p-2 bg-secondary/40 border border-border hover:border-white/50 transition-colors",
         className
       )}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         <div className="relative">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="w-7 h-7 rounded-md border border-border shadow-inner overflow-hidden cursor-pointer btn-press block relative"
+            className="w-8 h-8 border border-white/60 shadow-inner overflow-hidden cursor-pointer btn-press block relative"
             style={{ backgroundColor: color }}
             title={`Change ${label} color`}
           />
@@ -45,10 +48,10 @@ export function ColorSwatchPicker({
         </div>
 
         <div className="flex flex-col">
-          <span className="text-[11px] font-mono text-foreground font-medium">
+          <span className="text-xs font-mono text-foreground font-bold uppercase tracking-wide">
             {label}
           </span>
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+          <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider">
             {color}
           </span>
         </div>
@@ -64,7 +67,7 @@ export function ColorSwatchPicker({
             onChange(val);
           }
         }}
-        className="w-18 px-1.5 py-1 text-center font-mono text-[10px] uppercase bg-background border border-border rounded-md text-foreground focus:border-primary focus:outline-none"
+        className="w-20 px-2 py-1 text-center font-mono text-xs uppercase bg-black border border-border text-white focus:border-white focus:outline-none"
       />
     </div>
   );
@@ -103,10 +106,10 @@ export function DualColorPicker({
           <button
             type="button"
             onClick={onSwap}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-secondary border border-border text-foreground hover:bg-accent shadow-md transition-colors btn-press"
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 bg-secondary border border-border text-foreground hover:bg-neutral-800 hover:text-white shadow-md transition-colors btn-press"
             title="Swap foreground & background colors"
           >
-            <ArrowsLeftRight className="w-3.5 h-3.5" />
+            <ArrowsLeftRight className="w-4 h-4" />
           </button>
         )}
       </div>

@@ -3,8 +3,9 @@ import { parseColorToNormalizedRgba } from "@/lib/utils";
 import { paletteToVec4Array } from "./palettes";
 import type { DitherSettings } from "./types";
 
-export type DitherMountOptions = DitherSettings;
-
+/**
+ * Integer identifier mappings for shader uniform switches.
+ */
 const DITHER_TYPES: Record<string, number> = {
   noise: 1,
   "2x2": 2,
@@ -40,6 +41,11 @@ const PROCEDURAL_SHAPES: Record<string, number> = {
   sphere: 7,
 };
 
+/**
+ * High-performance WebGL2 Mount:
+ * Manages the GPU pipeline, vertex array object (VAO), texture allocation,
+ * uniform caching, video frame synchronization, and real-time animation loop.
+ */
 export class DitherWebGLMount {
   public canvas: HTMLCanvasElement;
   private gl: WebGL2RenderingContext;
@@ -57,6 +63,13 @@ export class DitherWebGLMount {
   private imageAspectRatio = 1;
   private hasImage = false;
 
+  /**
+   * Initializes the WebGL2 context, compiles shaders, configures quad geometry,
+   * and renders the initial frame.
+   *
+   * @param canvas - Target HTML canvas element
+   * @param options - Dither and rendering configuration
+   */
   constructor(canvas: HTMLCanvasElement, options: DitherSettings) {
     this.canvas = canvas;
     this.options = { ...options };
@@ -117,7 +130,6 @@ export class DitherWebGLMount {
 
     this.program = program;
 
-    // Full-screen quad
     const positions = new Float32Array([
       -1, -1,
        1, -1,
@@ -139,7 +151,6 @@ export class DitherWebGLMount {
     gl.enableVertexAttribArray(posAttr);
     gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
 
-    // Initial 1x1 white texture
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(
@@ -186,6 +197,13 @@ export class DitherWebGLMount {
     this.render();
   }
 
+  /**
+   * Alias for setMediaSource providing polymorphism with WebGPU mount.
+   */
+  public setImage(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
+    this.setMediaSource(source);
+  }
+
   public updateTexture() {
     if (!this.imageSource || !this.gl || !this.texture) return;
     const gl = this.gl;
@@ -213,6 +231,11 @@ export class DitherWebGLMount {
     this.render();
   }
 
+  /**
+   * Executes a single draw call rendering the dither shader program.
+   * Updates video frame textures if active, configures resolution and uniforms,
+   * binds textures, and draws the full-screen triangle quad.
+   */
   public render(now = 0) {
     if (this.isDisposed || !this.gl || !this.program) return;
     const gl = this.gl;

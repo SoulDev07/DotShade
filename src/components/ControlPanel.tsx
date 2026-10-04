@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import {
   Sliders,
   Palette,
-  Image as ImageIcon,
+  ImageIcon,
   Bookmark,
   Cpu,
   Lightning,
   Stack,
   Camera,
-  VideoCamera as VideoIcon,
+  VideoCameraIcon as VideoIcon,
   ArrowCounterClockwise,
   Check,
   Scan,
@@ -20,6 +20,9 @@ import {
   MagnifyingGlass,
   X,
   Sparkle,
+  DiceFive,
+  CaretDown,
+  CaretRight,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { RETRO_PALETTES } from "@/engine/palettes";
@@ -41,6 +44,15 @@ interface ControlPanelProps {
   isViewingOriginal?: boolean;
   onToggleOriginal?: () => void;
 }
+
+/**
+ * Main control panel sidebar for configuring all dithering parameters:
+ *  - Media source selection (uploads, samples, live webcam, procedural shaders)
+ *  - Hardware engine selection (WebGPU / WebGL2 / CPU) and dither patterns
+ *  - Color modes, retro hardware palettes, and 3-tone Paper Shaders ramp
+ *  - Geometry transforms, aspect-ratio fitting, and post-processing adjustments
+ *  - Curated retro presets
+ */
 
 const SAMPLE_MEDIA = [
   {
@@ -80,6 +92,88 @@ export interface PresetItem {
 
 const PRESETS: PresetItem[] = [
   {
+    name: "Macintosh 1-Bit",
+    desc: "1984 original Macintosh pure black & white",
+    category: "mono",
+    colors: ["#000000", "#ffffff"],
+    preset: {
+      engine: "vgpu" as const,
+      ditherType: "8x8" as const,
+      colorMode: "paper" as const,
+      colorBack: "#000000",
+      colorFront: "#ffffff",
+      colorHighlight: "#ffffff",
+      paletteId: "macintosh-1bit",
+      palette: ["#000000", "#ffffff"],
+      pxSize: 2,
+      threshold: 0.5,
+      fit: "contain" as const,
+    },
+  },
+  {
+    name: "Floyd-Steinberg",
+    desc: "1976 classic newsprint error diffusion",
+    category: "mono",
+    colors: ["#000000", "#ffffff"],
+    preset: {
+      engine: "cpu" as const,
+      cpuAlgorithm: "floyd-steinberg" as const,
+      colorMode: "grayscale" as const,
+      pxSize: 1,
+      threshold: 0.5,
+      inverted: false,
+      fit: "contain" as const,
+    },
+  },
+  {
+    name: "1-Bit Atkinson",
+    desc: "1984 Bill Atkinson HyperCard diffusion",
+    category: "mono",
+    colors: ["#000000", "#ffffff"],
+    preset: {
+      engine: "cpu" as const,
+      cpuAlgorithm: "atkinson" as const,
+      colorMode: "grayscale" as const,
+      pxSize: 1,
+      threshold: 0.5,
+      inverted: false,
+      fit: "contain" as const,
+    },
+  },
+  {
+    name: "Newspaper Halftone",
+    desc: "45° ink dot halftone press screen",
+    category: "print",
+    colors: ["#000000", "#ffffff"],
+    preset: {
+      engine: "vgpu" as const,
+      ditherType: "halftone" as const,
+      halftoneAngle: 45,
+      halftoneScale: 2.5,
+      pxSize: 1.5,
+      colorMode: "duotone" as const,
+      colorBack: "#ffffff",
+      colorFront: "#000000",
+      fit: "contain" as const,
+    },
+  },
+  {
+    name: "Game Boy Pocket",
+    desc: "1996 authentic silver-gray LCD",
+    category: "retro",
+    colors: ["#2b2b26", "#706b66", "#a89f91", "#c5bcab"],
+    preset: {
+      engine: "vgpu" as const,
+      ditherType: "8x8" as const,
+      colorMode: "palette" as const,
+      paletteId: "gameboy-pocket",
+      palette: ["#2b2b26", "#706b66", "#a89f91", "#c5bcab"],
+      pxSize: 2.5,
+      threshold: 0.5,
+      fit: "contain" as const,
+    },
+  },
+  {
     name: "Paper Mint",
     desc: "Navy & lime mint 8x8 ramp",
     category: "print",
@@ -93,21 +187,6 @@ const PRESETS: PresetItem[] = [
       colorHighlight: "#eaff94",
       pxSize: 2,
       colorSteps: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "PSX 15-Bit",
-    desc: "90s console 15-bit color banding",
-    category: "retro",
-    colors: ["#181820", "#387080", "#c05070", "#e8d8b0"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "4x4" as const,
-      colorMode: "original" as const,
-      colorSteps: 4,
-      pxSize: 2,
       threshold: 0.5,
       fit: "contain" as const,
     },
@@ -129,17 +208,49 @@ const PRESETS: PresetItem[] = [
     },
   },
   {
-    name: "Game Boy Pocket",
-    desc: "1996 authentic silver-gray LCD",
+    name: "CGA Mode 1",
+    desc: "1981 IBM PC cyan & magenta",
     category: "retro",
-    colors: ["#2b2b26", "#706b66", "#a89f91", "#c5bcab"],
+    colors: ["#000000", "#00aaaa", "#aa00aa", "#aaaaaa"],
+    preset: {
+      engine: "vgpu" as const,
+      ditherType: "4x4" as const,
+      colorMode: "palette" as const,
+      paletteId: "cga-mode1",
+      palette: ["#000000", "#00aaaa", "#aa00aa", "#aaaaaa"],
+      pxSize: 2.5,
+      threshold: 0.5,
+      fit: "contain" as const,
+    },
+  },
+  {
+    name: "Matrix Phosphor",
+    desc: "VT100 green CRT terminal glow",
+    category: "terminal",
+    colors: ["#051505", "#0d3a14", "#18b532", "#4aff68"],
     preset: {
       engine: "vgpu" as const,
       ditherType: "8x8" as const,
       colorMode: "palette" as const,
-      paletteId: "gameboy-pocket",
-      palette: ["#2b2b26", "#706b66", "#a89f91", "#c5bcab"],
-      pxSize: 2.5,
+      paletteId: "crt-green",
+      palette: ["#051505", "#0d3a14", "#18b532", "#4aff68"],
+      pxSize: 2,
+      threshold: 0.52,
+      fit: "contain" as const,
+    },
+  },
+  {
+    name: "Amber Terminal",
+    desc: "Warm P3 amber CRT phosphor",
+    category: "terminal",
+    colors: ["#140700", "#522300", "#ff8800", "#ffc870"],
+    preset: {
+      engine: "vgpu" as const,
+      ditherType: "8x8" as const,
+      colorMode: "palette" as const,
+      paletteId: "amber-terminal",
+      palette: ["#140700", "#522300", "#ff8800", "#ffc870"],
+      pxSize: 2,
       threshold: 0.5,
       fit: "contain" as const,
     },
@@ -182,150 +293,6 @@ const PRESETS: PresetItem[] = [
     },
   },
   {
-    name: "Matrix Phosphor",
-    desc: "VT100 green CRT terminal glow",
-    category: "terminal",
-    colors: ["#051505", "#0d3a14", "#18b532", "#4aff68"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "crt-green",
-      palette: ["#051505", "#0d3a14", "#18b532", "#4aff68"],
-      pxSize: 2,
-      threshold: 0.52,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Amber Terminal",
-    desc: "Warm P3 amber CRT phosphor",
-    category: "terminal",
-    colors: ["#140700", "#522300", "#ff8800", "#ffc870"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "amber-terminal",
-      palette: ["#140700", "#522300", "#ff8800", "#ffc870"],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Thermal FLIR",
-    desc: "Infrared heat-map false color",
-    category: "stylized",
-    colors: ["#000004", "#781c6d", "#ed6925", "#fcffa4"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "thermal-flir",
-      palette: ["#000004", "#320a5e", "#781c6d", "#bb3754", "#ed6925", "#fbb41a", "#fcffa4"],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "1-Bit Atkinson",
-    desc: "1984 Macintosh OS pure 1-bit",
-    category: "mono",
-    colors: ["#000000", "#ffffff"],
-    preset: {
-      engine: "cpu" as const,
-      cpuAlgorithm: "atkinson" as const,
-      colorMode: "grayscale" as const,
-      pxSize: 1,
-      threshold: 0.5,
-      inverted: false,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Floyd-Steinberg",
-    desc: "1976 classic newsprint diffusion",
-    category: "mono",
-    colors: ["#101014", "#f0f0f4"],
-    preset: {
-      engine: "cpu" as const,
-      cpuAlgorithm: "floyd-steinberg" as const,
-      colorMode: "grayscale" as const,
-      pxSize: 1,
-      threshold: 0.5,
-      inverted: false,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Newspaper Halftone",
-    desc: "45° dot halftone screen",
-    category: "print",
-    colors: ["#141416", "#e8e5db"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "halftone" as const,
-      halftoneAngle: 45,
-      halftoneScale: 2.5,
-      pxSize: 1.5,
-      colorMode: "duotone" as const,
-      colorBack: "#e8e5db",
-      colorFront: "#141416",
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Manga Screentone",
-    desc: "60° dense Japanese screentone",
-    category: "print",
-    colors: ["#111113", "#f4f3ef"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "halftone" as const,
-      halftoneAngle: 60,
-      halftoneScale: 1.8,
-      pxSize: 1,
-      colorMode: "duotone" as const,
-      colorBack: "#f4f3ef",
-      colorFront: "#111113",
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Risograph Pop",
-    desc: "Federal blue, pink & sun print",
-    category: "print",
-    colors: ["#f6f4ee", "#fedb00", "#ff48b0", "#003882"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "clustered" as const,
-      colorMode: "palette" as const,
-      paletteId: "risograph-pop",
-      palette: ["#f6f4ee", "#fedb00", "#ff48b0", "#003882"],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "CGA Mode 1",
-    desc: "1981 IBM PC cyan & magenta",
-    category: "retro",
-    colors: ["#000000", "#00aaaa", "#aa00aa", "#aaaaaa"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "4x4" as const,
-      colorMode: "palette" as const,
-      paletteId: "cga-mode1",
-      palette: ["#000000", "#00aaaa", "#aa00aa", "#aaaaaa"],
-      pxSize: 2.5,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
     name: "Commodore 64",
     desc: "1982 C64 microcomputer 16-color",
     category: "retro",
@@ -347,18 +314,19 @@ const PRESETS: PresetItem[] = [
     },
   },
   {
-    name: "Vaporwave Sunset",
-    desc: "Dusk-to-dawn synthwave gradient",
-    category: "stylized",
-    colors: ["#120324", "#9e1966", "#f0436a", "#fced9b"],
+    name: "Manga Screentone",
+    desc: "60° dense Japanese screentone",
+    category: "print",
+    colors: ["#111113", "#f4f3ef"],
     preset: {
       engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "vaporwave-sunset",
-      palette: ["#120324", "#4b0c55", "#9e1966", "#f0436a", "#f99879", "#fced9b"],
-      pxSize: 2,
-      threshold: 0.5,
+      ditherType: "halftone" as const,
+      halftoneAngle: 60,
+      halftoneScale: 1.8,
+      pxSize: 1,
+      colorMode: "duotone" as const,
+      colorBack: "#f4f3ef",
+      colorFront: "#111113",
       fit: "contain" as const,
     },
   },
@@ -395,96 +363,59 @@ const PRESETS: PresetItem[] = [
     },
   },
   {
-    name: "Dracula Dark",
-    desc: "Goth cyber purple & neon green",
-    category: "terminal",
-    colors: ["#282a36", "#bd93f9", "#ff79c6", "#50fa7b"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "4x4" as const,
-      colorMode: "palette" as const,
-      paletteId: "dracula",
-      palette: ["#282a36", "#44475a", "#6272a4", "#bd93f9", "#ff79c6", "#50fa7b", "#f8f8f2"],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "ZX Spectrum",
-    desc: "1982 Sinclair 8-color clash",
+    name: "PSX 15-Bit",
+    desc: "90s console 15-bit color banding",
     category: "retro",
-    colors: ["#000000", "#d70000", "#00d7d7", "#ffff00"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "zx-spectrum",
-      palette: [
-        "#000000", "#0000d7", "#d70000", "#d700d7",
-        "#00d700", "#00d7d7", "#d7d700", "#d7d7d7",
-        "#0000ff", "#ff0000", "#ff00ff", "#00ff00",
-        "#00ffff", "#ffff00", "#ffffff"
-      ],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Solarized Dark",
-    desc: "High-contrast developer scheme",
-    category: "terminal",
-    colors: ["#002b36", "#268bd2", "#859900", "#eee8d5"],
+    colors: ["#181820", "#387080", "#c05070", "#e8d8b0"],
     preset: {
       engine: "vgpu" as const,
       ditherType: "4x4" as const,
-      colorMode: "palette" as const,
-      paletteId: "solarized-dark",
-      palette: ["#002b36", "#073642", "#268bd2", "#2aa198", "#859900", "#b58900", "#cb4b16", "#dc322f", "#eee8d5"],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Sega Genesis",
-    desc: "16-bit arcade console palette",
-    category: "retro",
-    colors: ["#000000", "#2080c0", "#d02000", "#f8b000"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "4x4" as const,
-      colorMode: "palette" as const,
-      paletteId: "sega-genesis",
-      palette: [
-        "#000000", "#181818", "#383838", "#585858",
-        "#002040", "#005080", "#2080c0", "#60b0e0",
-        "#800000", "#d02000", "#f07000", "#f8b000",
-        "#005800", "#209020", "#58d058", "#f8f8f8"
-      ],
-      pxSize: 2.5,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Nord Arctic",
-    desc: "Cool north-bluish design theme",
-    category: "stylized",
-    colors: ["#2e3440", "#88c0d0", "#81a1c1", "#eceff4"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "nord-frost",
-      palette: ["#2e3440", "#3b4252", "#434c5e", "#88c0d0", "#81a1c1", "#8fbcbb", "#eceff4"],
+      colorMode: "original" as const,
+      colorSteps: 4,
       pxSize: 2,
       threshold: 0.5,
       fit: "contain" as const,
     },
   },
 ];
+
+interface SectionHeaderProps {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+function SectionHeader({
+  title,
+  icon: Icon,
+  isOpen,
+  onToggle,
+}: SectionHeaderProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full flex items-center justify-between py-2.5 px-4 bg-neutral-950 hover:bg-neutral-900 border-y border-border transition-colors text-left btn-press select-none group"
+      style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)" }}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Icon className="w-4 h-4 text-neutral-300 group-hover:text-white transition-colors shrink-0" />
+        <span className="text-xs sm:text-[13px] font-mono font-bold uppercase tracking-wider text-white truncate">
+          {title}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        {isOpen ? (
+          <CaretDown className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
+        ) : (
+          <CaretRight className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
+        )}
+      </div>
+    </button>
+  );
+}
 
 export function ControlPanel({
   settings,
@@ -495,7 +426,18 @@ export function ControlPanel({
   isWebcamActive,
   onApplyPreset,
 }: ControlPanelProps) {
-  const [activeTab, setActiveTab] = useState<"dither" | "palette" | "adjust" | "presets">("dither");
+  const [openSections, setOpenSections] = useState({
+    media: true,
+    dither: true,
+    color: true,
+    presets: true,
+    adjust: true,
+  });
+
+  const toggleSection = (key: keyof typeof openSections) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const [presetCategory, setPresetCategory] = useState<string>("all");
   const [presetSearch, setPresetSearch] = useState<string>("");
 
@@ -512,326 +454,63 @@ export function ControlPanel({
     });
   };
 
+  const handleHardwarePaletteClick = (pal: { id: string; colors: string[] }) => {
+    if (settings.colorMode === "duotone") {
+      onChange({
+        paletteId: pal.id,
+        palette: [...pal.colors],
+        colorBack: pal.colors[0],
+        colorFront: pal.colors[pal.colors.length - 1],
+      });
+    } else if (settings.colorMode === "paper") {
+      onChange({
+        paletteId: pal.id,
+        palette: [...pal.colors],
+        colorBack: pal.colors[0],
+        colorFront: pal.colors[1] || pal.colors[0],
+        colorHighlight: pal.colors[2] || pal.colors[pal.colors.length - 1],
+      });
+    } else {
+      onChange({
+        paletteId: pal.id,
+        palette: [...pal.colors],
+        colorMode: "palette",
+      });
+    }
+  };
+
   return (
-    <aside className="w-full lg:w-80 bg-card border-l border-border flex flex-col h-full overflow-hidden select-none">
-      {/* Navigation Tabs */}
-      <nav className="flex items-center border-b border-border bg-muted/40 p-1 gap-1 shrink-0">
-        {[
-          { id: "dither", label: "Dither", icon: Sliders },
-          { id: "palette", label: "Color", icon: Palette },
-          { id: "adjust", label: "Adjust", icon: ImageIcon },
-          { id: "presets", label: "Presets", icon: Bookmark },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-mono transition-all btn-press",
-                isActive
-                  ? "bg-secondary text-foreground font-semibold shadow-sm border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/40 border border-transparent"
-              )}
-            >
-              <Icon className={cn("w-3.5 h-3.5", isActive ? "text-primary" : "text-muted-foreground")} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+    <aside
+      className="w-full lg:w-[410px] bg-card border-l border-border flex flex-col h-full overflow-hidden select-none"
+      style={{ borderLeftWidth: "1px" }}
+    >
+      
+      <div className="h-11 px-4 bg-neutral-950 border-b border-border flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 bg-white inline-block" />
+          <span className="text-xs sm:text-[13px] font-mono font-bold uppercase tracking-wider text-white">
+            STUDIO CONTROLS
+          </span>
+        </div>
+      </div>
 
-      {/* Tab Panels */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs text-foreground/90">
-        {/* Dither Tab */}
-        {activeTab === "dither" && (
-          <div className="space-y-4">
-            {/* Engine Selection */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-muted-foreground block font-medium">
-                Engine
-              </label>
-              <SegmentedControl
-                value={settings.engine}
-                onChange={(engine) => onChange({ engine })}
-                options={[
-                  { value: "vgpu", label: "WebGPU", icon: Lightning },
-                  { value: "webgl", label: "WebGL", icon: Stack },
-                  { value: "cpu", label: "CPU", icon: Cpu },
-                ]}
-              />
-            </div>
+      <div className="flex-1 overflow-y-auto divide-y divide-border text-xs text-foreground/90">
 
-            {/* Pattern Selector */}
-            {settings.engine !== "cpu" ? (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-muted-foreground block font-medium">
-                  Matrix Pattern
-                </label>
-                <div className="grid grid-cols-2 gap-1">
-                  {[
-                    { id: "8x8", label: "Bayer 8×8" },
-                    { id: "4x4", label: "Bayer 4×4" },
-                    { id: "2x2", label: "Bayer 2×2" },
-                    { id: "16x16", label: "Bayer 16×16" },
-                    { id: "halftone", label: "Halftone" },
-                    { id: "crosshatch", label: "Crosshatch" },
-                    { id: "clustered", label: "Clustered" },
-                    { id: "noise", label: "Noise" },
-                  ].map((item) => {
-                    const isSelected = settings.ditherType === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => onChange({ ditherType: item.id as any })}
-                        className={cn(
-                          "py-2 px-2.5 rounded-md border text-left font-mono text-[11px] transition-all btn-press flex items-center justify-between",
-                          isSelected
-                            ? "bg-secondary text-primary border-primary/50 font-medium shadow-sm"
-                            : "bg-secondary/30 border-border text-muted-foreground hover:border-border-hover hover:text-foreground"
-                        )}
-                      >
-                        <span>{item.label}</span>
-                        {isSelected && <Check className="w-3 h-3 text-primary" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-muted-foreground block font-medium">
-                  Diffusion Algorithm
-                </label>
-                <div className="grid grid-cols-2 gap-1">
-                  {[
-                    { id: "floyd-steinberg", label: "Floyd-Steinberg" },
-                    { id: "atkinson", label: "Atkinson" },
-                    { id: "sierra3", label: "Sierra-3" },
-                    { id: "sierra-lite", label: "Sierra Lite" },
-                    { id: "burkes", label: "Burkes" },
-                    { id: "stucki", label: "Stucki" },
-                    { id: "jarvis", label: "Jarvis" },
-                  ].map((item) => {
-                    const isSelected = settings.cpuAlgorithm === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => onChange({ cpuAlgorithm: item.id as any })}
-                        className={cn(
-                          "py-2 px-2.5 rounded-md border text-left font-mono text-[11px] transition-all btn-press flex items-center justify-between",
-                          isSelected
-                            ? "bg-secondary text-primary border-primary/50 font-medium shadow-sm"
-                            : "bg-secondary/30 border-border text-muted-foreground hover:border-border-hover hover:text-foreground"
-                        )}
-                      >
-                        <span className="truncate">{item.label}</span>
-                        {isSelected && <Check className="w-3 h-3 text-primary shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+        <section className="bg-card">
+          <SectionHeader
+            title="SOURCE MEDIA"
+            icon={ImageIcon}
+            isOpen={openSections.media}
+            onToggle={() => toggleSection("media")}
+          />
 
-            {/* Sliders */}
-            <div className="pt-2 border-t border-border space-y-3">
-              <SliderControl
-                label="Pixel Size"
-                value={settings.pxSize}
-                min={0.5}
-                max={16}
-                step={0.5}
-                unit="px"
-                defaultValue={2}
-                onChange={(pxSize) => onChange({ pxSize })}
-              />
-
-              <SliderControl
-                label="Threshold Bias"
-                value={settings.threshold}
-                min={0.0}
-                max={1.0}
-                step={0.02}
-                defaultValue={0.5}
-                onChange={(threshold) => onChange({ threshold })}
-              />
-
-              {settings.ditherType === "halftone" && (
-                <>
-                  <SliderControl
-                    label="Screen Angle"
-                    value={settings.halftoneAngle}
-                    min={0}
-                    max={90}
-                    step={5}
-                    unit="°"
-                    defaultValue={45}
-                    onChange={(halftoneAngle) => onChange({ halftoneAngle })}
-                  />
-                  <SliderControl
-                    label="Dot Scale"
-                    value={settings.halftoneScale}
-                    min={1}
-                    max={8}
-                    step={0.5}
-                    defaultValue={2}
-                    onChange={(halftoneScale) => onChange({ halftoneScale })}
-                  />
-                </>
-              )}
-            </div>
-
-            {/* Invert Output Toggle */}
-            <div className="pt-2 border-t border-border">
-              <label className="flex items-center justify-between cursor-pointer font-mono text-[11px] p-2 rounded-md bg-secondary/30 border border-border hover:border-border-hover transition-colors">
-                <span className="text-foreground font-medium">Invert Output</span>
-                <input
-                  type="checkbox"
-                  checked={settings.inverted}
-                  onChange={(e) => onChange({ inverted: e.target.checked })}
-                  className="w-4 h-4 rounded-sm border-border bg-background text-primary focus:ring-ring focus:ring-offset-0 cursor-pointer"
-                />
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Palette Tab */}
-        {activeTab === "palette" && (
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-muted-foreground block font-medium">
-                Color Mode
-              </label>
-              <SegmentedControl
-                value={settings.colorMode}
-                onChange={(colorMode) => onChange({ colorMode })}
-                size="sm"
-                options={[
-                  { value: "paper", label: "Paper" },
-                  { value: "duotone", label: "Duotone" },
-                  { value: "palette", label: "Palette" },
-                  { value: "original", label: "RGB" },
-                  { value: "grayscale", label: "Mono" },
-                ]}
-              />
-            </div>
-
-            {settings.colorMode === "paper" && (
-              <div className="space-y-2 p-2.5 bg-secondary/20 rounded-lg border border-border">
-                <DualColorPicker
-                  backLabel="Background"
-                  frontLabel="Foreground"
-                  colorBack={settings.colorBack}
-                  colorFront={settings.colorFront}
-                  onBackChange={(colorBack) => onChange({ colorBack })}
-                  onFrontChange={(colorFront) => onChange({ colorFront })}
-                  onSwap={() =>
-                    onChange({
-                      colorBack: settings.colorFront,
-                      colorFront: settings.colorBack,
-                    })
-                  }
-                />
-                <ColorSwatchPicker
-                  label="Highlight"
-                  color={settings.colorHighlight}
-                  onChange={(colorHighlight) => onChange({ colorHighlight })}
-                />
-              </div>
-            )}
-
-            {settings.colorMode === "duotone" && (
-              <div className="p-2.5 bg-secondary/20 rounded-lg border border-border">
-                <DualColorPicker
-                  backLabel="Dark Shade"
-                  frontLabel="Light Shade"
-                  colorBack={settings.colorBack}
-                  colorFront={settings.colorFront}
-                  onBackChange={(colorBack) => onChange({ colorBack })}
-                  onFrontChange={(colorFront) => onChange({ colorFront })}
-                  onSwap={() =>
-                    onChange({
-                      colorBack: settings.colorFront,
-                      colorFront: settings.colorBack,
-                    })
-                  }
-                />
-              </div>
-            )}
-
-            <div className="space-y-1.5 pt-2 border-t border-border">
-              <label className="text-[11px] font-mono text-muted-foreground block font-medium">
-                Hardware Palettes
-              </label>
-              <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
-                {RETRO_PALETTES.map((pal) => {
-                  const isSelected = settings.paletteId === pal.id;
-                  return (
-                    <button
-                      key={pal.id}
-                      type="button"
-                      onClick={() =>
-                        onChange({
-                          paletteId: pal.id,
-                          palette: [...pal.colors],
-                          colorMode: "palette",
-                        })
-                      }
-                      className={cn(
-                        "p-2 rounded-md border text-left font-mono transition-all btn-press flex flex-col gap-1.5",
-                        isSelected
-                          ? "bg-secondary text-foreground border-primary/50 shadow-sm"
-                          : "bg-secondary/30 border-border text-muted-foreground hover:border-border-hover hover:text-foreground"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium truncate">
-                          {pal.name}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground/70">{pal.colors.length}c</span>
-                      </div>
-                      <div className="flex h-2.5 w-full rounded-sm overflow-hidden border border-border">
-                        {pal.colors.map((c, i) => (
-                          <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-border">
-              <SliderControl
-                label="Quantization Steps"
-                value={settings.colorSteps}
-                min={1}
-                max={16}
-                step={1}
-                defaultValue={2}
-                onChange={(colorSteps) => onChange({ colorSteps })}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Adjust Tab */}
-        {activeTab === "adjust" && (
-          <div className="space-y-4">
-            {/* Input Media Selection */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-muted-foreground block font-medium">
-                Source Media
-              </label>
-              <div className="grid grid-cols-2 gap-1">
-                <label className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-secondary/40 hover:bg-secondary border border-border rounded-md cursor-pointer font-mono text-[11px] text-foreground transition-colors btn-press">
-                  <ImageIcon className="w-3.5 h-3.5 text-primary" />
-                  <span>Image</span>
+          {openSections.media && (
+            <div className="p-4 space-y-3.5 bg-black/40">
+              
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex items-center justify-center gap-2 py-2.5 px-3 bg-secondary/50 hover:bg-neutral-800 border border-border cursor-pointer font-mono text-xs text-white transition-colors btn-press font-bold">
+                  <ImageIcon className="w-4 h-4 text-white" />
+                  <span>IMAGE</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -842,9 +521,9 @@ export function ControlPanel({
                   />
                 </label>
 
-                <label className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-secondary/40 hover:bg-secondary border border-border rounded-md cursor-pointer font-mono text-[11px] text-foreground transition-colors btn-press">
-                  <VideoIcon className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Video</span>
+                <label className="flex items-center justify-center gap-2 py-2.5 px-3 bg-secondary/50 hover:bg-neutral-800 border border-border cursor-pointer font-mono text-xs text-white transition-colors btn-press font-bold">
+                  <VideoIcon className="w-4 h-4 text-white" />
+                  <span>VIDEO</span>
                   <input
                     type="file"
                     accept="video/*"
@@ -859,352 +538,687 @@ export function ControlPanel({
                   type="button"
                   onClick={onToggleWebcam}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 py-1.5 px-2 border rounded-md font-mono text-[11px] transition-colors btn-press",
+                    "flex items-center justify-center gap-2 py-2.5 px-3 border font-mono text-xs transition-colors btn-press font-bold",
                     isWebcamActive
-                      ? "bg-destructive/20 border-destructive text-destructive-foreground"
-                      : "bg-secondary/40 hover:bg-secondary border-border text-foreground"
+                      ? "bg-white text-black font-bold border-white"
+                      : "bg-secondary/50 hover:bg-neutral-800 border-border text-white"
                   )}
                 >
-                  <Camera className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{isWebcamActive ? "Stop Cam" : "Webcam"}</span>
+                  <Camera className="w-4 h-4" />
+                  <span>{isWebcamActive ? "STOP CAM" : "WEBCAM"}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onChange({ mediaType: "procedural" })}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 py-1.5 px-2 border rounded-md font-mono text-[11px] transition-colors btn-press",
-                    settings.mediaType === "procedural"
-                      ? "bg-secondary border-primary/50 text-foreground font-semibold"
-                      : "bg-secondary/40 hover:bg-secondary border-border text-foreground"
+                    "flex items-center justify-center gap-2 py-2.5 px-3 border font-mono text-xs transition-colors btn-press font-bold",
+                    settings.mediaType === "procedural" && !isWebcamActive
+                      ? "bg-white text-black font-bold border-white"
+                      : "bg-secondary/50 hover:bg-neutral-800 border-border text-white"
                   )}
                 >
-                  <Cpu className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Procedural</span>
+                  <Cpu className="w-4 h-4" />
+                  <span>PROCEDURAL</span>
                 </button>
               </div>
-            </div>
 
-            {/* Viewport Fit Mode */}
-            <div className="space-y-1.5 pt-2 border-t border-border">
-              <label className="text-[11px] font-mono text-muted-foreground block font-medium">
-                Framing & Fit
-              </label>
-              <SegmentedControl
-                value={settings.fit}
-                onChange={(fit) => onChange({ fit })}
-                options={[
-                  { value: "contain", label: "Fit", icon: Scan },
-                  { value: "cover", label: "Fill", icon: CornersOut },
-                  { value: "fill", label: "Stretch", icon: ArrowsOutLineVertical },
-                ]}
-              />
-            </div>
-
-            {/* Transform Controls: Scale & Rotation */}
-            <div className="space-y-3 pt-2 border-t border-border">
-              <SliderControl
-                label="Scale"
-                value={settings.scale}
-                min={0.2}
-                max={3.0}
-                step={0.05}
-                unit="x"
-                defaultValue={1.0}
-                onChange={(scale) => onChange({ scale })}
-              />
-
-              <SliderControl
-                label="Rotation"
-                value={settings.rotation}
-                min={0}
-                max={360}
-                step={5}
-                unit="°"
-                defaultValue={0}
-                onChange={(rotation) => onChange({ rotation })}
-              />
-            </div>
-
-            {/* Image Adjustments */}
-            <div className="space-y-3 pt-2 border-t border-border">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono text-muted-foreground font-medium flex items-center gap-1.5">
-                  <Sun className="w-3.5 h-3.5 text-muted-foreground" />
-                  Tone & Color
+              <div className="pt-2.5 border-t border-border/60 space-y-2">
+                <span className="text-xs font-mono text-neutral-300 block font-bold uppercase tracking-wider">
+                  Quick Sample Library
                 </span>
-                <button
-                  type="button"
-                  onClick={resetAdjustments}
-                  className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors btn-press"
-                  title="Reset adjustments"
-                >
-                  <ArrowCounterClockwise className="w-2.5 h-2.5" />
-                  Reset
-                </button>
-              </div>
-
-              <SliderControl
-                label="Brightness"
-                value={settings.brightness}
-                min={-0.5}
-                max={0.5}
-                step={0.02}
-                defaultValue={0}
-                formatValue={(v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
-                onChange={(brightness) => onChange({ brightness })}
-              />
-
-              <SliderControl
-                label="Contrast"
-                value={settings.contrast}
-                min={0.2}
-                max={2.5}
-                step={0.05}
-                unit="x"
-                defaultValue={1.0}
-                onChange={(contrast) => onChange({ contrast })}
-              />
-
-              <SliderControl
-                label="Saturation"
-                value={settings.saturation}
-                min={0.0}
-                max={2.0}
-                step={0.05}
-                unit="x"
-                defaultValue={1.0}
-                onChange={(saturation) => onChange({ saturation })}
-              />
-
-              <SliderControl
-                label="Gamma"
-                value={settings.gamma}
-                min={0.5}
-                max={2.5}
-                step={0.05}
-                defaultValue={1.0}
-                onChange={(gamma) => onChange({ gamma })}
-              />
-            </div>
-
-            {/* Sample Library */}
-            <div className="space-y-1.5 pt-2 border-t border-border">
-              <label className="text-[11px] font-mono text-muted-foreground block font-medium">
-                Sample Library
-              </label>
-              <div className="space-y-1">
-                {SAMPLE_MEDIA.map((item) => (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() => onChange({ mediaType: "image", mediaUrl: item.url })}
-                    className={cn(
-                      "w-full flex items-center justify-between p-2 rounded-md border font-mono text-[11px] transition-all text-left btn-press",
-                      settings.mediaUrl === item.url && settings.mediaType === "image"
-                        ? "bg-secondary text-foreground border-primary/50 font-medium"
-                        : "bg-secondary/30 border-border text-muted-foreground hover:border-border-hover hover:text-foreground"
-                    )}
-                  >
-                    <span>{item.name}</span>
-                    <span className="text-[9px] text-muted-foreground/70 uppercase font-mono px-1 py-0.5 rounded-sm bg-secondary">
-                      {item.type}
-                    </span>
-                  </button>
-                ))}
+                <div className="grid grid-cols-1 gap-1.5">
+                  {SAMPLE_MEDIA.map((item) => {
+                    const isSelected = settings.mediaUrl === item.url && settings.mediaType === "image";
+                    return (
+                      <button
+                        key={item.name}
+                        type="button"
+                        onClick={() => onChange({ mediaType: "image", mediaUrl: item.url })}
+                        className={cn(
+                          "w-full flex items-center justify-between py-2 px-3 border font-mono text-xs transition-all text-left btn-press",
+                          isSelected
+                            ? "bg-white text-black border-white font-bold"
+                            : "bg-secondary/30 border-border text-neutral-300 hover:border-white hover:text-white"
+                        )}
+                      >
+                        <span className="truncate">{item.name}</span>
+                        <span className={cn(
+                          "text-[10px] uppercase font-mono px-1.5 py-0.5 border font-medium",
+                          isSelected ? "border-black text-black bg-neutral-200" : "border-neutral-700 text-neutral-400 bg-secondary"
+                        )}>
+                          {item.type}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </section>
 
-        {/* Presets Tab */}
-        {activeTab === "presets" && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-mono text-muted-foreground block font-medium flex items-center gap-1.5">
-                <Sparkle className="w-3.5 h-3.5 text-primary" />
-                Style Presets
-              </label>
-              <span className="text-[10px] font-mono text-muted-foreground/70">
-                {PRESETS.length} Presets
-              </span>
-            </div>
+        <section className="bg-card">
+          <SectionHeader
+            title="DITHER MATRIX & ENGINE"
+            icon={Sliders}
+            isOpen={openSections.dither}
+            onToggle={() => toggleSection("dither")}
+          />
 
-            {/* Search Input */}
-            <div className="relative">
-              <MagnifyingGlass className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={presetSearch}
-                onChange={(e) => setPresetSearch(e.target.value)}
-                placeholder="Search presets (Game Boy, PSX, CRT...)"
-                className="w-full pl-8 pr-7 py-1.5 rounded-md bg-secondary/30 border border-border text-[11px] font-mono placeholder:text-muted-foreground/60 text-foreground focus:outline-none focus:border-primary/60 transition-colors"
-              />
-              {presetSearch && (
-                <button
-                  type="button"
-                  onClick={() => setPresetSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
-                  title="Clear search"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+          {openSections.dither && (
+            <div className="p-4 space-y-4 bg-black/40">
+              
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+                  Rendering Engine
+                </label>
+                <SegmentedControl
+                  value={settings.engine}
+                  onChange={(engine) => onChange({ engine })}
+                  options={[
+                    { value: "vgpu", label: "WebGPU", icon: Lightning },
+                    { value: "webgl", label: "WebGL", icon: Stack },
+                    { value: "cpu", label: "CPU", icon: Cpu },
+                  ]}
+                />
+              </div>
 
-            {/* Category Filter Chips */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
-              {[
-                { id: "all", label: "All" },
-                { id: "retro", label: "Retro" },
-                { id: "terminal", label: "Terminal" },
-                { id: "print", label: "Print" },
-                { id: "mono", label: "1-Bit" },
-                { id: "stylized", label: "Stylized" },
-              ].map((cat) => {
-                const isSelected = presetCategory === cat.id;
-                const count =
-                  cat.id === "all"
-                    ? PRESETS.length
-                    : PRESETS.filter((p) => p.category === cat.id).length;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setPresetCategory(cat.id)}
-                    className={cn(
-                      "px-2 py-1 rounded text-[10px] font-mono whitespace-nowrap transition-all btn-press flex items-center gap-1",
-                      isSelected
-                        ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                        : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/70 border border-border/50"
-                    )}
-                  >
-                    <span>{cat.label}</span>
-                    <span
-                      className={cn(
-                        "text-[9px] px-1 py-0.2 rounded-full",
-                        isSelected
-                          ? "bg-black/20 text-primary-foreground"
-                          : "text-muted-foreground/60"
-                      )}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Preset Cards List */}
-            <div className="space-y-1.5 pt-1">
-              {PRESETS.filter((preset) => {
-                const matchesCat =
-                  presetCategory === "all" || preset.category === presetCategory;
-                const query = presetSearch.trim().toLowerCase();
-                const matchesQuery =
-                  !query ||
-                  preset.name.toLowerCase().includes(query) ||
-                  preset.desc.toLowerCase().includes(query) ||
-                  preset.category.toLowerCase().includes(query);
-                return matchesCat && matchesQuery;
-              }).map((preset) => {
-                const isCurrent =
-                  (preset.preset.paletteId && settings.paletteId === preset.preset.paletteId) ||
-                  (preset.preset.colorMode === "paper" &&
-                    settings.colorMode === "paper" &&
-                    settings.colorBack === preset.preset.colorBack) ||
-                  (preset.preset.engine === "cpu" &&
-                    settings.engine === "cpu" &&
-                    settings.cpuAlgorithm === preset.preset.cpuAlgorithm) ||
-                  (preset.name === "PSX 15-Bit" &&
-                    settings.colorMode === "original" &&
-                    settings.colorSteps === 4) ||
-                  (preset.name === "Newspaper Halftone" &&
-                    settings.ditherType === "halftone" &&
-                    settings.halftoneAngle === 45) ||
-                  (preset.name === "Manga Screentone" &&
-                    settings.ditherType === "halftone" &&
-                    settings.halftoneAngle === 60) ||
-                  (preset.name === "Blueprint" &&
-                    settings.ditherType === "crosshatch" &&
-                    settings.colorBack === "#002b5c") ||
-                  (preset.name === "Vintage Sepia" &&
-                    settings.colorMode === "duotone" &&
-                    settings.colorFront === "#1a0f07");
-
-                return (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    onClick={() => onApplyPreset(preset.preset)}
-                    className={cn(
-                      "w-full flex flex-col p-2.5 rounded-md border text-left transition-all btn-press gap-1.5 group relative",
-                      isCurrent
-                        ? "bg-secondary/80 border-primary/60 shadow-xs"
-                        : "bg-secondary/30 hover:bg-secondary/70 border-border hover:border-border-hover"
-                    )}
-                  >
-                    <div className="flex items-center justify-between w-full gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span
+              {settings.engine !== "cpu" ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+                    Matrix Pattern
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { id: "8x8", label: "Bayer 8×8" },
+                      { id: "4x4", label: "Bayer 4×4" },
+                      { id: "2x2", label: "Bayer 2×2" },
+                      { id: "16x16", label: "Bayer 16×16" },
+                      { id: "halftone", label: "Halftone" },
+                      { id: "crosshatch", label: "Crosshatch" },
+                      { id: "clustered", label: "Clustered" },
+                      { id: "noise", label: "Noise" },
+                    ].map((item) => {
+                      const isSelected = settings.ditherType === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => onChange({ ditherType: item.id as any })}
                           className={cn(
-                            "text-[11px] font-mono font-semibold truncate transition-colors",
-                            isCurrent
-                              ? "text-primary"
-                              : "text-foreground group-hover:text-primary"
+                            "py-2.5 px-3 border text-left font-mono text-xs transition-all btn-press flex items-center justify-between font-bold",
+                            isSelected
+                              ? "bg-white text-black border-white shadow-sm"
+                              : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
                           )}
                         >
-                          {preset.name}
-                        </span>
-                        <span className="text-[8px] uppercase tracking-wider font-mono text-muted-foreground/60 px-1 py-0.2 rounded bg-secondary/80 shrink-0">
-                          {preset.category}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {isCurrent && <Check className="w-3 h-3 text-primary shrink-0" />}
-                        <div className="flex h-2.5 w-14 rounded-xs overflow-hidden border border-border/80 shadow-2xs">
-                          {preset.colors.map((c, i) => (
+                          <span>{item.label}</span>
+                          {isSelected && <Check className="w-4 h-4 text-black font-bold shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+                    Diffusion Algorithm
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { id: "floyd-steinberg", label: "Floyd-Steinberg" },
+                      { id: "atkinson", label: "Atkinson" },
+                      { id: "sierra3", label: "Sierra-3" },
+                      { id: "sierra-lite", label: "Sierra Lite" },
+                      { id: "burkes", label: "Burkes" },
+                      { id: "stucki", label: "Stucki" },
+                      { id: "jarvis", label: "Jarvis" },
+                    ].map((item) => {
+                      const isSelected = settings.cpuAlgorithm === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => onChange({ cpuAlgorithm: item.id as any })}
+                          className={cn(
+                            "py-2.5 px-3 border text-left font-mono text-xs transition-all btn-press flex items-center justify-between font-bold",
+                            isSelected
+                              ? "bg-white text-black border-white shadow-sm"
+                              : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
+                          )}
+                        >
+                          <span className="truncate">{item.label}</span>
+                          {isSelected && <Check className="w-4 h-4 text-black shrink-0 font-bold" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2.5 border-t border-border/60 space-y-3.5">
+                <SliderControl
+                  label="Pixel Size"
+                  value={settings.pxSize}
+                  min={0.5}
+                  max={16}
+                  step={0.5}
+                  unit="px"
+                  defaultValue={2}
+                  onChange={(pxSize) => onChange({ pxSize })}
+                />
+
+                <SliderControl
+                  label="Threshold Bias"
+                  value={settings.threshold}
+                  min={0.0}
+                  max={1.0}
+                  step={0.02}
+                  defaultValue={0.5}
+                  onChange={(threshold) => onChange({ threshold })}
+                />
+
+                {settings.ditherType === "halftone" && (
+                  <>
+                    <SliderControl
+                      label="Screen Angle"
+                      value={settings.halftoneAngle}
+                      min={0}
+                      max={90}
+                      step={5}
+                      unit="°"
+                      defaultValue={45}
+                      onChange={(halftoneAngle) => onChange({ halftoneAngle })}
+                    />
+                    <SliderControl
+                      label="Dot Scale"
+                      value={settings.halftoneScale}
+                      min={1}
+                      max={8}
+                      step={0.5}
+                      defaultValue={2}
+                      onChange={(halftoneScale) => onChange({ halftoneScale })}
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="pt-2.5 border-t border-border/60">
+                <label className="flex items-center justify-between cursor-pointer font-mono text-xs p-2.5 bg-secondary/40 border border-border hover:border-white transition-colors">
+                  <span className="text-white font-bold uppercase tracking-wide">▸ Invert Output</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.inverted}
+                    onChange={(e) => onChange({ inverted: e.target.checked })}
+                    className="w-4 h-4 border-border bg-black text-white focus:ring-ring focus:ring-offset-0 cursor-pointer accent-white"
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="bg-card">
+          <SectionHeader
+            title="COLOR & PALETTES"
+            icon={Palette}
+            isOpen={openSections.color}
+            onToggle={() => toggleSection("color")}
+          />
+
+          {openSections.color && (
+            <div className="p-4 space-y-4 bg-black/40">
+              
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+                  Color Mode
+                </label>
+                <SegmentedControl
+                  value={settings.colorMode}
+                  onChange={(colorMode) => onChange({ colorMode })}
+                  size="sm"
+                  options={[
+                    { value: "duotone", label: "Duotone" },
+                    { value: "paper", label: "Paper" },
+                    { value: "palette", label: "Palette" },
+                    { value: "original", label: "RGB" },
+                    { value: "grayscale", label: "Mono" },
+                  ]}
+                />
+              </div>
+
+              {settings.colorMode === "duotone" && (
+                <div className="p-3 bg-secondary/30 border border-border space-y-1.5">
+                  <span className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider mb-1.5">
+                    Duotone Shades
+                  </span>
+                  <DualColorPicker
+                    backLabel="Dark Shade"
+                    frontLabel="Light Shade"
+                    colorBack={settings.colorBack}
+                    colorFront={settings.colorFront}
+                    onBackChange={(colorBack) => onChange({ colorBack })}
+                    onFrontChange={(colorFront) => onChange({ colorFront })}
+                    onSwap={() =>
+                      onChange({
+                        colorBack: settings.colorFront,
+                        colorFront: settings.colorBack,
+                      })
+                    }
+                  />
+                  <p className="text-[10px] font-mono text-neutral-400 pt-1">
+                    Tip: Click any Hardware Palette below to load its colors into Duotone!
+                  </p>
+                </div>
+              )}
+
+              {settings.colorMode === "paper" && (
+                <div className="space-y-2.5 p-3 bg-secondary/30 border border-border">
+                  <span className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider mb-1.5">
+                    Paper Inks
+                  </span>
+                  <DualColorPicker
+                    backLabel="Background"
+                    frontLabel="Foreground"
+                    colorBack={settings.colorBack}
+                    colorFront={settings.colorFront}
+                    onBackChange={(colorBack) => onChange({ colorBack })}
+                    onFrontChange={(colorFront) => onChange({ colorFront })}
+                    onSwap={() =>
+                      onChange({
+                        colorBack: settings.colorFront,
+                        colorFront: settings.colorBack,
+                      })
+                    }
+                  />
+                  <ColorSwatchPicker
+                    label="Highlight"
+                    color={settings.colorHighlight}
+                    onChange={(colorHighlight) => onChange({ colorHighlight })}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2 pt-2.5 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+                    Hardware Palettes
+                  </label>
+                  <span className="text-[10px] font-mono text-neutral-400 font-bold">
+                    {settings.colorMode === "duotone"
+                      ? "CLICK SETS DUOTONE"
+                      : `${RETRO_PALETTES.length} PALETTES`}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                  {RETRO_PALETTES.map((pal) => {
+                    const isSelected =
+                      settings.paletteId === pal.id ||
+                      (settings.colorMode === "duotone" &&
+                        settings.colorBack.toLowerCase() === pal.colors[0].toLowerCase() &&
+                        settings.colorFront.toLowerCase() === pal.colors[pal.colors.length - 1].toLowerCase());
+
+                    return (
+                      <button
+                        key={pal.id}
+                        type="button"
+                        onClick={() => handleHardwarePaletteClick(pal)}
+                        className={cn(
+                          "p-2.5 border text-left font-mono transition-all btn-press flex flex-col gap-2 relative",
+                          isSelected
+                            ? "bg-neutral-900 text-white border-2 border-white shadow-sm"
+                            : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
+                        )}
+                        title={
+                          settings.colorMode === "duotone"
+                            ? `Set Duotone to ${pal.name} (${pal.colors[0]} & ${pal.colors[pal.colors.length - 1]})`
+                            : `Apply ${pal.name}`
+                        }
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold truncate">
+                            {pal.name}
+                          </span>
+                          <span className="text-[10px] text-neutral-400">{pal.colors.length}c</span>
+                        </div>
+                        <div className="flex h-3 w-full overflow-hidden border border-border">
+                          {pal.colors.map((c, i) => (
                             <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
                           ))}
                         </div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono text-muted-foreground line-clamp-1">
-                      {preset.desc}
-                    </span>
-                  </button>
-                );
-              })}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-              {/* Empty Search Result */}
-              {PRESETS.filter((preset) => {
-                const matchesCat =
-                  presetCategory === "all" || preset.category === presetCategory;
-                const query = presetSearch.trim().toLowerCase();
-                return (
-                  matchesCat &&
-                  (!query ||
+              <div className="pt-2.5 border-t border-border/60">
+                <SliderControl
+                  label="Quantization Steps"
+                  value={settings.colorSteps}
+                  min={1}
+                  max={16}
+                  step={1}
+                  defaultValue={2}
+                  onChange={(colorSteps) => onChange({ colorSteps })}
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="bg-card">
+          <SectionHeader
+            title="STYLE PRESETS"
+            icon={Bookmark}
+            isOpen={openSections.presets}
+            onToggle={() => toggleSection("presets")}
+          />
+
+          {openSections.presets && (
+            <div className="p-4 space-y-3.5 bg-black/40">
+              
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <MagnifyingGlass className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={presetSearch}
+                    onChange={(e) => setPresetSearch(e.target.value)}
+                    placeholder="Search presets (Game Boy, 1-Bit...)"
+                    className="w-full pl-9 pr-8 py-2 bg-black border border-border text-xs font-mono placeholder:text-neutral-500 text-white focus:outline-none focus:border-white transition-colors"
+                  />
+                  {presetSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setPresetSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const rnd = PRESETS[Math.floor(Math.random() * PRESETS.length)];
+                    if (rnd) onApplyPreset(rnd.preset);
+                  }}
+                  className="px-2.5 py-2 bg-secondary/60 hover:bg-neutral-800 border border-border hover:border-neutral-400 text-neutral-200 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-colors btn-press shrink-0"
+                  title="Apply random curated preset"
+                >
+                  <DiceFive className="w-3.5 h-3.5 text-primary" />
+                  <span className="hidden sm:inline">RANDOM</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {[
+                  { id: "all", label: "ALL" },
+                  { id: "mono", label: "1-BIT" },
+                  { id: "print", label: "PRINT" },
+                  { id: "retro", label: "RETRO" },
+                  { id: "terminal", label: "CRT" },
+                  { id: "stylized", label: "STYLE" },
+                ].map((cat) => {
+                  const isSelected = presetCategory === cat.id;
+                  const count =
+                    cat.id === "all"
+                      ? PRESETS.length
+                      : PRESETS.filter((p) => p.category === cat.id).length;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setPresetCategory(cat.id)}
+                      className={cn(
+                        "px-2.5 py-1.5 text-xs font-mono whitespace-nowrap transition-all btn-press flex items-center gap-1.5",
+                        isSelected
+                          ? "bg-white text-black font-bold border border-white"
+                          : "bg-secondary/40 text-neutral-300 hover:text-white hover:bg-secondary/70 border border-border"
+                      )}
+                    >
+                      <span>{cat.label}</span>
+                      <span
+                        className={cn(
+                          "text-[10px] px-1 font-bold",
+                          isSelected
+                            ? "text-black/80"
+                            : "text-neutral-400"
+                        )}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                {PRESETS.filter((preset) => {
+                  const matchesCat =
+                    presetCategory === "all" || preset.category === presetCategory;
+                  const query = presetSearch.trim().toLowerCase();
+                  const matchesQuery =
+                    !query ||
                     preset.name.toLowerCase().includes(query) ||
-                    preset.desc.toLowerCase().includes(query))
-                );
-              }).length === 0 && (
-                <div className="p-4 text-center text-muted-foreground font-mono text-[11px] border border-dashed border-border rounded-md space-y-1.5">
-                  <p>No presets found matching "{presetSearch}"</p>
+                    preset.desc.toLowerCase().includes(query) ||
+                    preset.category.toLowerCase().includes(query);
+                  return matchesCat && matchesQuery;
+                }).map((preset) => {
+                  const isCurrent =
+                    (preset.preset.paletteId && settings.paletteId === preset.preset.paletteId) ||
+                    (preset.preset.colorMode === "paper" &&
+                      settings.colorMode === "paper" &&
+                      settings.colorBack === preset.preset.colorBack) ||
+                    (preset.preset.engine === "cpu" &&
+                      settings.engine === "cpu" &&
+                      settings.cpuAlgorithm === preset.preset.cpuAlgorithm) ||
+                    (preset.name === "Newspaper Halftone" &&
+                      settings.ditherType === "halftone" &&
+                      settings.halftoneAngle === 45) ||
+                    (preset.name === "Manga Screentone" &&
+                      settings.ditherType === "halftone" &&
+                      settings.halftoneAngle === 60) ||
+                    (preset.name === "Blueprint" &&
+                      settings.ditherType === "crosshatch" &&
+                      settings.colorBack === "#002b5c") ||
+                    (preset.name === "Vintage Sepia" &&
+                      settings.colorMode === "duotone" &&
+                      settings.colorFront === "#1a0f07");
+
+                  return (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => onApplyPreset(preset.preset)}
+                      className={cn(
+                        "w-full flex flex-col p-2.5 border text-left transition-all btn-press gap-1.5 group relative",
+                        isCurrent
+                          ? "bg-neutral-900 border-2 border-white shadow-sm"
+                          : "bg-secondary/30 hover:bg-secondary/70 border-border hover:border-neutral-400"
+                      )}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={cn(
+                              "text-xs font-mono font-bold truncate transition-colors",
+                              isCurrent
+                                ? "text-white"
+                                : "text-foreground group-hover:text-white"
+                            )}
+                          >
+                            {preset.name}
+                          </span>
+                          <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-300 px-1.5 py-0.5 bg-secondary border border-border shrink-0 font-bold">
+                            {preset.category}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isCurrent && <Check className="w-4 h-4 text-white shrink-0 font-bold" />}
+                          <div className="flex h-3 w-16 overflow-hidden border border-border">
+                            {preset.colors.map((c, i) => (
+                              <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-mono text-neutral-400 line-clamp-1">
+                        {preset.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {PRESETS.filter((preset) => {
+                  const matchesCat =
+                    presetCategory === "all" || preset.category === presetCategory;
+                  const query = presetSearch.trim().toLowerCase();
+                  return (
+                    matchesCat &&
+                    (!query ||
+                      preset.name.toLowerCase().includes(query) ||
+                      preset.desc.toLowerCase().includes(query))
+                  );
+                }).length === 0 && (
+                  <div className="p-4 text-center text-neutral-400 font-mono text-xs border border-dashed border-border space-y-1.5">
+                    <p>No presets found matching "{presetSearch}"</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPresetSearch("");
+                        setPresetCategory("all");
+                      }}
+                      className="text-white hover:underline text-xs font-bold"
+                    >
+                      Reset filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="bg-card">
+          <SectionHeader
+            title="FRAMING & ADJUSTMENTS"
+            icon={Sun}
+            isOpen={openSections.adjust}
+            onToggle={() => toggleSection("adjust")}
+          />
+
+          {openSections.adjust && (
+            <div className="p-4 space-y-4 bg-black/40">
+              
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+                  Framing & Fit
+                </label>
+                <SegmentedControl
+                  value={settings.fit}
+                  onChange={(fit) => onChange({ fit })}
+                  options={[
+                    { value: "contain", label: "Fit", icon: Scan },
+                    { value: "cover", label: "Fill", icon: CornersOut },
+                    { value: "fill", label: "Stretch", icon: ArrowsOutLineVertical },
+                  ]}
+                />
+              </div>
+
+              <div className="space-y-3.5 pt-2.5 border-t border-border/60">
+                <SliderControl
+                  label="Scale"
+                  value={settings.scale}
+                  min={0.2}
+                  max={3.0}
+                  step={0.05}
+                  unit="x"
+                  defaultValue={1.0}
+                  onChange={(scale) => onChange({ scale })}
+                />
+
+                <SliderControl
+                  label="Rotation"
+                  value={settings.rotation}
+                  min={0}
+                  max={360}
+                  step={5}
+                  unit="°"
+                  defaultValue={0}
+                  onChange={(rotation) => onChange({ rotation })}
+                />
+              </div>
+
+              <div className="space-y-3.5 pt-2.5 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-neutral-200 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <Sun className="w-4 h-4 text-neutral-400" />
+                    Tone & Contrast
+                  </span>
                   <button
                     type="button"
-                    onClick={() => {
-                      setPresetSearch("");
-                      setPresetCategory("all");
-                    }}
-                    className="text-primary hover:underline text-[10px]"
+                    onClick={resetAdjustments}
+                    className="flex items-center gap-1 text-xs font-mono text-neutral-400 hover:text-white transition-colors btn-press font-bold"
+                    title="Reset adjustments to defaults"
                   >
-                    Reset filters
+                    <ArrowCounterClockwise className="w-3 h-3" />
+                    RESET
                   </button>
                 </div>
-              )}
+
+                <SliderControl
+                  label="Brightness"
+                  value={settings.brightness}
+                  min={-0.5}
+                  max={0.5}
+                  step={0.02}
+                  defaultValue={0}
+                  formatValue={(v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
+                  onChange={(brightness) => onChange({ brightness })}
+                />
+
+                <SliderControl
+                  label="Contrast"
+                  value={settings.contrast}
+                  min={0.2}
+                  max={2.5}
+                  step={0.05}
+                  unit="x"
+                  defaultValue={1.0}
+                  onChange={(contrast) => onChange({ contrast })}
+                />
+
+                <SliderControl
+                  label="Saturation"
+                  value={settings.saturation}
+                  min={0.0}
+                  max={2.0}
+                  step={0.05}
+                  unit="x"
+                  defaultValue={1.0}
+                  onChange={(saturation) => onChange({ saturation })}
+                />
+
+                <SliderControl
+                  label="Gamma"
+                  value={settings.gamma}
+                  min={0.5}
+                  max={2.5}
+                  step={0.05}
+                  unit="x"
+                  defaultValue={1.0}
+                  onChange={(gamma) => onChange({ gamma })}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </section>
+
       </div>
     </aside>
   );

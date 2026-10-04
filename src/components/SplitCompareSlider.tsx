@@ -8,11 +8,12 @@ interface SplitCompareSliderProps {
   originalElement: React.ReactNode;
   ditheredElement: React.ReactNode;
   className?: string;
-  initialPosition?: number; // 0 to 100
+  initialPosition?: number; 
 }
 
 /**
- * Comparison slider using clip-path with pointer-capture.
+ * Split before/after comparison slider.
+ * Overlays original media over dithered output using a hardware-accelerated CSS clip-path inset.
  */
 export const SplitCompareSlider = React.memo(function SplitCompareSlider({
   originalElement,
@@ -63,12 +64,11 @@ export const SplitCompareSlider = React.memo(function SplitCompareSlider({
         className
       )}
     >
-      {/* Base Layer: Dithered Shader */}
+      
       <div className="absolute inset-0 w-full h-full pointer-events-none">
         {ditheredElement}
       </div>
 
-      {/* Top Layer: Original Media */}
       <div
         className="absolute inset-0 w-full h-full pointer-events-none will-change-[clip-path]"
         style={{
@@ -78,32 +78,30 @@ export const SplitCompareSlider = React.memo(function SplitCompareSlider({
         {originalElement}
       </div>
 
-      {/* Split Divider Line */}
       <div
         className="absolute top-0 bottom-0 w-px bg-neutral-400/80 pointer-events-none z-20 will-change-[left]"
         style={{
           left: `${splitPos}%`,
         }}
       >
-        {/* Floating Drag Handle */}
+        
         <div
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-card border text-foreground flex items-center justify-center shadow-lg transition-all duration-100 ease-out",
+            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-black border-2 border-white text-white flex items-center justify-center transition-all duration-75 ease-out",
             isDragging
-              ? "scale-110 border-primary text-primary shadow-primary/25"
-              : "border-border hover:border-primary/50 hover:scale-105"
+              ? "scale-110 shadow-[2px_2px_0px_#ffffff]"
+              : "hover:scale-105 shadow-[1px_1px_0px_#ffffff]"
           )}
         >
           <ArrowsLeftRight className="w-3.5 h-3.5" />
         </div>
       </div>
 
-      {/* Micro-Badges */}
-      <div className="absolute top-3 left-3 px-2.5 py-1 bg-card/90 border border-border rounded-md text-[10px] font-mono text-muted-foreground pointer-events-none z-10 backdrop-blur-sm shadow-md">
-        Original
+      <div className="absolute top-3 left-3 px-2 py-1 bg-black border border-white text-[10px] font-mono font-bold text-white uppercase tracking-wider pointer-events-none z-10 shadow-[2px_2px_0px_rgba(0,0,0,0.8)]">
+        ORIGINAL
       </div>
-      <div className="absolute top-3 right-3 px-2.5 py-1 bg-card/90 border border-primary/40 rounded-md text-[10px] font-mono text-primary pointer-events-none z-10 backdrop-blur-sm shadow-md flex items-center gap-1.5">
-        <span>Dithered</span>
+      <div className="absolute top-3 right-3 px-2 py-1 bg-white border border-white text-[10px] font-mono font-bold text-black uppercase tracking-wider pointer-events-none z-10 shadow-[2px_2px_0px_rgba(0,0,0,0.8)] flex items-center gap-1.5">
+        <span>DITHERED</span>
       </div>
     </div>
   );

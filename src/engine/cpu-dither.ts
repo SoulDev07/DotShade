@@ -4,21 +4,41 @@ import type { CpuAlgorithm, ColorMode } from "./types";
 
 export type { CpuAlgorithm } from "./types";
 
+/**
+ * Configuration options for CPU error-diffusion image dithering.
+ */
 export interface CpuDitherOptions {
+  /** Spatial error-diffusion kernel (e.g. Floyd-Steinberg, Atkinson, Sierra) */
   algorithm: CpuAlgorithm;
+  /** Color quantization and mapping scheme */
   colorMode: ColorMode;
+  /** Background hex color (paper and duotone modes) */
   colorBack: string;
+  /** Foreground hex color (paper and duotone modes) */
   colorFront: string;
+  /** Accent highlight hex color (paper mode) */
   colorHighlight: string;
+  /** Color palette array for palette matching mode */
   palette: string[];
+  /** Discrete quantization steps per RGB channel */
   colorSteps: number;
+  /** Threshold cutoff bias for 1-bit / duotone decisions */
   threshold: number;
+  /** Brightness adjustment [-1..1] */
   brightness: number;
+  /** Contrast multiplier [0..3] */
   contrast: number;
+  /** Gamma power curve [0.2..3] */
   gamma: number;
+  /** Invert luminance */
   inverted: boolean;
 }
 
+/**
+ * Representation of an error-diffusion kernel matrix.
+ * Divisor normalizes the integer weights.
+ * Offsets specify relative neighbor pixel coordinates [dx, dy, weight].
+ */
 interface DiffusionMatrix {
   divisor: number;
   offsets: [number, number, number][]; // [dx, dy, weight]
@@ -117,7 +137,13 @@ const DIFFUSION_MATRICES: Record<CpuAlgorithm, DiffusionMatrix> = {
 };
 
 /**
- * Perform high-precision CPU error-diffusion dithering on ImageData
+ * Performs high-precision spatial error-diffusion dithering on CPU ImageData.
+ * Allocates a floating-point error accumulation buffer, applies color adjustments,
+ * and distributes quantization error to neighboring forward pixels using the selected kernel.
+ *
+ * @param imageData - Source image data containing RGBA pixel buffer
+ * @param options - Dithering algorithm, color palette, and grading options
+ * @returns New dithered ImageData
  */
 export function processCpuDithering(
   imageData: ImageData,
@@ -129,28 +155,31 @@ export function processCpuDithering(
   const output = new ImageData(width, height);
   const outData = output.data;
 
+  // Retrieve error diffusion matrix kernel for the selected algorithm
   const matrix = DIFFUSION_MATRICES[options.algorithm] || DIFFUSION_MATRICES["floyd-steinberg"];
   const divisor = matrix.divisor;
   const offsets = matrix.offsets;
 
-  // Prepare float error buffer
+  // Step 1: Initialize 32-bit float RGB error buffer with pre-graded pixel values
   const errorBuffer = new Float32Array(width * height * 3);
   for (let i = 0; i < width * height; i++) {
     let r = data[i * 4];
     let g = data[i * 4 + 1];
     let b = data[i * 4 + 2];
 
-    // Apply adjustments
+    // Apply brightness adjustment
     if (options.brightness) {
       r += options.brightness * 255;
       g += options.brightness * 255;
       b += options.brightness * 255;
     }
+    // Apply contrast adjustment around middle gray (128)
     if (options.contrast && options.contrast !== 1) {
       r = (r - 128) * options.contrast + 128;
       g = (g - 128) * options.contrast + 128;
       b = (b - 128) * options.contrast + 128;
     }
+    // Apply gamma curve
     if (options.gamma && options.gamma !== 1) {
       r = 255 * Math.pow(Math.max(0, r / 255), 1 / options.gamma);
       g = 255 * Math.pow(Math.max(0, g / 255), 1 / options.gamma);
@@ -162,18 +191,21 @@ export function processCpuDithering(
     errorBuffer[i * 3 + 2] = Math.max(0, Math.min(255, b));
   }
 
+  // Pre-parse hex colors
   const bgRgb = hexToRgb(options.colorBack || "#000c38");
   const fgRgb = hexToRgb(options.colorFront || "#94ffaf");
   const hlRgb = hexToRgb(options.colorHighlight || "#eaff94");
   const palette = options.palette || ["#000000", "#ffffff"];
   const threshold = options.threshold ?? 0.5;
 
+  // Step 2: Raster scan line-by-line diffusing quantization error
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 3;
       const alphaIdx = (y * width + x) * 4 + 3;
       const alpha = data[alphaIdx];
 
+      // Retain transparent pixels without error diffusion
       if (alpha < 10) {
         outData[alphaIdx - 3] = 0;
         outData[alphaIdx - 2] = 0;
@@ -186,6 +218,7 @@ export function processCpuDithering(
       let g = errorBuffer[idx + 1];
       let b = errorBuffer[idx + 2];
 
+      // Relative perceived luminance
       let lum = getLuminance(r, g, b) / 255;
       if (options.inverted) {
         lum = 1 - lum;
@@ -195,7 +228,7 @@ export function processCpuDithering(
       let newG = 0;
       let newB = 0;
 
-      // Color quantization mapping
+      // Color mapping & quantization
       if (options.colorMode === "paper") {
         const bit = lum >= threshold ? 1 : 0;
         if (bit === 1) {
@@ -230,25 +263,26 @@ export function processCpuDithering(
         newG = Math.min(255, quant(g));
         newB = Math.min(255, quant(b));
       } else {
-        // Grayscale
+        // Grayscale 1-bit
         const bit = lum >= threshold ? 255 : 0;
         newR = bit;
         newG = bit;
         newB = bit;
       }
 
+      // Write final quantized pixel to output buffer
       const outIdx = (y * width + x) * 4;
       outData[outIdx] = newR;
       outData[outIdx + 1] = newG;
       outData[outIdx + 2] = newB;
       outData[outIdx + 3] = alpha;
 
-      // Calculate quantization error
+      // Calculate quantization error (difference between accumulated value and output)
       const errR = r - newR;
       const errG = g - newG;
       const errB = b - newB;
 
-      // Diffuse error to neighboring pixels
+      // Diffuse error to neighboring forward pixels according to kernel weights
       for (let k = 0; k < offsets.length; k++) {
         const [dx, dy, weight] = offsets[k];
         const nx = x + dx;

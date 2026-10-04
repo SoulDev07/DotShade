@@ -9,6 +9,11 @@ interface VideoControlsProps {
   className?: string;
 }
 
+/**
+ * Floating retro HUD video playback controller:
+ * Synchronizes with an underlying HTMLVideoElement to control playback,
+ * scrubbing timeline, speed, loop state, and audio mute.
+ */
 export const VideoControls = React.memo(function VideoControls({ videoRef, className }: VideoControlsProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -93,7 +98,7 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
   return (
     <div
       className={cn(
-        "flex flex-col gap-2.5 p-3.5 glass-panel-glow rounded-xl text-foreground",
+        "flex flex-col gap-2.5 p-3.5 bg-black border-2 border-white text-white shadow-[4px_4px_0px_rgba(0,0,0,0.9)]",
         className
       )}
     >
@@ -107,9 +112,9 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
           onChange={handleSeek}
           className="w-full z-10 opacity-0 cursor-pointer absolute inset-0"
         />
-        <div className="w-full h-1 bg-muted rounded-full overflow-hidden transition-[height] duration-150 ease-out group-hover/bar:h-1.5">
+        <div className="w-full h-1.5 bg-neutral-900 border border-neutral-700 overflow-hidden">
           <div
-            className="h-full bg-primary rounded-full transition-all duration-75 ease-out"
+            className="h-full pixel-progress transition-all duration-75 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -119,7 +124,7 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
         <div className="flex items-center gap-1.5">
           <button
             onClick={togglePlay}
-            className="p-1.5 bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-md transition-colors btn-press"
+            className="p-1.5 bg-white text-black hover:bg-neutral-200 border border-white transition-colors btn-press font-bold"
             title={isPlaying ? "Pause (Space)" : "Play (Space)"}
           >
             {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
@@ -129,24 +134,24 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
             onClick={() => {
               if (videoRef.current) videoRef.current.currentTime = 0;
             }}
-            className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-md transition-colors btn-press"
+            className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 transition-colors btn-press"
             title="Restart"
           >
             <ArrowCounterClockwise className="w-3.5 h-3.5" />
           </button>
 
-          <span className="text-[11px] text-muted-foreground pl-1 font-mono tracking-tight tabular-nums">
-            {formatTime(currentTime)} <span className="text-muted-foreground/60">/</span> {formatTime(duration)}
+          <span className="text-[11px] text-neutral-300 pl-1 font-mono tracking-tight tabular-nums">
+            {formatTime(currentTime)} <span className="text-neutral-500">/</span> {formatTime(duration)}
           </span>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1 bg-secondary border border-border px-1.5 py-0.5 rounded-md">
-            <Speedometer className="w-3 h-3 text-muted-foreground" />
+          <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 px-1.5 py-0.5">
+            <Speedometer className="w-3 h-3 text-neutral-400" />
             <select
               value={playbackRate}
               onChange={(e) => changeRate(parseFloat(e.target.value))}
-              className="bg-transparent text-foreground text-[11px] font-mono focus:outline-none cursor-pointer"
+              className="bg-transparent text-white text-[11px] font-mono focus:outline-none cursor-pointer"
             >
               <option value="0.25">0.25x</option>
               <option value="0.5">0.5x</option>
@@ -159,10 +164,10 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
           <button
             onClick={toggleLoop}
             className={cn(
-              "p-1.5 rounded-md border transition-colors btn-press",
+              "p-1.5 border transition-colors btn-press",
               isLooping
-                ? "bg-card border-primary/50 text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "bg-white text-black border-white"
+                : "border-neutral-700 text-neutral-400 hover:text-white hover:border-neutral-500"
             )}
             title="Toggle Loop"
           >
@@ -171,7 +176,7 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
 
           <button
             onClick={toggleMute}
-            className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-md transition-colors btn-press"
+            className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 transition-colors btn-press"
             title={isMuted ? "Unmute" : "Mute"}
           >
             {isMuted ? <SpeakerSlash className="w-3.5 h-3.5" /> : <SpeakerHigh className="w-3.5 h-3.5" />}
