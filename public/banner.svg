@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 180" width="100%" height="180" shape-rendering="crispEdges">
+  <style>
+    .bg { fill: #0a0a0c; }
+    .border { stroke: #27272a; stroke-width: 1; fill: none; }
+    .subborder { stroke: #18181b; stroke-width: 1; fill: none; }
+    .ascii {
+      font-family: 'Courier New', Courier, 'Cascadia Code', monospace;
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: 0px;
+      white-space: pre;
+    }
+    .tagline {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      letter-spacing: 4px;
+      fill: #a1a1aa;
+      text-anchor: middle;
+      text-transform: uppercase;
+    }
+    .dot-grid {
+      fill: #27272a;
+    }
+    .accent {
+      fill: #ffffff;
+    }
+    .muted {
+      fill: #71717a;
+    }
+  </style>
+
+  <defs>
+    <pattern id="dither-grid" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1" height="1" fill="#27272a" />
+      <rect x="4" y="4" width="1" height="1" fill="#27272a" />
+    </pattern>
+    <linearGradient id="text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="60%" stop-color="#e4e4e7" />
+      <stop offset="100%" stop-color="#a1a1aa" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="850" height="180" class="bg" />
+  <rect width="850" height="180" fill="url(#dither-grid)" opacity="0.6" />
+
+  <!-- Framing Borders -->
+  <rect x="12" y="12" width="826" height="156" class="border" />
+  <rect x="16" y="16" width="818" height="148" class="subborder" />
+
+  <!-- Corner Crosshairs -->
+  <path d="M 8 12 L 16 12 M 12 8 L 12 16" stroke="#52525b" stroke-width="1" />
+  <path d="M 834 12 L 842 12 M 838 8 L 838 16" stroke="#52525b" stroke-width="1" />
+  <path d="M 8 168 L 16 168 M 12 164 L 12 172" stroke="#52525b" stroke-width="1" />
+  <path d="M 834 168 L 842 168 M 838 164 L 838 172" stroke="#52525b" stroke-width="1" />
+
+  <!-- Status / Mode Tags -->
+  <text x="32" y="34" class="ascii muted" font-size="10">SYS: VGPU / WEBGL2 / CPU</text>
+  <text x="818" y="34" class="ascii muted" font-size="10" text-anchor="end">RES: 1-BIT // 120FPS</text>
+
+  <!-- ASCII Art Typography -->
+  <g fill="url(#text-grad)">
+    <text x="425" y="68" class="ascii" text-anchor="middle">██████╗  ██████╗ ████████╗███████╗██╗  ██╗ █████╗ ██████╗ ███████╗</text>
+    <text x="425" y="84" class="ascii" text-anchor="middle">██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██║  ██║██╔══██╗██╔══██╗██╔════╝</text>
+    <text x="425" y="100" class="ascii" text-anchor="middle">██║  ██║██║   ██║   ██║   ███████╗███████║███████║██║  ██║█████╗  </text>
+    <text x="425" y="116" class="ascii" text-anchor="middle">██║  ██║██║   ██║   ██║   ╚════██║██╔══██║██╔══██║██║  ██║██╔══╝  </text>
+    <text x="425" y="132" class="ascii" text-anchor="middle">██████╔╝╚██████╔╝   ██║   ███████║██║  ██║██║  ██║██████╔╝███████╗</text>
+    <text x="425" y="148" class="ascii" text-anchor="middle">╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝</text>
+  </g>
+</svg>

@@ -205,7 +205,7 @@
   image-rendering: crisp-edges;
 }
 
-/* ─── Modal Entrance — Pixel Scanline Wipe ───────────── */
+/* ─── Modal Entrance - Pixel Scanline Wipe ───────────── */
 @keyframes modalEnter {
   0%   { opacity: 0; clip-path: inset(100% 0 0 0); }
   33%  { opacity: 1; clip-path: inset(66% 0 0 0); }
