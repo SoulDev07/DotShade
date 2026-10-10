@@ -11,8 +11,16 @@ import {
   Check,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import type { DitherSettings } from "@/engine/types";
 import { ClientGifEncoder } from "@/engine/gif-export";
+import {
+  Output,
+  Mp4OutputFormat,
+  BufferTarget,
+  CanvasSource,
+  Quality,
+  canEncodeVideo,
+} from "mediabunny";
+import type { DitherSettings } from "@/engine/types";
 import { toast } from "sonner";
 
 interface ExportModalProps {
@@ -23,12 +31,6 @@ interface ExportModalProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
 }
 
-/**
- * Export dialog supporting multi-format output:
- *  - Still image downloads (PNG / WebP / JPEG) & OS clipboard copying
- *  - High-framerate WebM video recording via canvas.captureStream and MediaRecorder
- *  - Client-side animated GIF rendering via ClientGifEncoder
- */
 export function ExportModal({
   isOpen,
   onClose,
@@ -44,7 +46,7 @@ export function ExportModal({
   const validTabs = useMemo(() => {
     if (isMotionMedia) {
       return [
-        { id: "video" as const, label: "VIDEO", icon: VideoCameraIcon, badge: "WEBM" },
+        { id: "video" as const, label: "VIDEO", icon: VideoCameraIcon, badge: "MP4 / WEBM" },
         { id: "gif" as const, label: "GIF", icon: FilmStrip, badge: "LOOP" },
         { id: "image" as const, label: "FRAME", icon: ImageIcon, badge: "STILL" },
       ];
@@ -56,6 +58,7 @@ export function ExportModal({
 
   const [activeTab, setActiveTab] = useState<"image" | "video" | "gif">("image");
   const [imageFormat, setImageFormat] = useState<"png" | "webp" | "jpeg">("png");
+  const [videoFormat, setVideoFormat] = useState<"mp4" | "webm">("mp4");
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
@@ -143,7 +146,7 @@ export function ExportModal({
     }
   };
 
-  const handleExportVideo = async () => {
+  const handleExportWebm = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -192,9 +195,109 @@ export function ExportModal({
         }
       }, 100);
     } catch (err) {
-      console.error("Video recording error:", err);
+      console.error("WebM recording error:", err);
       toast.error("Video recording failed.");
       setIsRecording(false);
+    }
+  };
+
+  const handleExportMp4 = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (typeof window === "undefined" || typeof VideoEncoder === "undefined") {
+      toast.info("WebCodecs MP4 encoder not supported in this browser; using WebM.");
+      return handleExportWebm();
+    }
+
+    setIsRecording(true);
+    setRecordProgress(0);
+
+    try {
+      const isAvcSupported = await canEncodeVideo("avc").catch(() => false);
+      if (!isAvcSupported) {
+        toast.info("H.264 encoding not supported in this browser; falling back to WebM.");
+        return handleExportWebm();
+      }
+
+      // H.264 encoders require even dimensions
+      const evenWidth = canvas.width - (canvas.width % 2);
+      const evenHeight = canvas.height - (canvas.height % 2);
+      const isOdd = canvas.width % 2 !== 0 || canvas.height % 2 !== 0;
+
+      let sourceCanvas: HTMLCanvasElement = canvas;
+      let offscreenCtx: CanvasRenderingContext2D | null = null;
+
+      if (isOdd) {
+        sourceCanvas = document.createElement("canvas");
+        sourceCanvas.width = evenWidth;
+        sourceCanvas.height = evenHeight;
+        offscreenCtx = sourceCanvas.getContext("2d");
+      }
+
+      const fps = 30;
+      const target = new BufferTarget();
+      const output = new Output({
+        format: new Mp4OutputFormat(),
+        target,
+      });
+
+      const videoSource = new CanvasSource(sourceCanvas, {
+        codec: "avc",
+        quality: new Quality("high"),
+      });
+
+      output.addVideoTrack(videoSource);
+      await output.start();
+
+      const totalFrames = recordDuration * fps;
+      const frameDurationSec = 1 / fps;
+      const frameIntervalMs = 1000 / fps;
+
+      for (let i = 0; i < totalFrames; i++) {
+        if (offscreenCtx) {
+          offscreenCtx.drawImage(canvas, 0, 0, evenWidth, evenHeight);
+        }
+
+        await videoSource.add(i * frameDurationSec, frameDurationSec);
+        setRecordProgress(Math.min(100, Math.round(((i + 1) / totalFrames) * 100)));
+        await new Promise((r) => setTimeout(r, frameIntervalMs));
+      }
+
+      videoSource.close();
+      await output.finalize();
+
+      if (!target.buffer) {
+        throw new Error("Target buffer is empty after finalization");
+      }
+
+      const blob = new Blob([target.buffer], { type: "video/mp4" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dotshade-capture-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("MP4 video exported successfully!", {
+        description: `Captured ${recordDuration}s H.264 MP4`,
+      });
+    } catch (err) {
+      console.error("MP4 export error:", err);
+      toast.error("MP4 export failed. Falling back to WebM...");
+      await handleExportWebm();
+    } finally {
+      setIsRecording(false);
+    }
+  };
+
+  const handleExportVideo = async () => {
+    if (videoFormat === "mp4") {
+      await handleExportMp4();
+    } else {
+      await handleExportWebm();
     }
   };
 
@@ -206,17 +309,36 @@ export function ExportModal({
     setGifProgress(0);
 
     try {
-      const encoder = new ClientGifEncoder(canvas.width, canvas.height);
+      // Bound export dimensions to avoid huge memory and CPU freezes on high-DPI viewports
+      const maxDim = 640;
+      let exportW = canvas.width || 640;
+      let exportH = canvas.height || 480;
+      if (exportW > maxDim || exportH > maxDim) {
+        if (exportW > exportH) {
+          exportH = Math.max(1, Math.round((exportH * maxDim) / exportW));
+          exportW = maxDim;
+        } else {
+          exportW = Math.max(1, Math.round((exportW * maxDim) / exportH));
+          exportH = maxDim;
+        }
+      }
+
+      const offscreen = document.createElement("canvas");
+      offscreen.width = exportW;
+      offscreen.height = exportH;
+      const ctx = offscreen.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("Could not initialize offscreen context for GIF capture");
+
+      const encoder = new ClientGifEncoder(exportW, exportH);
       encoder.start(settings.palette || ["#000000", "#ffffff"], 0);
 
-      const ctx = canvas.getContext("2d");
       const delayMs = Math.round(1000 / gifFps);
 
       for (let i = 0; i < gifFrames; i++) {
-        if (ctx) {
-          const frameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          encoder.addFrame(frameData, delayMs);
-        }
+        ctx.clearRect(0, 0, exportW, exportH);
+        ctx.drawImage(canvas, 0, 0, exportW, exportH);
+        const frameData = ctx.getImageData(0, 0, exportW, exportH);
+        encoder.addFrame(frameData, delayMs);
         setGifProgress(Math.round(((i + 1) / gifFrames) * 100));
         await new Promise((r) => setTimeout(r, delayMs));
       }
@@ -358,6 +480,40 @@ export function ExportModal({
             <div className="space-y-4">
               <div>
                 <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-300 block mb-1.5 font-bold">
+                  Format
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setVideoFormat("mp4")}
+                    className={cn(
+                      "py-2 px-2.5 border text-xs font-mono transition-colors btn-press flex flex-col items-center",
+                      videoFormat === "mp4"
+                        ? "bg-white border-white text-black font-bold"
+                        : "bg-secondary/40 border-border text-neutral-300 hover:text-white hover:border-white"
+                    )}
+                  >
+                    <span>MP4 (H.264)</span>
+                    <span className="text-[9px] opacity-75">UNIVERSAL</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoFormat("webm")}
+                    className={cn(
+                      "py-2 px-2.5 border text-xs font-mono transition-colors btn-press flex flex-col items-center",
+                      videoFormat === "webm"
+                        ? "bg-white border-white text-black font-bold"
+                        : "bg-secondary/40 border-border text-neutral-300 hover:text-white hover:border-white"
+                    )}
+                  >
+                    <span>WEBM (VP9)</span>
+                    <span className="text-[9px] opacity-75">STREAM</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-300 block mb-1.5 font-bold">
                   Recording Duration
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -382,7 +538,7 @@ export function ExportModal({
               {isRecording && (
                 <div className="space-y-1.5 p-3 bg-neutral-900 border border-neutral-700">
                   <div className="flex justify-between text-xs font-mono">
-                    <span className="text-white font-bold">Recording stream...</span>
+                    <span className="text-white font-bold">Recording {videoFormat.toUpperCase()} stream...</span>
                     <span className="text-neutral-300 tabular-nums">{recordProgress}%</span>
                   </div>
                   <div className="w-full h-2 bg-neutral-950 border border-neutral-700 overflow-hidden">
@@ -401,7 +557,11 @@ export function ExportModal({
                 className="w-full py-2.5 px-3 bg-white hover:bg-neutral-200 text-black font-mono text-xs font-bold border border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50 btn-press"
               >
                 <VideoCameraIcon className="w-4 h-4" />
-                <span>{isRecording ? `RECORDING (${recordProgress}%)...` : `RECORD ${recordDuration}s WEBM`}</span>
+                <span>
+                  {isRecording
+                    ? `RECORDING (${recordProgress}%)...`
+                    : `RECORD ${recordDuration}s ${videoFormat.toUpperCase()}`}
+                </span>
               </button>
             </div>
           )}

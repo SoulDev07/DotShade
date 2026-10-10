@@ -11,9 +11,6 @@ interface ColorSwatchPickerProps {
   className?: string;
 }
 
-/**
- * Color picker widget featuring an interactive color-well swatch and text hex input.
- */
 export function ColorSwatchPicker({
   label,
   color,

@@ -9,11 +9,6 @@ interface VideoControlsProps {
   className?: string;
 }
 
-/**
- * Floating retro HUD video playback controller:
- * Synchronizes with an underlying HTMLVideoElement to control playback,
- * scrubbing timeline, speed, loop state, and audio mute.
- */
 export const VideoControls = React.memo(function VideoControls({ videoRef, className }: VideoControlsProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);

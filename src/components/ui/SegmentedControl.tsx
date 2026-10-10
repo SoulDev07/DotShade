@@ -3,9 +3,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * Single selectable option in a SegmentedControl.
- */
 export interface SegmentOption<T extends string> {
   value: T;
   label: string;
@@ -21,9 +18,6 @@ interface SegmentedControlProps<T extends string> {
   className?: string;
 }
 
-/**
- * Accessible radiogroup segmented button bar with equal-width grid distribution.
- */
 export function SegmentedControl<T extends string>({
   options,
   value,

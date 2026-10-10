@@ -23,10 +23,13 @@ import {
   DiceFive,
   CaretDown,
   CaretRight,
+  Eyedropper,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { RETRO_PALETTES } from "@/engine/palettes";
 import type { DitherSettings } from "@/engine/types";
+import { extractPaletteFromImageData } from "@/engine/gif-export";
+import { toast } from "sonner";
 import { SliderControl } from "./ui/SliderControl";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { DualColorPicker, ColorSwatchPicker } from "./ui/ColorSwatchPicker";
@@ -44,15 +47,6 @@ interface ControlPanelProps {
   isViewingOriginal?: boolean;
   onToggleOriginal?: () => void;
 }
-
-/**
- * Main control panel sidebar for configuring all dithering parameters:
- *  - Media source selection (uploads, samples, live webcam, procedural shaders)
- *  - Hardware engine selection (WebGPU / WebGL2 / CPU) and dither patterns
- *  - Color modes, retro hardware palettes, and 3-tone Paper Shaders ramp
- *  - Geometry transforms, aspect-ratio fitting, and post-processing adjustments
- *  - Curated retro presets
- */
 
 const SAMPLE_MEDIA = [
   {
@@ -479,6 +473,66 @@ export function ControlPanel({
     }
   };
 
+  const [isExtractingPalette, setIsExtractingPalette] = useState(false);
+  const [extractCount, setExtractCount] = useState(4);
+
+  const handleExtractPalette = async () => {
+    if (settings.mediaType !== "image" || !settings.mediaUrl) {
+      toast.info("Please load an image first to extract its palette!");
+      return;
+    }
+    setIsExtractingPalette(true);
+    try {
+      const img = new Image();
+      if (settings.mediaUrl.startsWith("http://") || settings.mediaUrl.startsWith("https://")) {
+        img.crossOrigin = "anonymous";
+      }
+      img.src = settings.mediaUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const canvas = document.createElement("canvas");
+      const maxDim = 250;
+      let w = img.naturalWidth || 250;
+      let h = img.naturalHeight || 250;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("Could not initialize 2D context");
+      ctx.drawImage(img, 0, 0, w, h);
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const colors = extractPaletteFromImageData(imgData, extractCount);
+
+      if (colors && colors.length > 0) {
+        onChange({
+          paletteId: "custom",
+          palette: colors,
+          colorMode: "palette",
+          colorBack: colors[0],
+          colorFront: colors[colors.length - 1],
+          colorHighlight: colors[1] || colors[colors.length - 1],
+        });
+        toast.success(`Extracted ${colors.length}-color palette from image!`);
+      }
+    } catch (err) {
+      console.error("Extract palette error:", err);
+      toast.error("Could not extract palette from image.");
+    } finally {
+      setIsExtractingPalette(false);
+    }
+  };
+
   return (
     <aside
       className="w-full lg:w-[410px] bg-card border-l border-border flex flex-col h-full overflow-hidden select-none"
@@ -839,6 +893,54 @@ export function ControlPanel({
                   />
                 </div>
               )}
+
+              {/* Extract Palette from Image */}
+              <div className="p-3 bg-secondary/30 border border-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-200 font-bold uppercase tracking-wider">
+                    <Eyedropper className="w-3.5 h-3.5 text-white" />
+                    <span>Auto-Palette from Image</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-neutral-400 font-bold">
+                    PNNQUANT
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-neutral-300">Colors:</span>
+                  <div className="flex gap-1">
+                    {[2, 4, 8, 16].map((count) => (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() => setExtractCount(count)}
+                        className={cn(
+                          "px-2 py-0.5 text-[11px] font-mono border transition-colors btn-press",
+                          extractCount === count
+                            ? "bg-white text-black border-white font-bold"
+                            : "bg-black/60 border-border text-neutral-400 hover:text-white"
+                        )}
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleExtractPalette}
+                  disabled={isExtractingPalette || settings.mediaType !== "image"}
+                  className="w-full py-2 px-3 bg-secondary hover:bg-neutral-800 text-white font-mono text-xs font-bold border border-border hover:border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-40 btn-press"
+                >
+                  <Sparkle className="w-3.5 h-3.5 text-white" />
+                  <span>
+                    {isExtractingPalette
+                      ? "EXTRACTING..."
+                      : `EXTRACT ${extractCount}-COLOR PALETTE`}
+                  </span>
+                </button>
+              </div>
 
               <div className="space-y-2 pt-2.5 border-t border-border/60">
                 <div className="flex items-center justify-between">

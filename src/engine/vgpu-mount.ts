@@ -38,12 +38,22 @@ const PROCEDURAL_SHAPES: Record<string, number> = {
   sphere: 7,
 };
 
-/**
- * Modern WebGPU Rendering Engine Mount via vgpu (https://vgpu.sh/):
- * Leverages native WebGPU render pipelines, WGSL shader compilation,
- * uniform buffers, and hardware textures for GPU-accelerated dithering.
- * Automatically handles texture re-allocations on media changes and dynamic imports.
- */
+// Module-level cached vgpu library promise
+let vgpuModulePromise: Promise<any> | null = null;
+
+function loadVgpuModule(): Promise<any> {
+  if (!vgpuModulePromise) {
+    vgpuModulePromise = (async () => {
+      try {
+        return await (Function('return import("vgpu")')());
+      } catch {
+        return await (Function('return import("https://esm.sh/vgpu@0.5.0")')());
+      }
+    })();
+  }
+  return vgpuModulePromise;
+}
+
 export class DitherVgpuMount {
   public canvas: HTMLCanvasElement;
   private options: DitherSettings;
@@ -67,16 +77,57 @@ export class DitherVgpuMount {
   private vgpuLib: any = null;
   private initPromise: Promise<boolean> | null = null;
 
-  /**
-   * Initializes the vgpu mount instance.
-   * Note: WebGPU context initialization is asynchronous; call `.init()` to prepare pipelines.
-   *
-   * @param canvas - Target HTML canvas
-   * @param options - Dither rendering configuration
-   */
+  // Cached uniform buffers to avoid per-frame GC allocations
+  private cachedResolution: [number, number] = [800, 600];
+  private cachedPaletteArray = new Float32Array(64);
+  private cachedColorBack = "";
+  private cachedColorFront = "";
+  private cachedColorHighlight = "";
+  private cachedPaletteKey = "";
+  private cachedParams: Record<string, any> = {};
+
   constructor(canvas: HTMLCanvasElement, options: DitherSettings) {
     this.canvas = canvas;
     this.options = { ...options };
+
+    this.cachedParams = {
+      resolution: this.cachedResolution,
+      pixelRatio: 1,
+      imageAspectRatio: 1,
+      hasImage: 0,
+      time: 0,
+      ditherType: 4,
+      pxSize: 2,
+      threshold: 0.5,
+      halftoneAngle: 45,
+      halftoneScale: 2,
+      colorMode: 1,
+      colorSteps: 4,
+      inverted: 0,
+      fit: 2,
+      scale: 1,
+      rotation: 0,
+      offsetX: 0,
+      offsetY: 0,
+      brightness: 0,
+      contrast: 1,
+      saturation: 1,
+      gamma: 1,
+      proceduralShape: 1,
+      paletteCount: 2,
+      pad0: 0,
+      pad1: 0,
+      pad2: 0,
+      colorBack: [0, 0, 0, 1],
+      colorFront: [1, 1, 1, 1],
+      colorHighlight: [1, 1, 1, 1],
+    };
+
+    for (let i = 0; i < 16; i++) {
+      this.cachedParams[`palette_${i}`] = [0, 0, 0, 1];
+    }
+
+    this.updateCachedUniforms();
   }
 
   private getRawQueue(): GPUQueue | null {
@@ -96,12 +147,6 @@ export class DitherVgpuMount {
     );
   }
 
-  /**
-   * Asynchronously initializes the WebGPU device, vgpu surface, dummy fallback texture,
-   * and WGSL dither effect pipeline.
-   *
-   * @returns Promise resolving to true if initialization succeeds
-   */
   public async init(): Promise<boolean> {
     if (this.initPromise) return this.initPromise;
     this.initPromise = this.doInit();
@@ -114,13 +159,8 @@ export class DitherVgpuMount {
     }
 
     try {
-      // Dynamic import of vgpu library (local bundle with CDN fallback)
-      let vgpu: any;
-      try {
-        vgpu = await (Function('return import("vgpu")')());
-      } catch {
-        vgpu = await (Function('return import("https://esm.sh/vgpu@0.5.0")')());
-      }
+      // Dynamic import of vgpu library (local bundle with CDN fallback, cached)
+      const vgpu = await loadVgpuModule();
 
       this.vgpuLib = vgpu;
       const { init, surface, effect, sampler, texture, frame } = vgpu;
@@ -207,13 +247,6 @@ export class DitherVgpuMount {
   }
 
   /**
-   * Alias for setImage providing polymorphism with WebGL mount.
-   */
-  public setMediaSource(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
-    this.setImage(source);
-  }
-
-  /**
    * Recreates or updates the GPUTexture holding the source image/video frame
    * using WebGPU queue.copyExternalImageToTexture.
    */
@@ -278,9 +311,62 @@ export class DitherVgpuMount {
     }
   }
 
+  private updateCachedUniforms() {
+    const opt = this.options;
+    const p = this.cachedParams;
+    p.ditherType = DITHER_TYPES[opt.ditherType] || 4;
+    p.pxSize = opt.pxSize;
+    p.threshold = opt.threshold;
+    p.halftoneAngle = opt.halftoneAngle;
+    p.halftoneScale = opt.halftoneScale;
+    p.colorMode = COLOR_MODES[opt.colorMode] || 1;
+    p.colorSteps = opt.colorSteps;
+    p.inverted = opt.inverted ? 1 : 0;
+    p.fit = FIT_MODES[opt.fit] || 2;
+    p.scale = opt.scale;
+    p.rotation = opt.rotation;
+    p.offsetX = opt.offsetX;
+    p.offsetY = opt.offsetY;
+    p.brightness = opt.brightness;
+    p.contrast = opt.contrast;
+    p.saturation = opt.saturation;
+    p.gamma = opt.gamma;
+    p.proceduralShape = PROCEDURAL_SHAPES[opt.proceduralShape] || 1;
+
+    if (opt.colorBack !== this.cachedColorBack) {
+      p.colorBack = parseColorToNormalizedRgba(opt.colorBack);
+      this.cachedColorBack = opt.colorBack;
+    }
+    if (opt.colorFront !== this.cachedColorFront) {
+      p.colorFront = parseColorToNormalizedRgba(opt.colorFront);
+      this.cachedColorFront = opt.colorFront;
+    }
+    if (opt.colorHighlight !== this.cachedColorHighlight) {
+      p.colorHighlight = parseColorToNormalizedRgba(opt.colorHighlight);
+      this.cachedColorHighlight = opt.colorHighlight;
+    }
+
+    const paletteColors = opt.palette && opt.palette.length > 0 ? opt.palette : ["#000000", "#ffffff"];
+    const paletteKey = paletteColors.join(",");
+    if (paletteKey !== this.cachedPaletteKey) {
+      paletteToVec4Array(paletteColors, 16, this.cachedPaletteArray);
+      p.paletteCount = Math.min(16, paletteColors.length);
+      for (let i = 0; i < 16; i++) {
+        const idx = i * 4;
+        const entry = p[`palette_${i}`];
+        entry[0] = this.cachedPaletteArray[idx];
+        entry[1] = this.cachedPaletteArray[idx + 1];
+        entry[2] = this.cachedPaletteArray[idx + 2];
+        entry[3] = this.cachedPaletteArray[idx + 3];
+      }
+      this.cachedPaletteKey = paletteKey;
+    }
+  }
+
   public updateOptions(newOptions: DitherSettings) {
     const wasAnimated = this.options.animated;
     this.options = { ...newOptions };
+    this.updateCachedUniforms();
     if (newOptions.animated !== wasAnimated) {
       if (newOptions.animated) {
         this.startAnimation();
@@ -291,9 +377,6 @@ export class DitherVgpuMount {
     this.render();
   }
 
-  /**
-   * Dispatches a WebGPU render pass using vgpu, updating uniforms and drawing to the canvas surface.
-   */
   public render() {
     if (this.isDisposed || !this.isReady || !this.ditherEffect || !this.gpu || !this.vgpuSurface) return;
     if (this.isRendering) return;
@@ -314,62 +397,22 @@ export class DitherVgpuMount {
       this.updateSourceTexture(this.imageSource, w, h);
     }
 
-    const cBack = parseColorToNormalizedRgba(opt.colorBack);
-    const cFront = parseColorToNormalizedRgba(opt.colorFront);
-    const cHighlight = parseColorToNormalizedRgba(opt.colorHighlight);
-
-    const paletteArray = paletteToVec4Array(opt.palette);
-    const paletteParams: Record<string, number[]> = {};
-    for (let i = 0; i < 16; i++) {
-      const idx = i * 4;
-      paletteParams[`palette_${i}`] = [
-        paletteArray[idx] ?? 0,
-        paletteArray[idx + 1] ?? 0,
-        paletteArray[idx + 2] ?? 0,
-        paletteArray[idx + 3] ?? 1,
-      ];
-    }
-
     const currentTexture =
       this.hasImage && this.sourceTexture ? this.sourceTexture : this.dummyTexture;
+
+    // Mutate cached uniforms in-place without per-frame allocations or object spreads
+    this.cachedResolution[0] = this.canvas.width || 800;
+    this.cachedResolution[1] = this.canvas.height || 600;
+    this.cachedParams.pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    this.cachedParams.imageAspectRatio = this.imageAspectRatio;
+    this.cachedParams.hasImage = this.hasImage ? 1 : 0;
+    this.cachedParams.time = elapsedTime;
 
     try {
       this.ditherEffect.set({
         src: currentTexture,
         samp: this.defaultSampler,
-        params: {
-          resolution: [this.canvas.width || 800, this.canvas.height || 600],
-          pixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-          imageAspectRatio: this.imageAspectRatio,
-          hasImage: this.hasImage ? 1 : 0,
-          time: elapsedTime,
-          ditherType: DITHER_TYPES[opt.ditherType] || 4,
-          pxSize: opt.pxSize,
-          threshold: opt.threshold,
-          halftoneAngle: opt.halftoneAngle,
-          halftoneScale: opt.halftoneScale,
-          colorMode: COLOR_MODES[opt.colorMode] || 1,
-          colorSteps: opt.colorSteps,
-          inverted: opt.inverted ? 1 : 0,
-          fit: FIT_MODES[opt.fit] || 2,
-          scale: opt.scale,
-          rotation: opt.rotation,
-          offsetX: opt.offsetX,
-          offsetY: opt.offsetY,
-          brightness: opt.brightness,
-          contrast: opt.contrast,
-          saturation: opt.saturation,
-          gamma: opt.gamma,
-          proceduralShape: PROCEDURAL_SHAPES[opt.proceduralShape] || 1,
-          paletteCount: Math.min(16, opt.palette.length),
-          pad0: 0,
-          pad1: 0,
-          pad2: 0,
-          colorBack: cBack,
-          colorFront: cFront,
-          colorHighlight: cHighlight,
-          ...paletteParams,
-        },
+        params: this.cachedParams,
       });
 
       const frameFn = this.vgpuLib?.frame;

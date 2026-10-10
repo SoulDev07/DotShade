@@ -16,12 +16,14 @@ import { ControlPanel } from "./ControlPanel";
 import { SplitCompareSlider } from "./SplitCompareSlider";
 import { VideoControls } from "./VideoControls";
 import { ExportModal } from "./ExportModal";
-import { processCpuDithering } from "@/engine/cpu-dither";
+import { processCpuDitheringAsync } from "@/engine/cpu-dither-client";
 import { RETRO_PALETTES } from "@/engine/palettes";
 import type { DitherSettings, DitherPattern, ColorMode } from "@/engine/types";
 import { DotShadeLogo } from "./ui/DotShadeLogo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useDropzone } from "react-dropzone";
+import { useHotkeys } from "react-hotkeys-hook";
 
 const INITIAL_SETTINGS: DitherSettings = {
   engine: "vgpu",
@@ -55,12 +57,6 @@ const INITIAL_SETTINGS: DitherSettings = {
   animationSpeed: 1,
 };
 
-/**
- * Top-level DotShade workstation component:
- * Manages global reactive settings, hardware rendering viewport,
- * drag-and-drop file imports, live webcam streaming, split comparison mode,
- * CPU error-diffusion fallback processing, and export dialogs.
- */
 export function DitherStudio() {
   const [settings, setSettings] = useState<DitherSettings>(INITIAL_SETTINGS);
   const deferredSettings = useDeferredValue(settings);
@@ -73,7 +69,6 @@ export function DitherStudio() {
   const [isWebcamActive, setIsWebcamActive] = useState(false);
   const [mediaDimensions, setMediaDimensions] = useState<{ width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState<number>(1);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
@@ -82,6 +77,7 @@ export function DitherStudio() {
   const stageRef = useRef<HTMLDivElement>(null);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHeldRef = useRef(false);
+  const cachedCpuImageRef = useRef<{ url: string; img: HTMLImageElement } | null>(null);
 
   useEffect(() => {
     return () => {
@@ -139,21 +135,32 @@ export function DitherStudio() {
     setSettings((prev) => ({ ...prev, ...updater }));
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type.startsWith("image/")) {
+  const onDropFiles = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles && acceptedFiles[0]) {
+        const file = acceptedFiles[0];
         const url = URL.createObjectURL(file);
-        updateSettings({ mediaType: "image", mediaUrl: url });
-        toast.success("Loaded image into workspace", { description: file.name });
-      } else if (file.type.startsWith("video/")) {
-        const url = URL.createObjectURL(file);
-        updateSettings({ mediaType: "video", mediaUrl: url });
-        toast.success("Loaded video into workspace", { description: file.name });
+        if (file.type.startsWith("image/")) {
+          updateSettings({ mediaType: "image", mediaUrl: url });
+          toast.success("Loaded image into workspace", { description: file.name });
+        } else if (file.type.startsWith("video/")) {
+          updateSettings({ mediaType: "video", mediaUrl: url, animated: true });
+          toast.success("Loaded video into workspace", { description: file.name });
+        }
       }
-    }
-  }, [updateSettings]);
+    },
+    [updateSettings]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: onDropFiles,
+    noClick: true,
+    noKeyboard: true,
+    accept: {
+      "image/*": [],
+      "video/*": [],
+    },
+  });
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -244,62 +251,11 @@ export function DitherStudio() {
     }
   }, [settings.mediaType, settings.mediaUrl]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
-      ) {
-        return;
-      }
-
-      if (e.key === "Escape") {
-        e.preventDefault();
-        if (isExportOpen) {
-          setIsExportOpen(false);
-        } else if (isViewingOriginal) {
-          setIsViewingOriginal(false);
-        } else if (isSplitView) {
-          setIsSplitView(false);
-        }
-        return;
-      }
-
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        handleOpenExport();
-      } else if (e.key === "Tab") {
-        e.preventDefault();
-        setIsSplitView((prev) => !prev);
-      } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey) {
-        handleReset();
-      } else if (e.key.toLowerCase() === "x" && !e.ctrlKey && !e.metaKey) {
-        handleRandomize();
-      } else if (e.key.toLowerCase() === "f") {
-        toggleFullscreen();
-      } else if ((e.key.toLowerCase() === "o" || e.key === "\\") && !e.ctrlKey && !e.metaKey) {
-        if (e.repeat) return;
-        e.preventDefault();
-        handleOriginalClick();
-      } else if ((e.key === "+" || e.key === "=") && !e.ctrlKey && !e.metaKey) {
-        setZoom((z) => Math.min(3, Number((z + 0.15).toFixed(2))));
-      } else if ((e.key === "-" || e.key === "_") && !e.ctrlKey && !e.metaKey) {
-        setZoom((z) => Math.max(0.5, Number((z - 0.15).toFixed(2))));
-      } else if (e.key === "0" && !e.ctrlKey && !e.metaKey) {
-        setZoom(1);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleOriginalClick, isExportOpen, isViewingOriginal, isSplitView]);
-
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setSettings(INITIAL_SETTINGS);
     setIsViewingOriginal(false);
     toast.info("Settings reset to defaults");
-  };
+  }, []);
 
   const handleRandomize = useCallback(() => {
     const patterns: DitherPattern[] = [
@@ -343,7 +299,7 @@ export function DitherStudio() {
     toast.success(`Randomized: ${randomPattern.toUpperCase()} • ${randomPalette.name}`);
   }, []);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       stageRef.current?.requestFullscreen?.();
       setIsFullscreen(true);
@@ -351,7 +307,44 @@ export function DitherStudio() {
       document.exitFullscreen?.();
       setIsFullscreen(false);
     }
-  };
+  }, []);
+
+  // Declarative keyboard shortcuts powered by react-hotkeys-hook
+  useHotkeys("escape", (e) => {
+    e.preventDefault();
+    if (isExportOpen) {
+      setIsExportOpen(false);
+    } else if (isViewingOriginal) {
+      setIsViewingOriginal(false);
+    } else if (isSplitView) {
+      setIsSplitView(false);
+    }
+  });
+
+  useHotkeys("mod+s", (e) => {
+    e.preventDefault();
+    handleOpenExport();
+  });
+
+  useHotkeys("tab", (e) => {
+    e.preventDefault();
+    setIsSplitView((prev) => !prev);
+  });
+
+  useHotkeys("r", () => handleReset());
+  useHotkeys("x", () => handleRandomize());
+  useHotkeys("f", () => toggleFullscreen());
+  useHotkeys(["o", "\\"], (e) => {
+    e.preventDefault();
+    handleOriginalClick();
+  });
+  useHotkeys(["+", "="], () => {
+    setZoom((z) => Math.min(3, Number((z + 0.15).toFixed(2))));
+  });
+  useHotkeys(["-", "_"], () => {
+    setZoom((z) => Math.max(0.5, Number((z - 0.15).toFixed(2))));
+  });
+  useHotkeys("0", () => setZoom(1));
 
   useEffect(() => {
     if (deferredSettings.engine !== "cpu" || !cpuCanvasRef.current) return;
@@ -364,50 +357,59 @@ export function DitherStudio() {
 
     const runCpu = async () => {
       if (!deferredSettings.mediaUrl) return;
+
+      const processWithImage = async (img: HTMLImageElement) => {
+        if (!isSubscribed) return;
+        const maxDim = 600;
+        let w = img.naturalWidth || 600;
+        let h = img.naturalHeight || 400;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        canvas.width = w;
+        canvas.height = h;
+
+        ctx.drawImage(img, 0, 0, w, h);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const processed = await processCpuDitheringAsync(imgData, {
+          algorithm: deferredSettings.cpuAlgorithm,
+          colorMode: deferredSettings.colorMode,
+          colorBack: deferredSettings.colorBack,
+          colorFront: deferredSettings.colorFront,
+          colorHighlight: deferredSettings.colorHighlight,
+          palette: deferredSettings.palette,
+          colorSteps: deferredSettings.colorSteps,
+          threshold: deferredSettings.threshold,
+          brightness: deferredSettings.brightness,
+          contrast: deferredSettings.contrast,
+          gamma: deferredSettings.gamma,
+          inverted: deferredSettings.inverted,
+        });
+        if (isSubscribed) {
+          ctx.putImageData(processed, 0, 0);
+        }
+      };
+
+      if (cachedCpuImageRef.current?.url === deferredSettings.mediaUrl) {
+        await processWithImage(cachedCpuImageRef.current.img);
+        return;
+      }
+
       const img = new Image();
       if (deferredSettings.mediaUrl.startsWith("http://") || deferredSettings.mediaUrl.startsWith("https://")) {
         img.crossOrigin = "anonymous";
       }
       img.src = deferredSettings.mediaUrl;
-      img.onload = () => {
+      img.onload = async () => {
         if (!isSubscribed) return;
-        animFrameId = requestAnimationFrame(() => {
-          if (!isSubscribed) return;
-          const maxDim = 600;
-          let w = img.naturalWidth || 600;
-          let h = img.naturalHeight || 400;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) {
-              h = Math.round((h * maxDim) / w);
-              w = maxDim;
-            } else {
-              w = Math.round((w * maxDim) / h);
-              h = maxDim;
-            }
-          }
-          canvas.width = w;
-          canvas.height = h;
-
-          ctx.drawImage(img, 0, 0, w, h);
-          const imgData = ctx.getImageData(0, 0, w, h);
-          const processed = processCpuDithering(imgData, {
-            algorithm: deferredSettings.cpuAlgorithm,
-            colorMode: deferredSettings.colorMode,
-            colorBack: deferredSettings.colorBack,
-            colorFront: deferredSettings.colorFront,
-            colorHighlight: deferredSettings.colorHighlight,
-            palette: deferredSettings.palette,
-            colorSteps: deferredSettings.colorSteps,
-            threshold: deferredSettings.threshold,
-            brightness: deferredSettings.brightness,
-            contrast: deferredSettings.contrast,
-            gamma: deferredSettings.gamma,
-            inverted: deferredSettings.inverted,
-          });
-          if (isSubscribed) {
-            ctx.putImageData(processed, 0, 0);
-          }
-        });
+        cachedCpuImageRef.current = { url: deferredSettings.mediaUrl, img };
+        await processWithImage(img);
       };
     };
 
@@ -704,21 +706,11 @@ export function DitherStudio() {
 
         <div
           ref={stageRef}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDraggingOver(true);
-          }}
-          onDragLeave={(e) => {
-            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-            setIsDraggingOver(false);
-          }}
-          onDrop={(e) => {
-            setIsDraggingOver(false);
-            handleDrop(e);
-          }}
-          className="flex-1 relative flex items-center justify-center p-4 lg:p-6 overflow-hidden bg-background"
+          {...getRootProps()}
+          className="flex-1 relative flex items-center justify-center p-4 lg:p-6 overflow-hidden bg-background outline-none"
         >
-          {isDraggingOver && (
+          <input {...getInputProps()} />
+          {isDragActive && (
             <div className="absolute inset-4 z-50 flex flex-col items-center justify-center bg-black/95 border-2 border-white pointer-events-none modal-enter dither-drop">
               <div className="text-sm font-mono font-bold text-white uppercase tracking-widest">
                 ▓ DROP MEDIA TO DITHER ▓

@@ -1,9 +1,4 @@
 
-/**
- * WebGPU WGSL (WebGPU Shading Language) Shader Module:
- * Provides hardware-accelerated real-time ordered dithering, procedural pattern generation,
- * Bayer matrices, halftone screens, and retro color quantization for WebGPU pipelines.
- */
 export const ditherWgslShader = `
 // Full-screen triangle vertex output
 struct FullscreenVertexOut {
@@ -132,47 +127,48 @@ fn snoise2(v: vec2f) -> f32 {
   return 130.0 * (m.x * g0 + m.y * g12.x + m.z * g12.y);
 }
 
+const bayer2_table = array<f32, 4>(0.0, 2.0, 3.0, 1.0);
+const bayer4_table = array<f32, 16>(
+  0.0,  8.0,  2.0, 10.0,
+ 12.0,  4.0, 14.0,  6.0,
+  3.0, 11.0,  1.0,  9.0,
+ 15.0,  7.0, 13.0,  5.0
+);
+const bayer8_table = array<f32, 64>(
+  0.0, 32.0,  8.0, 40.0,  2.0, 34.0, 10.0, 42.0,
+ 48.0, 16.0, 56.0, 24.0, 50.0, 18.0, 58.0, 26.0,
+ 12.0, 44.0,  4.0, 36.0, 14.0, 46.0,  6.0, 38.0,
+ 60.0, 28.0, 52.0, 20.0, 62.0, 30.0, 54.0, 22.0,
+  3.0, 35.0, 11.0, 43.0,  1.0, 33.0,  9.0, 41.0,
+ 51.0, 19.0, 59.0, 27.0, 49.0, 17.0, 57.0, 25.0,
+ 15.0, 47.0,  7.0, 39.0, 13.0, 45.0,  5.0, 37.0,
+ 63.0, 31.0, 55.0, 23.0, 61.0, 29.0, 53.0, 21.0
+);
+const clustered8_table = array<f32, 64>(
+ 24.0, 10.0, 12.0, 26.0, 35.0, 47.0, 49.0, 37.0,
+  8.0,  0.0,  2.0, 14.0, 45.0, 59.0, 61.0, 51.0,
+ 22.0,  6.0,  4.0, 16.0, 43.0, 57.0, 63.0, 53.0,
+ 30.0, 20.0, 18.0, 28.0, 33.0, 41.0, 55.0, 39.0,
+ 34.0, 46.0, 48.0, 36.0, 25.0, 11.0, 13.0, 27.0,
+ 44.0, 58.0, 60.0, 50.0,  9.0,  1.0,  3.0, 15.0,
+ 42.0, 56.0, 62.0, 52.0, 23.0,  7.0,  5.0, 17.0,
+ 32.0, 40.0, 54.0, 38.0, 31.0, 21.0, 19.0, 29.0
+);
+
 fn bayer2(p: vec2u) -> f32 {
-  let m = array<f32, 4>(0.0, 2.0, 3.0, 1.0);
-  return m[(p.y % 2u) * 2u + (p.x % 2u)] / 4.0;
+  return bayer2_table[(p.y & 1u) * 2u + (p.x & 1u)] * 0.25;
 }
 
 fn bayer4(p: vec2u) -> f32 {
-  let m = array<f32, 16>(
-    0.0,  8.0,  2.0, 10.0,
-   12.0,  4.0, 14.0,  6.0,
-    3.0, 11.0,  1.0,  9.0,
-   15.0,  7.0, 13.0,  5.0
-  );
-  return m[(p.y % 4u) * 4u + (p.x % 4u)] / 16.0;
+  return bayer4_table[(p.y & 3u) * 4u + (p.x & 3u)] * 0.0625;
 }
 
 fn bayer8(p: vec2u) -> f32 {
-  let m = array<f32, 64>(
-    0.0, 32.0,  8.0, 40.0,  2.0, 34.0, 10.0, 42.0,
-   48.0, 16.0, 56.0, 24.0, 50.0, 18.0, 58.0, 26.0,
-   12.0, 44.0,  4.0, 36.0, 14.0, 46.0,  6.0, 38.0,
-   60.0, 28.0, 52.0, 20.0, 62.0, 30.0, 54.0, 22.0,
-    3.0, 35.0, 11.0, 43.0,  1.0, 33.0,  9.0, 41.0,
-   51.0, 19.0, 59.0, 27.0, 49.0, 17.0, 57.0, 25.0,
-   15.0, 47.0,  7.0, 39.0, 13.0, 45.0,  5.0, 37.0,
-   63.0, 31.0, 55.0, 23.0, 61.0, 29.0, 53.0, 21.0
-  );
-  return m[(p.y % 8u) * 8u + (p.x % 8u)] / 64.0;
+  return bayer8_table[(p.y & 7u) * 8u + (p.x & 7u)] * 0.015625;
 }
 
 fn clustered8(p: vec2u) -> f32 {
-  let m = array<f32, 64>(
-    24.0, 10.0, 12.0, 26.0, 35.0, 47.0, 49.0, 37.0,
-     8.0,  0.0,  2.0, 14.0, 45.0, 59.0, 61.0, 51.0,
-    22.0,  6.0,  4.0, 16.0, 43.0, 57.0, 63.0, 53.0,
-    30.0, 20.0, 18.0, 28.0, 33.0, 41.0, 55.0, 39.0,
-    34.0, 46.0, 48.0, 36.0, 25.0, 11.0, 13.0, 27.0,
-    44.0, 58.0, 60.0, 50.0,  9.0,  1.0,  3.0, 15.0,
-    42.0, 56.0, 62.0, 52.0, 23.0,  7.0,  5.0, 17.0,
-    32.0, 40.0, 54.0, 38.0, 31.0, 21.0, 19.0, 29.0
-  );
-  return m[(p.y % 8u) * 8u + (p.x % 8u)] / 64.0;
+  return clustered8_table[(p.y & 7u) * 8u + (p.x & 7u)] * 0.015625;
 }
 
 // Evaluates the normalized [0..1] threshold for the chosen dither pattern
@@ -194,7 +190,7 @@ fn getDitherPattern(coord: vec2f, ditherType: u32) -> f32 {
     case 5u: { // Bayer 16x16 approximated from hierarchical 4x4
       let coarse = bayer4(p / 4u);
       let fine = bayer4(p);
-      return (coarse * 16.0 + fine) / 256.0;
+      return (coarse * 16.0 + fine) * 0.00390625;
     }
     case 6u: { // Halftone Dot Screen rotated by halftoneAngle
       let rad = radians(params.halftoneAngle);
@@ -415,7 +411,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
         if (i >= count) { break; }
         let palCol = getPaletteColor(i).rgb;
         let diff = ditheredRgb - palCol;
-        let dist = 0.3 * diff.r * diff.r + 0.59 * diff.g * diff.g + 0.11 * diff.b * diff.b;
+        let dist = dot(diff * diff, vec3f(0.30, 0.59, 0.11));
         if (dist < bestDist) {
           bestDist = dist;
           bestIdx = i;

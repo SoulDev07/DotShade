@@ -17,11 +17,6 @@ interface SliderControlProps {
   className?: string;
 }
 
-/**
- * Numeric slider control with retro aesthetic styling.
- * Supports scrubbing, quick reset to defaultValue, and clicking the value label
- * to open an inline number input for precision manual typing.
- */
 export function SliderControl({
   label,
   value,

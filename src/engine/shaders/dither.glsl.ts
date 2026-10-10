@@ -1,24 +1,13 @@
-/**
- * WebGL2 Vertex Shader:
- * Generates a full-screen quad from normalized device coordinates [-1, 1],
- * outputting interpolated texture coordinates [0, 1] across the viewport.
- */
 export const ditherVertexShader = `#version 300 es
 in vec2 a_position;
 out vec2 v_uv;
 
 void main() {
-  // Convert [-1, 1] clip space coordinates to [0, 1] UV space
   v_uv = (a_position + 1.0) * 0.5;
   gl_Position = vec4(a_position, 0.0, 1.0);
 }
 `;
 
-/**
- * WebGL2 Fragment Shader:
- * Implements hardware-accelerated real-time ordered dithering, halftone dot screens,
- * crosshatching, color space adjustments, and retro color quantization ramps.
- */
 export const ditherFragmentShader = `#version 300 es
 precision highp float;
 
@@ -161,22 +150,24 @@ const int clustered8x8[64] = int[64](
 );
 
 // Look up normalized [0..1] threshold from Bayer / clustered matrices
+// Uses single-cycle bitwise masking (&) and reciprocal multiplications to eliminate modulo/division
 float getBayerThreshold(vec2 pos, int type) {
+  ivec2 ip = ivec2(pos);
   if (type == 2) { 
-    ivec2 p = ivec2(mod(pos, 2.0));
-    return float(bayer2x2[p.y * 2 + p.x]) / 4.0;
+    ivec2 p = ip & 1;
+    return float(bayer2x2[p.y * 2 + p.x]) * 0.25;
   } else if (type == 3) { 
-    ivec2 p = ivec2(mod(pos, 4.0));
-    return float(bayer4x4[p.y * 4 + p.x]) / 16.0;
+    ivec2 p = ip & 3;
+    return float(bayer4x4[p.y * 4 + p.x]) * 0.0625;
   } else if (type == 4) { 
-    ivec2 p = ivec2(mod(pos, 8.0));
-    return float(bayer8x8[p.y * 8 + p.x]) / 64.0;
+    ivec2 p = ip & 7;
+    return float(bayer8x8[p.y * 8 + p.x]) * 0.015625;
   } else if (type == 5) { 
-    ivec2 p = ivec2(mod(pos, 16.0));
-    return float(bayer16x16[p.y * 16 + p.x]) / 256.0;
+    ivec2 p = ip & 15;
+    return float(bayer16x16[p.y * 16 + p.x]) * 0.00390625;
   } else if (type == 8) { 
-    ivec2 p = ivec2(mod(pos, 8.0));
-    return float(clustered8x8[p.y * 8 + p.x]) / 64.0;
+    ivec2 p = ip & 7;
+    return float(clustered8x8[p.y * 8 + p.x]) * 0.015625;
   }
   return 0.5;
 }
@@ -294,17 +285,18 @@ float generateProceduralShape(vec2 uv, float t) {
 }
 
 // Quantizes an RGB color to the closest entry in the active palette array
-// using human-eye perceptual color weighting (R: 0.30, G: 0.59, B: 0.11)
+// using human-eye perceptual color weighting (R: 0.30, G: 0.59, B: 0.11) with hardware dot product
 vec4 matchClosestPaletteColor(vec3 color, float lum) {
   float minDiff = 1000.0;
   vec4 closest = u_palette[0];
   int count = max(1, min(16, u_paletteCount));
+  const vec3 weights = vec3(0.30, 0.59, 0.11);
 
   for (int i = 0; i < 16; i++) {
     if (i >= count) break;
     vec3 palColor = u_palette[i].rgb;
     vec3 diff = color - palColor;
-    float dist = 0.3 * diff.r * diff.r + 0.59 * diff.g * diff.g + 0.11 * diff.b * diff.b;
+    float dist = dot(diff * diff, weights);
     if (dist < minDiff) {
       minDiff = dist;
       closest = u_palette[i];

@@ -41,11 +41,6 @@ const PROCEDURAL_SHAPES: Record<string, number> = {
   sphere: 7,
 };
 
-/**
- * High-performance WebGL2 Mount:
- * Manages the GPU pipeline, vertex array object (VAO), texture allocation,
- * uniform caching, video frame synchronization, and real-time animation loop.
- */
 export class DitherWebGLMount {
   public canvas: HTMLCanvasElement;
   private gl: WebGL2RenderingContext;
@@ -63,13 +58,19 @@ export class DitherWebGLMount {
   private imageAspectRatio = 1;
   private hasImage = false;
 
-  /**
-   * Initializes the WebGL2 context, compiles shaders, configures quad geometry,
-   * and renders the initial frame.
-   *
-   * @param canvas - Target HTML canvas element
-   * @param options - Dither and rendering configuration
-   */
+  // Cached uniform buffers to avoid per-frame allocations
+  private cachedBackRgba = new Float32Array(4);
+  private cachedFrontRgba = new Float32Array(4);
+  private cachedHlRgba = new Float32Array(4);
+  private cachedPaletteArray = new Float32Array(64);
+  private cachedPaletteCount = 2;
+  private cachedColorBack = "";
+  private cachedColorFront = "";
+  private cachedColorHighlight = "";
+  private cachedPaletteKey = "";
+  private texWidth = 0;
+  private texHeight = 0;
+
   constructor(canvas: HTMLCanvasElement, options: DitherSettings) {
     this.canvas = canvas;
     this.options = { ...options };
@@ -88,6 +89,7 @@ export class DitherWebGLMount {
     this.gl = gl;
 
     this.initGL();
+    this.updateCachedUniforms();
     this.render();
 
     if (this.options.animated) {
@@ -178,7 +180,7 @@ export class DitherWebGLMount {
     return this.uniformLocs.get(name) ?? null;
   }
 
-  public setMediaSource(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
+  public setImage(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
     this.imageSource = source;
     if (source) {
       this.hasImage = true;
@@ -197,30 +199,86 @@ export class DitherWebGLMount {
     this.render();
   }
 
-  /**
-   * Alias for setMediaSource providing polymorphism with WebGPU mount.
-   */
-  public setImage(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
-    this.setMediaSource(source);
+  private updateCachedUniforms() {
+    if (this.options.colorBack !== this.cachedColorBack) {
+      const [r, g, b, a] = parseColorToNormalizedRgba(this.options.colorBack);
+      this.cachedBackRgba[0] = r;
+      this.cachedBackRgba[1] = g;
+      this.cachedBackRgba[2] = b;
+      this.cachedBackRgba[3] = a;
+      this.cachedColorBack = this.options.colorBack;
+    }
+    if (this.options.colorFront !== this.cachedColorFront) {
+      const [r, g, b, a] = parseColorToNormalizedRgba(this.options.colorFront);
+      this.cachedFrontRgba[0] = r;
+      this.cachedFrontRgba[1] = g;
+      this.cachedFrontRgba[2] = b;
+      this.cachedFrontRgba[3] = a;
+      this.cachedColorFront = this.options.colorFront;
+    }
+    if (this.options.colorHighlight !== this.cachedColorHighlight) {
+      const [r, g, b, a] = parseColorToNormalizedRgba(this.options.colorHighlight);
+      this.cachedHlRgba[0] = r;
+      this.cachedHlRgba[1] = g;
+      this.cachedHlRgba[2] = b;
+      this.cachedHlRgba[3] = a;
+      this.cachedColorHighlight = this.options.colorHighlight;
+    }
+    const paletteColors = this.options.palette?.length > 0 ? this.options.palette : ["#000000", "#ffffff"];
+    const paletteKey = paletteColors.join(",");
+    if (paletteKey !== this.cachedPaletteKey) {
+      paletteToVec4Array(paletteColors, 16, this.cachedPaletteArray);
+      this.cachedPaletteCount = Math.min(16, paletteColors.length);
+      this.cachedPaletteKey = paletteKey;
+    }
   }
 
   public updateTexture() {
     if (!this.imageSource || !this.gl || !this.texture) return;
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      this.imageSource
-    );
+
+    let srcW = 0;
+    let srcH = 0;
+    if (this.imageSource instanceof HTMLVideoElement) {
+      srcW = this.imageSource.videoWidth || 1;
+      srcH = this.imageSource.videoHeight || 1;
+    } else if (this.imageSource instanceof HTMLImageElement) {
+      srcW = this.imageSource.naturalWidth || this.imageSource.width || 1;
+      srcH = this.imageSource.naturalHeight || this.imageSource.height || 1;
+    } else if (this.imageSource instanceof ImageBitmap) {
+      srcW = this.imageSource.width || 1;
+      srcH = this.imageSource.height || 1;
+    }
+
+    if (srcW > 0 && srcH > 0 && this.texWidth === srcW && this.texHeight === srcH) {
+      gl.texSubImage2D(
+        gl.TEXTURE_2D,
+        0,
+        0,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        this.imageSource
+      );
+    } else {
+      this.texWidth = srcW;
+      this.texHeight = srcH;
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        this.imageSource
+      );
+    }
   }
 
   public updateOptions(newOptions: DitherSettings) {
     const wasAnimated = this.options.animated;
     this.options = { ...newOptions };
+    this.updateCachedUniforms();
     if (newOptions.animated !== wasAnimated) {
       if (newOptions.animated) {
         this.startAnimation();
@@ -270,18 +328,11 @@ export class DitherWebGLMount {
     const cMode = COLOR_MODES[this.options.colorMode] || 1;
     gl.uniform1i(this.getUniformLocation("u_colorMode"), cMode);
 
-    const backRgba = parseColorToNormalizedRgba(this.options.colorBack);
-    const frontRgba = parseColorToNormalizedRgba(this.options.colorFront);
-    const hlRgba = parseColorToNormalizedRgba(this.options.colorHighlight);
-
-    gl.uniform4fv(this.getUniformLocation("u_colorBack"), backRgba);
-    gl.uniform4fv(this.getUniformLocation("u_colorFront"), frontRgba);
-    gl.uniform4fv(this.getUniformLocation("u_colorHighlight"), hlRgba);
-
-    const paletteColors = this.options.palette.length > 0 ? this.options.palette : ["#000000", "#ffffff"];
-    const palArray = paletteToVec4Array(paletteColors, 16);
-    gl.uniform4fv(this.getUniformLocation("u_palette"), palArray);
-    gl.uniform1i(this.getUniformLocation("u_paletteCount"), paletteColors.length);
+    gl.uniform4fv(this.getUniformLocation("u_colorBack"), this.cachedBackRgba);
+    gl.uniform4fv(this.getUniformLocation("u_colorFront"), this.cachedFrontRgba);
+    gl.uniform4fv(this.getUniformLocation("u_colorHighlight"), this.cachedHlRgba);
+    gl.uniform4fv(this.getUniformLocation("u_palette"), this.cachedPaletteArray);
+    gl.uniform1i(this.getUniformLocation("u_paletteCount"), this.cachedPaletteCount);
 
     gl.uniform1f(this.getUniformLocation("u_colorSteps"), this.options.colorSteps);
     gl.uniform1i(this.getUniformLocation("u_inverted"), this.options.inverted ? 1 : 0);

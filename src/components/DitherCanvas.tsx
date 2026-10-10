@@ -14,52 +14,26 @@ import type { DitherSettings } from "@/engine/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-/**
- * Union of active GPU mount instances (WebGL2 or WebGPU/vgpu).
- */
 export type ActiveDitherMount = DitherWebGLMount | DitherVgpuMount;
 
-/**
- * Props for the core DitherCanvas rendering component.
- */
 export interface DitherCanvasProps {
-  /** Current dither configuration settings */
   settings: DitherSettings;
-  /** Image URL, HTMLImageElement, HTMLVideoElement, or null */
   src?: string | HTMLImageElement | HTMLVideoElement | null;
-  /** Optional custom container CSS classes */
   className?: string;
-  /** Optional container style object */
   style?: React.CSSProperties;
-  /** Callback fired when the GPU mount is compiled and ready */
   onReady?: (mount: ActiveDitherMount) => void;
-  /** Callback fired if hardware acceleration or shader compilation fails */
   onError?: (error: unknown) => void;
 }
 
-/**
- * Imperative ref methods exposed by DitherCanvas.
- */
 export interface DitherCanvasHandle {
-  /** Reference to the active GPU mount */
   mount: ActiveDitherMount | null;
-  /** Reference to the underlying HTMLCanvasElement */
   canvas: HTMLCanvasElement | null;
-  /** Imperatively requests a single frame redraw */
   render: () => void;
-  /** Captures the current canvas contents as an image Blob */
   getSnapshotBlob: (
     type?: "image/png" | "image/webp" | "image/jpeg",
     quality?: number
   ) => Promise<Blob | null>;
 }
-
-/**
- * DitherCanvas:
- * Core responsive viewport managing WebGL2 and WebGPU canvas lifecycles.
- * Handles automatic fallback from WebGPU to WebGL2, DPR-aware high-DPI scaling,
- * container ResizeObserver events, and media source streaming.
- */
 export const DitherCanvas = React.memo(
   forwardRef<DitherCanvasHandle, DitherCanvasProps>(function DitherCanvas(
     { settings, src, className, style, onReady, onError },
@@ -82,11 +56,10 @@ export const DitherCanvas = React.memo(
       setEngineVersion((v) => v + 1);
     }, [settings.engine]);
 
-    const applySource = useCallback((mount: any, media: typeof src) => {
+    const applySource = useCallback((mount: ActiveDitherMount | null, media: typeof src) => {
       if (!mount) return;
       if (!media) {
-        if (typeof mount.setImage === "function") mount.setImage(null);
-        else if (typeof mount.setMediaSource === "function") mount.setMediaSource(null);
+        mount.setImage(null);
         return;
       }
 
@@ -97,22 +70,18 @@ export const DitherCanvas = React.memo(
         }
         img.src = media;
         img.onload = () => {
-          if (typeof mount.setImage === "function") mount.setImage(img);
-          else if (typeof mount.setMediaSource === "function") mount.setMediaSource(img);
+          mount.setImage(img);
         };
       } else if (media instanceof HTMLImageElement) {
         if (media.complete) {
-          if (typeof mount.setImage === "function") mount.setImage(media);
-          else if (typeof mount.setMediaSource === "function") mount.setMediaSource(media);
+          mount.setImage(media);
         } else {
           media.onload = () => {
-            if (typeof mount.setImage === "function") mount.setImage(media);
-            else if (typeof mount.setMediaSource === "function") mount.setMediaSource(media);
+            mount.setImage(media);
           };
         }
       } else if (media instanceof HTMLVideoElement) {
-        if (typeof mount.setImage === "function") mount.setImage(media);
-        else if (typeof mount.setMediaSource === "function") mount.setMediaSource(media);
+        mount.setImage(media);
       }
     }, []);
 
@@ -214,8 +183,12 @@ export const DitherCanvas = React.memo(
     useImperativeHandle(
       ref,
       () => ({
-        mount: mountRef.current,
-        canvas: canvasRef.current,
+        get mount() {
+          return mountRef.current;
+        },
+        get canvas() {
+          return canvasRef.current;
+        },
         render: () => mountRef.current?.render(),
         getSnapshotBlob: (type, quality) =>
           mountRef.current?.getSnapshotBlob(type, quality) ?? Promise.resolve(null),
