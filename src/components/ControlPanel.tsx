@@ -52,27 +52,27 @@ const SAMPLE_MEDIA = [
   {
     name: "Botanical Palm",
     type: "image",
-    url: "https://images.unsplash.com/photo-1509423350716-97f9360b4e09?q=80&w=1200&auto=format&fit=crop",
+    url: "/samples/botanical-palm.webp",
   },
   {
     name: "Cyber Tokyo",
     type: "image",
-    url: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1200&auto=format&fit=crop",
+    url: "/samples/cyber-tokyo.webp",
   },
   {
     name: "Vintage Portrait",
     type: "image",
-    url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1200&auto=format&fit=crop",
+    url: "/samples/vintage-portrait.webp",
   },
   {
     name: "Paper Flowers",
     type: "image",
-    url: "https://images.unsplash.com/photo-1490750967868-88aa4486c946?q=80&w=1200&auto=format&fit=crop",
+    url: "/samples/paper-flowers.webp",
   },
   {
     name: "Anime Skyline",
     type: "image",
-    url: "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1200&auto=format&fit=crop",
+    url: "/samples/anime-skyline.webp",
   },
 ];
 

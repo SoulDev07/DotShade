@@ -28,7 +28,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 const INITIAL_SETTINGS: DitherSettings = {
   engine: "vgpu",
   mediaType: "image",
-  mediaUrl: "https://images.unsplash.com/photo-1509423350716-97f9360b4e09?q=80&w=1200&auto=format&fit=crop",
+  mediaUrl: "/samples/botanical-palm.webp",
   ditherType: "8x8",
   cpuAlgorithm: "floyd-steinberg",
   pxSize: 2,
