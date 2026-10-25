@@ -56,8 +56,24 @@ export const DitherCanvas = React.memo(
       setEngineVersion((v) => v + 1);
     }, [settings.engine]);
 
+    // Guards against a stale async load overwriting a newer source.
+    const sourceTokenRef = useRef(0);
+
+    // Read through refs: async (WebGPU) init outlives captured prop values.
+    const settingsRef = useRef(settings);
+    settingsRef.current = settings;
+    const srcRef = useRef(src);
+    srcRef.current = src;
+    // Refs keep callback churn from re-running the mount effect (GPU re-init).
+    const onReadyRef = useRef(onReady);
+    onReadyRef.current = onReady;
+    const onErrorRef = useRef(onError);
+    onErrorRef.current = onError;
+
     const applySource = useCallback((mount: ActiveDitherMount | null, media: typeof src) => {
       if (!mount) return;
+      const token = ++sourceTokenRef.current;
+
       if (!media) {
         mount.setImage(null);
         return;
@@ -70,15 +86,24 @@ export const DitherCanvas = React.memo(
         }
         img.src = media;
         img.onload = () => {
+          if (sourceTokenRef.current !== token) return;
           mount.setImage(img);
+        };
+        img.onerror = (err) => {
+          if (sourceTokenRef.current !== token) return;
+          onErrorRef.current?.(err);
         };
       } else if (media instanceof HTMLImageElement) {
         if (media.complete) {
           mount.setImage(media);
         } else {
-          media.onload = () => {
-            mount.setImage(media);
+          const handleLoad = () => {
+            if (sourceTokenRef.current === token) {
+              mount.setImage(media);
+            }
+            media.removeEventListener("load", handleLoad);
           };
+          media.addEventListener("load", handleLoad, { once: true });
         }
       } else if (media instanceof HTMLVideoElement) {
         mount.setImage(media);
@@ -103,8 +128,9 @@ export const DitherCanvas = React.memo(
 
       const initMount = async () => {
         if (activeEngine === "vgpu" && typeof navigator !== "undefined" && "gpu" in navigator) {
+          let vgpuMount: DitherVgpuMount | null = null;
           try {
-            const vgpuMount = new DitherVgpuMount(canvas, settings);
+            vgpuMount = new DitherVgpuMount(canvas, settingsRef.current);
             const ok = await vgpuMount.init();
             if (isCancelled) {
               vgpuMount.dispose();
@@ -113,37 +139,43 @@ export const DitherCanvas = React.memo(
             if (ok) {
               activeMount = vgpuMount;
               mountRef.current = vgpuMount;
-              if (onReady) onReady(vgpuMount);
-              applySource(vgpuMount, src);
+              // Re-apply options changed during the async init.
+              vgpuMount.updateOptions(settingsRef.current);
+              onReadyRef.current?.(vgpuMount);
+              applySource(vgpuMount, srcRef.current);
               return;
             }
+            // Init failed; fall back to WebGL2 below.
+            vgpuMount.dispose();
           } catch (err) {
             console.warn("vgpu (WebGPU) initialization failed, falling back to WebGL2:", err);
-            onError?.(err);
-            if (!isCancelled) {
-              toast.warning("WebGPU unavailable on this device", {
-                description: "Switched to WebGL2 engine automatically.",
-              });
-              setActiveEngine("webgl");
-              setEngineVersion((v) => v + 1);
-              return;
-            }
+            onErrorRef.current?.(err);
+            vgpuMount?.dispose();
           }
+          if (!isCancelled) {
+            toast.warning("WebGPU unavailable on this device", {
+              description: "Switched to WebGL2 engine automatically.",
+            });
+            setActiveEngine("webgl");
+            setEngineVersion((v) => v + 1);
+            return;
+          }
+          return;
         }
 
         try {
-          const webglMount = new DitherWebGLMount(canvas, settings);
+          const webglMount = new DitherWebGLMount(canvas, settingsRef.current);
           if (isCancelled) {
             webglMount.dispose();
             return;
           }
           activeMount = webglMount;
           mountRef.current = webglMount;
-          if (onReady) onReady(webglMount);
-          applySource(webglMount, src);
+          onReadyRef.current?.(webglMount);
+          applySource(webglMount, srcRef.current);
         } catch (err) {
           console.error("Failed to initialize WebGL Mount:", err);
-          onError?.(err);
+          onErrorRef.current?.(err);
         }
       };
 
@@ -168,7 +200,8 @@ export const DitherCanvas = React.memo(
         activeMount?.dispose();
         mountRef.current = null;
       };
-    }, [activeEngine, engineVersion]);
+      // settings/src are read via refs above; prop changes must not teardown the GPU.
+    }, [activeEngine, engineVersion, applySource]);
 
     useEffect(() => {
       mountRef.current?.updateOptions(settings);

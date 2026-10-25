@@ -18,7 +18,7 @@ import { VideoControls } from "./VideoControls";
 import { ExportModal } from "./ExportModal";
 import { processCpuDitheringAsync } from "@/engine/cpu-dither-client";
 import { RETRO_PALETTES } from "@/engine/palettes";
-import type { DitherSettings, DitherPattern, ColorMode } from "@/engine/types";
+import type { DitherSettings, DitherPattern, ColorMode, MediaType } from "@/engine/types";
 import { DotShadeLogo } from "./ui/DotShadeLogo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -72,16 +72,34 @@ export function DitherStudio() {
 
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
+  const prevMediaTypeRef = useRef<MediaType | null>(null);
   const ditherRef = useRef<DitherCanvasHandle>(null);
   const cpuCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHeldRef = useRef(false);
   const cachedCpuImageRef = useRef<{ url: string; img: HTMLImageElement } | null>(null);
+  // Mirror of `settings` for callbacks; avoids re-rendering memoized trees.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
+  // Revoke late: deferred renders / in-flight loads may still read the URL.
+  const scheduleRevoke = useCallback((url: string | undefined) => {
+    if (!url || !url.startsWith("blob:")) return;
+    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }, []);
 
   useEffect(() => {
     return () => {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    };
+  }, []);
+
+  // Ensure the webcam is released if the studio unmounts while it's active.
+  useEffect(() => {
+    return () => {
+      webcamStreamRef.current?.getTracks().forEach((track) => track.stop());
+      webcamStreamRef.current = null;
     };
   }, []);
 
@@ -131,9 +149,18 @@ export function DitherStudio() {
     }
   }, [settings.mediaType, isWebcamActive]);
 
-  const updateSettings = useCallback((updater: Partial<DitherSettings>) => {
-    setSettings((prev) => ({ ...prev, ...updater }));
-  }, []);
+  const updateSettings = useCallback(
+    (updater: Partial<DitherSettings>) => {
+      const prevUrl = settingsRef.current.mediaUrl;
+      if (updater.mediaUrl !== undefined && updater.mediaUrl !== prevUrl) {
+        scheduleRevoke(prevUrl);
+      }
+      // Sync the mirror even between renders for back-to-back updates.
+      settingsRef.current = { ...settingsRef.current, ...updater };
+      setSettings((prev) => ({ ...prev, ...updater }));
+    },
+    [scheduleRevoke]
+  );
 
   const onDropFiles = useCallback(
     (acceptedFiles: File[]) => {
@@ -146,6 +173,8 @@ export function DitherStudio() {
         } else if (file.type.startsWith("video/")) {
           updateSettings({ mediaType: "video", mediaUrl: url, animated: true });
           toast.success("Loaded video into workspace", { description: file.name });
+        } else {
+          URL.revokeObjectURL(url);
         }
       }
     },
@@ -179,11 +208,14 @@ export function DitherStudio() {
 
   const toggleWebcam = useCallback(async () => {
     if (isWebcamActive) {
-      if (webcamStreamRef.current) {
-        webcamStreamRef.current.getTracks().forEach((track) => track.stop());
-        webcamStreamRef.current = null;
-      }
+      webcamStreamRef.current?.getTracks().forEach((track) => track.stop());
+      webcamStreamRef.current = null;
+      if (videoElementRef.current) videoElementRef.current.srcObject = null;
       setIsWebcamActive(false);
+      // Restore whatever media type was on screen before the camera took over.
+      const prevType = prevMediaTypeRef.current;
+      prevMediaTypeRef.current = null;
+      if (prevType) updateSettings({ mediaType: prevType });
       toast.info("Webcam disconnected");
       return;
     }
@@ -192,19 +224,31 @@ export function DitherStudio() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       });
+      prevMediaTypeRef.current = settingsRef.current.mediaType;
       webcamStreamRef.current = stream;
-      if (videoElementRef.current) {
-        videoElementRef.current.srcObject = stream;
-        videoElementRef.current.play();
-      }
-      setIsWebcamActive(true);
       updateSettings({ mediaType: "video" });
+      setIsWebcamActive(true);
       toast.success("Live webcam connected!");
     } catch (err) {
       console.error("Failed to access webcam:", err);
       toast.error("Could not access webcam. Please check permissions.");
     }
   }, [isWebcamActive, updateSettings]);
+
+  // Bind post-commit: React's src writes would otherwise clobber srcObject.
+  useEffect(() => {
+    const video = videoElementRef.current;
+    if (!video) return;
+    if (isWebcamActive) {
+      const stream = webcamStreamRef.current;
+      if (stream && video.srcObject !== stream) {
+        video.srcObject = stream;
+        video.play().catch((err) => console.warn("Webcam autoplay rejected:", err));
+      }
+    } else if (video.srcObject) {
+      video.srcObject = null;
+    }
+  }, [isWebcamActive]);
 
   const handleUploadImage = useCallback((file: File) => {
     const url = URL.createObjectURL(file);
@@ -219,6 +263,7 @@ export function DitherStudio() {
   }, [updateSettings]);
 
   useEffect(() => {
+    let cancelled = false;
     if (settings.mediaType === "image" && settings.mediaUrl) {
       const img = new Image();
       if (settings.mediaUrl.startsWith("http://") || settings.mediaUrl.startsWith("https://")) {
@@ -226,12 +271,16 @@ export function DitherStudio() {
       }
       img.src = settings.mediaUrl;
       img.onload = () => {
+        if (cancelled) return;
         if (img.naturalWidth && img.naturalHeight) {
           setMediaDimensions({
             width: img.naturalWidth,
             height: img.naturalHeight,
           });
         }
+      };
+      return () => {
+        cancelled = true;
       };
     } else if (settings.mediaType === "video" && videoElementRef.current) {
       const v = videoElementRef.current;
@@ -252,10 +301,12 @@ export function DitherStudio() {
   }, [settings.mediaType, settings.mediaUrl]);
 
   const handleReset = useCallback(() => {
+    scheduleRevoke(settingsRef.current.mediaUrl);
+    settingsRef.current = INITIAL_SETTINGS;
     setSettings(INITIAL_SETTINGS);
     setIsViewingOriginal(false);
     toast.info("Settings reset to defaults");
-  }, []);
+  }, [scheduleRevoke]);
 
   const handleRandomize = useCallback(() => {
     const patterns: DitherPattern[] = [
@@ -301,12 +352,19 @@ export function DitherStudio() {
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
-      stageRef.current?.requestFullscreen?.();
+      stageRef.current?.requestFullscreen?.().catch(() => setIsFullscreen(false));
       setIsFullscreen(true);
     } else {
-      document.exitFullscreen?.();
+      document.exitFullscreen?.().catch(() => {});
       setIsFullscreen(false);
     }
+  }, []);
+
+  // Resync if fullscreen is left via the browser UI (Esc) instead of the button.
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
   // Declarative keyboard shortcuts powered by react-hotkeys-hook
@@ -353,7 +411,6 @@ export function DitherStudio() {
     if (!ctx) return;
 
     let isSubscribed = true;
-    let animFrameId: number | null = null;
 
     const runCpu = async () => {
       if (!deferredSettings.mediaUrl) return;
@@ -372,6 +429,9 @@ export function DitherStudio() {
             h = maxDim;
           }
         }
+        // Ultra-thin sources can round down to 0, which makes ImageData throw.
+        w = Math.max(1, w);
+        h = Math.max(1, h);
         canvas.width = w;
         canvas.height = h;
 
@@ -416,7 +476,6 @@ export function DitherStudio() {
     runCpu();
     return () => {
       isSubscribed = false;
-      if (animFrameId !== null) cancelAnimationFrame(animFrameId);
     };
   }, [
     deferredSettings.engine,
@@ -433,14 +492,16 @@ export function DitherStudio() {
     deferredSettings.contrast,
     deferredSettings.gamma,
     deferredSettings.inverted,
+    // <canvas> remounts when split view re-parents it
+    isSplitView,
   ]);
 
   const handleCaptureBlob = useCallback(
     async (type: "image/png" | "image/webp" | "image/jpeg"): Promise<Blob | null> => {
-      if (settings.engine === "cpu" && cpuCanvasRef.current) {
-        return new Promise((resolve) => {
-          cpuCanvasRef.current?.toBlob((blob) => resolve(blob), type, 0.95);
-        });
+      if (settings.engine === "cpu") {
+        const canvas = cpuCanvasRef.current;
+        if (!canvas) return null;
+        return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), type, 0.95));
       }
       return (await ditherRef.current?.getSnapshotBlob(type, 0.95)) ?? null;
     },
@@ -480,7 +541,48 @@ export function DitherStudio() {
     [deferredSettings, activeMediaSrc]
   );
 
+  // Always mounted so view toggles/peeking never dispose the pipeline.
+  const ditheredElement =
+    settings.engine === "cpu" ? (
+      <canvas ref={cpuCanvasRef} className="w-full h-full object-contain pixel-art" />
+    ) : (
+      ditherCanvasElement
+    );
+
+  // Ref-like accessor: resolves the live canvas at export time.
+  const exportCanvasRef = useMemo<React.RefObject<HTMLCanvasElement | null>>(
+    () => ({
+      get current() {
+        return settings.engine === "cpu"
+          ? cpuCanvasRef.current
+          : (ditherRef.current?.canvas ?? null);
+      },
+    }),
+    [settings.engine]
+  );
+
+  const showRawVideo = isViewingOriginal && (settings.mediaType === "video" || isWebcamActive);
+
   const originalMediaElement = useMemo(() => {
+    if (isWebcamActive) {
+      const stream = webcamStreamRef.current;
+      if (!stream) return null;
+      return (
+        <video
+          ref={(el) => {
+            if (el && el.srcObject !== stream) {
+              el.srcObject = stream;
+              el.play().catch(() => {});
+            }
+          }}
+          autoPlay
+          muted
+          playsInline
+          className={cn("w-full h-full", objectFitClass)}
+          style={mediaTransformStyle}
+        />
+      );
+    }
     if (settings.mediaType === "video") {
       return (
         <video
@@ -501,7 +603,7 @@ export function DitherStudio() {
         style={mediaTransformStyle}
       />
     );
-  }, [settings.mediaType, settings.mediaUrl, objectFitClass, mediaTransformStyle]);
+  }, [isWebcamActive, settings.mediaType, settings.mediaUrl, objectFitClass, mediaTransformStyle]);
 
   const stageContainerStyle = useMemo<React.CSSProperties>(() => {
     if (!mediaDimensions || settings.fit !== "contain") {
@@ -725,46 +827,47 @@ export function DitherStudio() {
             className="relative border border-border bg-card/90 overflow-hidden flex items-center justify-center transition-[transform] duration-150 ease-out"
             style={{ ...stageContainerStyle, boxShadow: "0 0 0 1px rgba(255,255,255,0.18), 2px 2px 0 rgba(0,0,0,1)" }}
           >
+            {/* Dithered layer stays mounted so peeking doesn't dispose the GPU
+                pipeline and exports still have a live canvas. */}
+            <div className={cn("absolute inset-0", isViewingOriginal && "invisible")}>
+              {isSplitView && !isViewingOriginal ? (
+                <SplitCompareSlider
+                  originalElement={originalMediaElement}
+                  ditheredElement={ditheredElement}
+                />
+              ) : (
+                ditheredElement
+              )}
+            </div>
+
             <video
               ref={videoElementRef}
-              src={settings.mediaType === "video" ? settings.mediaUrl : undefined}
-              loop
+              src={
+                settings.mediaType === "video" && !isWebcamActive
+                  ? settings.mediaUrl
+                  : undefined
+              }
+              loop={!isWebcamActive}
               muted
               playsInline
               autoPlay={settings.mediaType === "video" || isWebcamActive}
               className={cn(
-                isViewingOriginal && (settings.mediaType === "video" || isWebcamActive)
-                  ? cn("w-full h-full select-none", objectFitClass)
-                  : "hidden"
+                "absolute inset-0 w-full h-full select-none",
+                showRawVideo ? objectFitClass : "hidden"
               )}
-              style={
-                isViewingOriginal && (settings.mediaType === "video" || isWebcamActive)
-                  ? mediaTransformStyle
-                  : undefined
-              }
+              style={showRawVideo ? mediaTransformStyle : undefined}
             />
 
-            {isViewingOriginal ? (
-              settings.mediaType === "image" ? (
-                <img
-                  src={settings.mediaUrl}
-                  alt="Original Source"
-                  className={cn("w-full h-full select-none pointer-events-none", objectFitClass)}
-                  style={mediaTransformStyle}
-                />
-              ) : null
-            ) : isSplitView ? (
-              <SplitCompareSlider
-                originalElement={originalMediaElement}
-                ditheredElement={ditherCanvasElement}
+            {isViewingOriginal && settings.mediaType === "image" && (
+              <img
+                src={settings.mediaUrl}
+                alt="Original Source"
+                className={cn(
+                  "absolute inset-0 w-full h-full select-none pointer-events-none",
+                  objectFitClass
+                )}
+                style={mediaTransformStyle}
               />
-            ) : settings.engine === "cpu" ? (
-              <canvas
-                ref={cpuCanvasRef}
-                className="w-full h-full object-contain pixel-art"
-              />
-            ) : (
-              ditherCanvasElement
             )}
 
             {isViewingOriginal && (
@@ -812,11 +915,7 @@ export function DitherStudio() {
         onClose={handleCloseExport}
         settings={settings}
         onCaptureBlob={handleCaptureBlob}
-        canvasRef={
-          (settings.engine === "cpu"
-            ? cpuCanvasRef
-            : { current: ditherRef.current?.canvas ?? null }) as React.RefObject<HTMLCanvasElement | null>
-        }
+        canvasRef={exportCanvasRef}
       />
     </div>
   );

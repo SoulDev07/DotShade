@@ -7,6 +7,7 @@ export class ClientGifEncoder {
   private height: number;
   private palette: number[][] | null = null;
   private loopCount = 0;
+  private frameCount = 0;
 
   constructor(width: number, height: number) {
     this.width = width;
@@ -17,6 +18,7 @@ export class ClientGifEncoder {
   public start(palette: string[] = ["#000000", "#ffffff"], loop = 0) {
     this.gif.reset();
     this.loopCount = loop;
+    this.frameCount = 0;
 
     if (palette && palette.length > 0) {
       this.palette = palette.slice(0, 256).map((hex) => {
@@ -40,8 +42,10 @@ export class ClientGifEncoder {
     this.gif.writeFrame(index, this.width, this.height, {
       palette: pal,
       delay: delayMs,
-      repeat: this.loopCount,
+      // gifenc takes `repeat` on the first frame only
+      repeat: this.frameCount === 0 ? this.loopCount : undefined,
     });
+    this.frameCount++;
   }
 
   public finish(): Blob {

@@ -70,6 +70,7 @@ export class DitherWebGLMount {
   private cachedPaletteKey = "";
   private texWidth = 0;
   private texHeight = 0;
+  private posBuffer: WebGLBuffer | null = null;
 
   constructor(canvas: HTMLCanvasElement, options: DitherSettings) {
     this.canvas = canvas;
@@ -127,8 +128,14 @@ export class DitherWebGLMount {
 
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       const info = gl.getProgramInfoLog(program);
+      gl.deleteShader(vs);
+      gl.deleteShader(fs);
+      gl.deleteProgram(program);
       throw new Error("WebGL program link error: " + info);
     }
+
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
 
     this.program = program;
 
@@ -146,6 +153,7 @@ export class DitherWebGLMount {
     this.vao = vao;
 
     const posBuffer = gl.createBuffer();
+    this.posBuffer = posBuffer;
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 
@@ -181,6 +189,7 @@ export class DitherWebGLMount {
   }
 
   public setImage(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
+    if (this.isDisposed) return;
     this.imageSource = source;
     if (source) {
       this.hasImage = true;
@@ -234,7 +243,7 @@ export class DitherWebGLMount {
   }
 
   public updateTexture() {
-    if (!this.imageSource || !this.gl || !this.texture) return;
+    if (this.isDisposed || !this.imageSource || !this.gl || !this.texture) return;
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
@@ -276,6 +285,7 @@ export class DitherWebGLMount {
   }
 
   public updateOptions(newOptions: DitherSettings) {
+    if (this.isDisposed) return;
     const wasAnimated = this.options.animated;
     this.options = { ...newOptions };
     this.updateCachedUniforms();
@@ -398,6 +408,10 @@ export class DitherWebGLMount {
     if (this.gl && this.vao) {
       this.gl.deleteVertexArray(this.vao);
       this.vao = null;
+    }
+    if (this.gl && this.posBuffer) {
+      this.gl.deleteBuffer(this.posBuffer);
+      this.posBuffer = null;
     }
   }
 

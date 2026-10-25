@@ -364,6 +364,7 @@ export class DitherVgpuMount {
   }
 
   public updateOptions(newOptions: DitherSettings) {
+    if (this.isDisposed) return;
     const wasAnimated = this.options.animated;
     this.options = { ...newOptions };
     this.updateCachedUniforms();
@@ -439,6 +440,11 @@ export class DitherVgpuMount {
   public startAnimation() {
     if (this.rafId !== null) return;
     const loop = () => {
+      // Don't keep the RAF loop alive after dispose.
+      if (this.isDisposed) {
+        this.rafId = null;
+        return;
+      }
       this.render();
       this.rafId = requestAnimationFrame(loop);
     };

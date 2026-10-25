@@ -153,11 +153,21 @@ export function ExportModal({
     setIsRecording(true);
     setRecordProgress(0);
 
+    let stream: MediaStream | null = null;
     try {
-      const stream = canvas.captureStream(60);
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "video/webm;codecs=vp9",
-      });
+      const mediaStream = canvas.captureStream(60);
+      stream = mediaStream;
+      // Probe: not every browser ships the same codecs.
+      const mimeType =
+        typeof MediaRecorder !== "undefined"
+          ? ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((type) =>
+              MediaRecorder.isTypeSupported(type)
+            )
+          : undefined;
+      const mediaRecorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
 
       const chunks: Blob[] = [];
       mediaRecorder.ondataavailable = (e) => {
@@ -165,6 +175,9 @@ export function ExportModal({
       };
 
       mediaRecorder.onstop = () => {
+        // Stop capturing now that recording has finished.
+        mediaStream.getTracks().forEach((track) => track.stop());
+
         const blob = new Blob(chunks, { type: "video/webm" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -197,6 +210,8 @@ export function ExportModal({
     } catch (err) {
       console.error("WebM recording error:", err);
       toast.error("Video recording failed.");
+      // Stop the capture stream even though onstop never ran.
+      stream?.getTracks().forEach((track) => track.stop());
       setIsRecording(false);
     }
   };
@@ -213,10 +228,16 @@ export function ExportModal({
     setIsRecording(true);
     setRecordProgress(0);
 
+    // handleExportWebm returns after *starting*, so it owns isRecording from
+    // here on — the finally must not clear it mid-capture.
+    let handedOff = false;
+    let output: Output | null = null;
+
     try {
       const isAvcSupported = await canEncodeVideo("avc").catch(() => false);
       if (!isAvcSupported) {
         toast.info("H.264 encoding not supported in this browser; falling back to WebM.");
+        handedOff = true;
         return handleExportWebm();
       }
 
@@ -237,7 +258,7 @@ export function ExportModal({
 
       const fps = 30;
       const target = new BufferTarget();
-      const output = new Output({
+      output = new Output({
         format: new Mp4OutputFormat(),
         target,
       });
@@ -254,17 +275,21 @@ export function ExportModal({
       const frameDurationSec = 1 / fps;
       const frameIntervalMs = 1000 / fps;
 
-      for (let i = 0; i < totalFrames; i++) {
-        if (offscreenCtx) {
-          offscreenCtx.drawImage(canvas, 0, 0, evenWidth, evenHeight);
-        }
+      try {
+        for (let i = 0; i < totalFrames; i++) {
+          if (offscreenCtx) {
+            offscreenCtx.drawImage(canvas, 0, 0, evenWidth, evenHeight);
+          }
 
-        await videoSource.add(i * frameDurationSec, frameDurationSec);
-        setRecordProgress(Math.min(100, Math.round(((i + 1) / totalFrames) * 100)));
-        await new Promise((r) => setTimeout(r, frameIntervalMs));
+          await videoSource.add(i * frameDurationSec, frameDurationSec);
+          setRecordProgress(Math.min(100, Math.round(((i + 1) / totalFrames) * 100)));
+          await new Promise((r) => setTimeout(r, frameIntervalMs));
+        }
+      } finally {
+        // Close even on failure; encoder resources would otherwise dangle.
+        videoSource.close();
       }
 
-      videoSource.close();
       await output.finalize();
 
       if (!target.buffer) {
@@ -286,10 +311,17 @@ export function ExportModal({
       });
     } catch (err) {
       console.error("MP4 export error:", err);
+      // Tear down the failed output before the WebM fallback capture starts.
+      try {
+        if (output && output.state !== "finalized") await output.cancel();
+      } catch {
+        // already torn down
+      }
       toast.error("MP4 export failed. Falling back to WebM...");
+      handedOff = true;
       await handleExportWebm();
     } finally {
-      setIsRecording(false);
+      if (!handedOff) setIsRecording(false);
     }
   };
 

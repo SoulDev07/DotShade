@@ -29,11 +29,18 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
       setIsLooping(video.loop);
       setIsMuted(video.muted);
     };
-
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("timeupdate", onTimeUpdate);
     video.addEventListener("loadedmetadata", onLoadedMetadata);
+
+    // Early-loading sources never fire "loadedmetadata" for this subscription.
+    if (video.readyState >= 1) {
+      onLoadedMetadata();
+    }
+    if (!video.paused) {
+      setIsPlaying(true);
+    }
 
     return () => {
       video.removeEventListener("play", onPlay);
@@ -83,12 +90,17 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
   };
 
   const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  // Live sources (webcam/MediaStream) report duration = Infinity.
+  const hasSeekableDuration = Number.isFinite(duration) && duration > 0;
+  const progressPercent = hasSeekableDuration
+    ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
+    : 0;
 
   return (
     <div
@@ -101,11 +113,12 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
         <input
           type="range"
           min={0}
-          max={duration || 100}
+          max={hasSeekableDuration ? duration : 1}
           step={0.01}
-          value={currentTime}
+          value={hasSeekableDuration ? Math.min(currentTime, duration) : 0}
           onChange={handleSeek}
-          className="w-full z-10 opacity-0 cursor-pointer absolute inset-0"
+          disabled={!hasSeekableDuration}
+          className="w-full z-10 opacity-0 cursor-pointer absolute inset-0 disabled:cursor-default"
         />
         <div className="w-full h-1.5 bg-neutral-900 border border-neutral-700 overflow-hidden">
           <div
@@ -136,7 +149,14 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
           </button>
 
           <span className="text-[11px] text-neutral-300 pl-1 font-mono tracking-tight tabular-nums">
-            {formatTime(currentTime)} <span className="text-neutral-500">/</span> {formatTime(duration)}
+            {hasSeekableDuration ? (
+              <>
+                {formatTime(currentTime)} <span className="text-neutral-500">/</span>{" "}
+                {formatTime(duration)}
+              </>
+            ) : (
+              <span className="text-red-400 font-bold tracking-widest">● LIVE</span>
+            )}
           </span>
         </div>
 

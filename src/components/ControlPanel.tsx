@@ -571,6 +571,8 @@ export function ControlPanel({
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files?.[0]) onUploadImage(e.target.files[0]);
+                      // Reset so re-picking the same file fires onChange.
+                      e.target.value = "";
                     }}
                   />
                 </label>
@@ -584,6 +586,7 @@ export function ControlPanel({
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files?.[0]) onUploadVideo(e.target.files[0]);
+                      e.target.value = "";
                     }}
                   />
                 </label>
