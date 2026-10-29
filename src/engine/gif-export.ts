@@ -42,7 +42,6 @@ export class ClientGifEncoder {
     this.gif.writeFrame(index, this.width, this.height, {
       palette: pal,
       delay: delayMs,
-      // gifenc takes `repeat` on the first frame only
       repeat: this.frameCount === 0 ? this.loopCount : undefined,
     });
     this.frameCount++;
@@ -51,11 +50,10 @@ export class ClientGifEncoder {
   public finish(): Blob {
     this.gif.finish();
     const bytes = this.gif.bytes();
-    return new Blob([bytes as unknown as BlobPart], { type: "image/gif" });
+    return new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/gif" });
   }
 }
 
-/** Extracts dominant colors from RGBA ImageData using pairwise nearest-neighbor quantization */
 export function extractPaletteFromImageData(
   imageData: ImageData,
   maxColors = 8

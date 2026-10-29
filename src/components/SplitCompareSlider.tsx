@@ -1,23 +1,17 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowsLeftRight } from "@phosphor-icons/react";
+import React, { useState, useRef, useCallback } from "react";
+import { ArrowsLeftRightIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface SplitCompareSliderProps {
   originalElement: React.ReactNode;
-  ditheredElement: React.ReactNode;
   className?: string;
-  initialPosition?: number; 
+  initialPosition?: number;
 }
 
-/**
- * Split before/after comparison slider.
- * Overlays original media over dithered output using a hardware-accelerated CSS clip-path inset.
- */
 export const SplitCompareSlider = React.memo(function SplitCompareSlider({
   originalElement,
-  ditheredElement,
   className,
   initialPosition = 50,
 }: SplitCompareSliderProps) {
@@ -60,17 +54,12 @@ export const SplitCompareSlider = React.memo(function SplitCompareSlider({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       className={cn(
-        "relative w-full h-full overflow-hidden select-none cursor-ew-resize touch-none",
+        "absolute inset-0 overflow-hidden cursor-ew-resize touch-none will-change-[clip-path]",
         className
       )}
     >
-      
-      <div className="absolute inset-0 w-full h-full pointer-events-none">
-        {ditheredElement}
-      </div>
-
       <div
-        className="absolute inset-0 w-full h-full pointer-events-none will-change-[clip-path]"
+        className="absolute inset-0 w-full h-full pointer-events-none"
         style={{
           clipPath: `inset(0 ${100 - splitPos}% 0 0)`,
         }}
@@ -84,7 +73,6 @@ export const SplitCompareSlider = React.memo(function SplitCompareSlider({
           left: `${splitPos}%`,
         }}
       >
-        
         <div
           className={cn(
             "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-black border-2 border-white text-white flex items-center justify-center transition-all duration-75 ease-out",
@@ -93,7 +81,7 @@ export const SplitCompareSlider = React.memo(function SplitCompareSlider({
               : "hover:scale-105 shadow-[1px_1px_0px_#ffffff]"
           )}
         >
-          <ArrowsLeftRight className="w-3.5 h-3.5" />
+          <ArrowsLeftRightIcon className="w-3.5 h-3.5" />
         </div>
       </div>
 

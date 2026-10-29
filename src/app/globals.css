@@ -28,7 +28,6 @@
 
 @layer base {
   :root {
-    /* Pure High-Contrast Monochrome / 1-Bit Noir */
     --background: #000000;
     --foreground: #ffffff;
     --card: #0c0c0e;
@@ -40,18 +39,17 @@
     --secondary: #16161a;
     --secondary-foreground: #ffffff;
     --muted: #1c1c22;
-    --muted-foreground: #a3a3b0; /* High contrast: 8.5:1 against black, WCAG AAA compliant */
+    --muted-foreground: #a3a3b0;
     --accent: #262630;
     --accent-foreground: #ffffff;
     --destructive: #ffffff;
     --destructive-foreground: #000000;
-    --border: rgba(255, 255, 255, 0.22); /* Crisp visible pixel border */
+    --border: rgba(255, 255, 255, 0.22);
     --border-hover: rgba(255, 255, 255, 0.55);
     --input: rgba(255, 255, 255, 0.15);
     --ring: #ffffff;
     --radius: 0px;
 
-    /* Pixel easing */
     --ease-out: steps(4, end);
     --ease-in-out: steps(6, end);
     --ease-spring: steps(8, end);
@@ -59,29 +57,44 @@
     --ease-smooth: cubic-bezier(0.23, 1, 0.32, 1);
   }
 
-  /* Force zero border-radius on ALL elements for true retro pixel sharpness */
   *, *::before, *::after {
     border-radius: 0 !important;
   }
 
-  /* High Accessibility Keyboard Focus Rings */
   *:focus-visible {
     outline: 2px solid #ffffff !important;
     outline-offset: 1px !important;
+  }
+
+  html, body {
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
     background-color: var(--background);
     color: var(--foreground);
     font-family: "Courier New", Courier, monospace;
-    min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: none;
-    -moz-osx-font-smoothing: unset;
     image-rendering: pixelated;
   }
 
-  /* Monochrome 1-bit Bayer Dither Dot Grid Background */
+  button, a, input, select {
+    touch-action: manipulation;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
   body::before {
     content: "";
     position: fixed;
@@ -92,8 +105,6 @@
     background-size: 4px 4px;
   }
 
-
-  /* High Contrast Pixel Scrollbars */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -113,12 +124,12 @@
     background: #ffffff;
   }
 
-  /* Accessible Pixel Range Slider */
   input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
     cursor: pointer;
+    touch-action: none;
   }
 
   input[type="range"]:focus {
@@ -162,7 +173,6 @@
   }
 }
 
-/* ─── Pixel Tactile Button Press ─────────────────────────────── */
 .btn-press {
   transition:
     background-color 60ms steps(2, end),
@@ -177,16 +187,6 @@
   box-shadow: none !important;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .btn-press:hover {
-    transform: none;
-  }
-  .btn-press:active {
-    transform: translate(1px, 1px) !important;
-  }
-}
-
-/* ─── Pixel Panels with Monochrome High Contrast Shadow ───────────── */
 .glass-panel {
   background: var(--card);
   border: 1px solid var(--border);
@@ -199,13 +199,11 @@
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 1);
 }
 
-/* ─── Pixel Art Canvas Rendering ─────────────────────── */
 .pixel-art {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
-/* ─── Modal Entrance - Pixel Scanline Wipe ───────────── */
 @keyframes modalEnter {
   0%   { opacity: 0; clip-path: inset(100% 0 0 0); }
   33%  { opacity: 1; clip-path: inset(66% 0 0 0); }
@@ -217,12 +215,6 @@
   animation: modalEnter 140ms steps(3, end) forwards;
 }
 
-/* ─── Crisp Monochrome Text (Zero Blur Glow) ──────────────────── */
-.pixel-glow {
-  text-shadow: none !important;
-}
-
-/* ─── Monochrome Checkerboard Dither Drop Zone ──────────────────── */
 .dither-drop {
   background-image:
     linear-gradient(45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%),
@@ -233,7 +225,6 @@
   background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
 }
 
-/* ─── Monochrome 1-Bit Pixel Progress Bar ─────────────────────────────── */
 .pixel-progress {
   background: repeating-linear-gradient(
     90deg,

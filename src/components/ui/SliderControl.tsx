@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowCounterClockwise } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface SliderControlProps {
@@ -70,7 +70,7 @@ export function SliderControl({
               className="text-neutral-400 hover:text-white transition-colors p-0.5"
               title={`Reset to default (${defaultValue}${unit ? ` ${unit}` : ""})`}
             >
-              <ArrowCounterClockwise className="w-3 h-3" />
+              <ArrowCounterClockwiseIcon className="w-3 h-3" />
             </button>
           )}
 
@@ -106,7 +106,7 @@ export function SliderControl({
         </div>
       </div>
 
-      <div className="relative flex items-center h-5 w-full group cursor-pointer">
+      <div className="relative flex items-center h-5 w-full group cursor-pointer select-none">
         
         <div className="absolute inset-x-0 h-2 bg-neutral-900 overflow-hidden border border-neutral-700">
           

@@ -2,26 +2,23 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  X,
-  DownloadSimple,
-  Copy,
+  XIcon,
+  DownloadSimpleIcon,
+  CopyIcon,
   VideoCameraIcon,
   ImageIcon,
-  FilmStrip,
-  Check,
+  FilmStripIcon,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { ClientGifEncoder } from "@/engine/gif-export";
-import {
-  Output,
-  Mp4OutputFormat,
-  BufferTarget,
-  CanvasSource,
-  Quality,
-  canEncodeVideo,
-} from "mediabunny";
 import type { DitherSettings } from "@/engine/types";
 import { toast } from "sonner";
+
+let mediabunnyModule: Promise<typeof import("mediabunny")> | null = null;
+const loadMediabunny = () =>
+  (mediabunnyModule ??= import("mediabunny"));
+
+type MediaOutput = InstanceType<typeof import("mediabunny").Output>;
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -47,7 +44,7 @@ export function ExportModal({
     if (isMotionMedia) {
       return [
         { id: "video" as const, label: "VIDEO", icon: VideoCameraIcon, badge: "MP4 / WEBM" },
-        { id: "gif" as const, label: "GIF", icon: FilmStrip, badge: "LOOP" },
+        { id: "gif" as const, label: "GIF", icon: FilmStripIcon, badge: "LOOP" },
         { id: "image" as const, label: "FRAME", icon: ImageIcon, badge: "STILL" },
       ];
     }
@@ -231,9 +228,12 @@ export function ExportModal({
     // handleExportWebm returns after *starting*, so it owns isRecording from
     // here on — the finally must not clear it mid-capture.
     let handedOff = false;
-    let output: Output | null = null;
+    let output: MediaOutput | null = null;
 
     try {
+      const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality, canEncodeVideo } =
+        await loadMediabunny();
+
       const isAvcSupported = await canEncodeVideo("avc").catch(() => false);
       if (!isAvcSupported) {
         toast.info("H.264 encoding not supported in this browser; falling back to WebM.");
@@ -241,7 +241,6 @@ export function ExportModal({
         return handleExportWebm();
       }
 
-      // H.264 encoders require even dimensions
       const evenWidth = canvas.width - (canvas.width % 2);
       const evenHeight = canvas.height - (canvas.height % 2);
       const isOdd = canvas.width % 2 !== 0 || canvas.height % 2 !== 0;
@@ -286,7 +285,6 @@ export function ExportModal({
           await new Promise((r) => setTimeout(r, frameIntervalMs));
         }
       } finally {
-        // Close even on failure; encoder resources would otherwise dangle.
         videoSource.close();
       }
 
@@ -311,11 +309,9 @@ export function ExportModal({
       });
     } catch (err) {
       console.error("MP4 export error:", err);
-      // Tear down the failed output before the WebM fallback capture starts.
       try {
         if (output && output.state !== "finalized") await output.cancel();
       } catch {
-        // already torn down
       }
       toast.error("MP4 export failed. Falling back to WebM...");
       handedOff = true;
@@ -341,7 +337,6 @@ export function ExportModal({
     setGifProgress(0);
 
     try {
-      // Bound export dimensions to avoid huge memory and CPU freezes on high-DPI viewports
       const maxDim = 640;
       let exportW = canvas.width || 640;
       let exportH = canvas.height || 480;
@@ -401,15 +396,15 @@ export function ExportModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85"
       style={{ backdropFilter: "none" }}
     >
       <div
-        className="relative w-full max-w-md bg-black border-2 border-white overflow-hidden flex flex-col modal-enter"
+        className="relative w-full max-w-md max-h-[92dvh] bg-black border-2 border-white overflow-hidden flex flex-col modal-enter"
         style={{ boxShadow: "4px 4px 0 rgba(255,255,255,0.2)" }}
       >
         
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-neutral-900/60">
+        <div className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-border bg-neutral-900/60 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
               ▓ EXPORT
@@ -420,12 +415,12 @@ export function ExportModal({
             className="p-1 text-neutral-400 hover:text-white border border-transparent hover:border-neutral-700 transition-colors btn-press"
             title="Close (Esc)"
           >
-            <X className="w-4 h-4" />
+            <XIcon className="w-4 h-4" />
           </button>
         </div>
 
         {validTabs.length > 1 && (
-          <div className="flex border-b border-border bg-neutral-950" style={{ gap: "0" }}>
+          <div className="flex border-b border-border bg-neutral-950 shrink-0" style={{ gap: "0" }}>
             {validTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -448,7 +443,7 @@ export function ExportModal({
           </div>
         )}
 
-        <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+        <div className="p-3.5 sm:p-4 space-y-4 flex-1 overflow-y-auto overscroll-contain">
           
           {activeTab === "image" && (
             <div className="space-y-4">
@@ -490,7 +485,7 @@ export function ExportModal({
                   className="flex-1 py-2.5 px-3 bg-white hover:bg-neutral-200 text-black font-mono text-xs font-bold border border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50 btn-press"
                   style={{ boxShadow: "2px 2px 0 rgba(255,255,255,0.2)" }}
                 >
-                  <DownloadSimple className="w-4 h-4" />
+                  <DownloadSimpleIcon className="w-4 h-4" />
                   <span>{isExporting ? "RENDERING..." : `DOWNLOAD .${imageFormat.toUpperCase()}`}</span>
                 </button>
 
@@ -501,7 +496,7 @@ export function ExportModal({
                   className="py-2.5 px-3 bg-secondary hover:bg-neutral-800 border border-border text-white font-mono text-xs flex items-center justify-center gap-2 transition-colors btn-press"
                   title="Copy directly to clipboard"
                 >
-                  <Copy className="w-4 h-4" />
+                  <CopyIcon className="w-4 h-4" />
                   <span>COPY</span>
                 </button>
               </div>
@@ -653,7 +648,7 @@ export function ExportModal({
                 disabled={isExporting}
                 className="w-full py-2.5 px-3 bg-white hover:bg-neutral-200 text-black font-mono text-xs font-bold border border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50 btn-press"
               >
-                <FilmStrip className="w-4 h-4" />
+                <FilmStripIcon className="w-4 h-4" />
                 <span>{isExporting ? `ENCODING (${gifProgress}%)...` : "EXPORT ANIMATED GIF"}</span>
               </button>
             </div>

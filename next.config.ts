@@ -1,7 +1,19 @@
 import type { NextConfig } from "next";
+import { wgslTurbopackRule } from "@vgpu/wgsl/next";
 
 const nextConfig: NextConfig = {
-  // Unsplash CDN for sample photography presets
+  turbopack: {
+    rules: {
+      "*.wgsl": wgslTurbopackRule(),
+    },
+  },
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.wgsl$/,
+      use: ["@vgpu/wgsl/loader-webpack"],
+    });
+    return config;
+  },
   images: {
     remotePatterns: [
       {
@@ -10,16 +22,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
-  // Optimize icon imports
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react"],
   },
 
   // Exclude native node WebGPU bindings from bundle
   serverExternalPackages: ["@vgpu/adapter-node", "webgpu"],
-
-  // Allow camera access for live webcam dithering
   async headers() {
     return [
       {

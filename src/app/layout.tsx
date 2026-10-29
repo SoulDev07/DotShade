@@ -5,10 +5,11 @@ import "./globals.css";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://dotshade.vercel.app";
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0c",
+  themeColor: "#000000",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {

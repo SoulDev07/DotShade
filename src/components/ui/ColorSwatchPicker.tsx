@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
-import { ArrowsLeftRight } from "@phosphor-icons/react";
+import { ArrowsLeftRightIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface ColorSwatchPickerProps {
@@ -106,7 +106,7 @@ export function DualColorPicker({
             className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 bg-secondary border border-border text-foreground hover:bg-neutral-800 hover:text-white shadow-md transition-colors btn-press"
             title="Swap foreground & background colors"
           >
-            <ArrowsLeftRight className="w-4 h-4" />
+            <ArrowsLeftRightIcon className="w-4 h-4" />
           </button>
         )}
       </div>

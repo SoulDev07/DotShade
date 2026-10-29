@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Play, Pause, ArrowCounterClockwise, SpeakerHigh, SpeakerSlash, Repeat, Speedometer } from "@phosphor-icons/react";
+import {
+  PlayIcon,
+  PauseIcon,
+  ArrowCounterClockwiseIcon,
+  SpeakerHighIcon,
+  SpeakerSlashIcon,
+  RepeatIcon,
+  SpeedometerIcon,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface VideoControlsProps {
@@ -34,7 +42,6 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
     video.addEventListener("timeupdate", onTimeUpdate);
     video.addEventListener("loadedmetadata", onLoadedMetadata);
 
-    // Early-loading sources never fire "loadedmetadata" for this subscription.
     if (video.readyState >= 1) {
       onLoadedMetadata();
     }
@@ -109,7 +116,7 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
         className
       )}
     >
-      <div className="relative group/bar flex items-center h-4 cursor-pointer">
+      <div className="relative group/bar flex items-center h-6 cursor-pointer touch-pan-x">
         <input
           type="range"
           min={0}
@@ -128,14 +135,14 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 text-xs font-mono">
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 text-xs font-mono">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <button
             onClick={togglePlay}
             className="p-1.5 bg-white text-black hover:bg-neutral-200 border border-white transition-colors btn-press font-bold"
             title={isPlaying ? "Pause (Space)" : "Play (Space)"}
           >
-            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            {isPlaying ? <PauseIcon className="w-3.5 h-3.5" /> : <PlayIcon className="w-3.5 h-3.5" />}
           </button>
 
           <button
@@ -145,10 +152,10 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
             className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 transition-colors btn-press"
             title="Restart"
           >
-            <ArrowCounterClockwise className="w-3.5 h-3.5" />
+            <ArrowCounterClockwiseIcon className="w-3.5 h-3.5" />
           </button>
 
-          <span className="text-[11px] text-neutral-300 pl-1 font-mono tracking-tight tabular-nums">
+          <span className="text-[10px] sm:text-[11px] text-neutral-300 pl-1 font-mono tracking-tight tabular-nums">
             {hasSeekableDuration ? (
               <>
                 {formatTime(currentTime)} <span className="text-neutral-500">/</span>{" "}
@@ -160,13 +167,13 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 ml-auto">
           <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 px-1.5 py-0.5">
-            <Speedometer className="w-3 h-3 text-neutral-400" />
+            <SpeedometerIcon className="w-3 h-3 text-neutral-400" />
             <select
               value={playbackRate}
               onChange={(e) => changeRate(parseFloat(e.target.value))}
-              className="bg-transparent text-white text-[11px] font-mono focus:outline-none cursor-pointer"
+              className="bg-transparent text-white text-[10px] sm:text-[11px] font-mono focus:outline-none cursor-pointer"
             >
               <option value="0.25">0.25x</option>
               <option value="0.5">0.5x</option>
@@ -186,7 +193,7 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
             )}
             title="Toggle Loop"
           >
-            <Repeat className="w-3.5 h-3.5" />
+            <RepeatIcon className="w-3.5 h-3.5" />
           </button>
 
           <button
@@ -194,7 +201,7 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
             className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 transition-colors btn-press"
             title={isMuted ? "Unmute" : "Mute"}
           >
-            {isMuted ? <SpeakerSlash className="w-3.5 h-3.5" /> : <SpeakerHigh className="w-3.5 h-3.5" />}
+            {isMuted ? <SpeakerSlashIcon className="w-3.5 h-3.5" /> : <SpeakerHighIcon className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>

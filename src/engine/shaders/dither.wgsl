@@ -1,12 +1,8 @@
-
-export const ditherWgslShader = `
-// Full-screen triangle vertex output
 struct FullscreenVertexOut {
   @builtin(position) position: vec4f,
   @location(0) uv: vec2f,
 };
 
-// Generates an oversized full-screen triangle covering [-1, 1] without vertex buffers
 @vertex
 fn vs_main(@builtin(vertex_index) vi: u32) -> FullscreenVertexOut {
   var pos = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
@@ -17,7 +13,6 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> FullscreenVertexOut {
   return out;
 }
 
-// Uniform buffer memory layout matching DitherVgpuMount
 struct Params {
   resolution: vec2f,
   pixelRatio: f32,
@@ -171,41 +166,39 @@ fn clustered8(p: vec2u) -> f32 {
   return clustered8_table[(p.y & 7u) * 8u + (p.x & 7u)] * 0.015625;
 }
 
-// Evaluates the normalized [0..1] threshold for the chosen dither pattern
 fn getDitherPattern(coord: vec2f, ditherType: u32) -> f32 {
   let p = vec2u(coord);
   switch (ditherType) {
-    case 1u: { // Random noise
+    case 1u: {
       return hash21(coord + fract(params.time * 0.05));
     }
-    case 2u: { // Bayer 2x2
+    case 2u: {
       return bayer2(p);
     }
-    case 3u: { // Bayer 4x4
+    case 3u: {
       return bayer4(p);
     }
-    case 4u: { // Bayer 8x8
+    case 4u: {
       return bayer8(p);
     }
-    case 5u: { // Bayer 16x16 approximated from hierarchical 4x4
+    case 5u: {
       let coarse = bayer4(p / 4u);
       let fine = bayer4(p);
       return (coarse * 16.0 + fine) * 0.00390625;
     }
-    case 6u: { // Halftone Dot Screen rotated by halftoneAngle
+    case 6u: {
       let rad = radians(params.halftoneAngle);
       let rot = mat2x2f(cos(rad), -sin(rad), sin(rad), cos(rad));
       let rotPos = (rot * (coord * max(1.0, params.pxSize * params.pixelRatio))) / max(params.halftoneScale * max(1.0, params.pxSize * params.pixelRatio), 1.0);
-      let dotPattern = (sin(rotPos.x) + sin(rotPos.y) + 2.0) * 0.25;
-      return dotPattern;
+      return (sin(rotPos.x) + sin(rotPos.y) + 2.0) * 0.25;
     }
-    case 7u: { // Dual diagonal crosshatching
+    case 7u: {
       let sz = max(params.pxSize * 4.0, 2.0);
       let line1 = select(0.0, 1.0, (coord.x + coord.y) % sz < (params.pxSize * 2.0));
       let line2 = select(0.0, 1.0, (coord.x - coord.y + sz * 2.0) % sz < (params.pxSize * 2.0));
       return (line1 + line2) * 0.5;
     }
-    case 8u: { // Clustered newsprint dot matrix
+    case 8u: {
       return clustered8(p);
     }
     default: {
@@ -214,57 +207,49 @@ fn getDitherPattern(coord: vec2f, ditherType: u32) -> f32 {
   }
 }
 
-// Procedural real-time texture generator synthesized on GPU
 fn generateProceduralColor(uv: vec2f) -> vec3f {
   let t = params.time * 0.5;
   let p = (uv - 0.5) * 2.0;
 
   switch (params.proceduralShape) {
-    case 1u: { // Simplex Noise
+    case 1u: {
       let n1 = snoise2(p * 2.5 + vec2f(t * 0.2, -t * 0.15));
       let n2 = snoise2(p * 5.0 - vec2f(t * 0.1, t * 0.25)) * 0.5;
-      let val = clamp(0.5 + 0.5 * (n1 + n2), 0.0, 1.0);
-      return vec3f(val);
+      return vec3f(clamp(0.5 + 0.5 * (n1 + n2), 0.0, 1.0));
     }
-    case 2u: { // Liquid Warp
+    case 2u: {
       var q = p;
       q.x += 0.3 * sin(3.0 * q.y + t);
       q.y += 0.3 * cos(3.0 * q.x + t * 0.8);
       let n = snoise2(q * 3.0);
-      let val = clamp(0.5 + 0.5 * n, 0.0, 1.0);
-      return vec3f(val);
+      return vec3f(clamp(0.5 + 0.5 * n, 0.0, 1.0));
     }
-    case 3u: { // Dots grid
+    case 3u: {
       let grid = fract(p * 4.0 + vec2f(t * 0.1, 0.0)) - vec2f(0.5);
       let d = length(grid);
-      let val = 1.0 - smoothstep(0.15, 0.45, d);
-      return vec3f(val);
+      return vec3f(1.0 - smoothstep(0.15, 0.45, d));
     }
-    case 4u: { // Sine Waves
+    case 4u: {
       let w = sin(p.x * 6.0 + sin(p.y * 4.0 + t) * 2.0 + t);
-      let val = 0.5 + 0.5 * w;
-      return vec3f(val);
+      return vec3f(0.5 + 0.5 * w);
     }
-    case 5u: { // Ripple
+    case 5u: {
       let dist = length(p);
       let r = sin(dist * 12.0 - t * 3.0);
-      let val = clamp(0.5 + 0.5 * r * exp(-dist * 0.8), 0.0, 1.0);
-      return vec3f(val);
+      return vec3f(clamp(0.5 + 0.5 * r * exp(-dist * 0.8), 0.0, 1.0));
     }
-    case 6u: { // Swirl
+    case 6u: {
       let r = length(p);
       let theta = atan2(p.y, p.x) + r * 3.0 - t;
-      let val = 0.5 + 0.5 * sin(theta * 4.0);
-      return vec3f(val);
+      return vec3f(0.5 + 0.5 * sin(theta * 4.0));
     }
-    case 7u: { // Sphere with 3D normal lighting
+    case 7u: {
       let r = length(p);
       if (r > 0.9) { return vec3f(0.05); }
       let z = sqrt(max(0.0, 0.81 - r * r));
       let normal = normalize(vec3f(p.x, p.y, z));
       let light = normalize(vec3f(cos(t), sin(t), 1.2));
-      let diff = max(dot(normal, light), 0.0);
-      return vec3f(diff);
+      return vec3f(max(dot(normal, light), 0.0));
     }
     default: {
       return vec3f(0.5 + 0.5 * snoise2(p * 3.0));
@@ -295,17 +280,15 @@ fn getPaletteColor(index: u32) -> vec4f {
 
 @fragment
 fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
-  // Quantize coordinate to discrete pixel block size
   let px = max(1.0, params.pxSize);
   let pixelCoord = floor((uv * params.resolution) / px);
   let sampleUv = (pixelCoord * px + vec2f(px * 0.5)) / params.resolution;
 
-  // Media Aspect Ratio & UV fitting (Cover / Contain / Fill)
   var texUv = sampleUv;
   let canvasAspect = params.resolution.x / max(params.resolution.y, 1.0);
   let imgAspect = max(0.001, params.imageAspectRatio);
 
-  if (params.fit == 2u) { // Cover: crop excess edges to fill viewport
+  if (params.fit == 2u) {
     if (canvasAspect > imgAspect) {
       let scaleY = imgAspect / canvasAspect;
       texUv.y = (texUv.y - 0.5) * scaleY + 0.5;
@@ -313,7 +296,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
       let scaleX = canvasAspect / imgAspect;
       texUv.x = (texUv.x - 0.5) * scaleX + 0.5;
     }
-  } else if (params.fit == 1u) { // Contain: letterbox/pillarbox to show complete media
+  } else if (params.fit == 1u) {
     if (canvasAspect > imgAspect) {
       let scaleX = canvasAspect / imgAspect;
       texUv.x = (texUv.x - 0.5) * scaleX + 0.5;
@@ -323,7 +306,6 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     }
   }
 
-  // User transformations: Center -> Rotate -> Scale -> Pan Offset
   var tUv = texUv - vec2f(0.5);
   let ang = radians(params.rotation);
   let rotMat = mat2x2f(cos(ang), -sin(ang), sin(ang), cos(ang));
@@ -331,7 +313,6 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   tUv = tUv / max(params.scale, 0.001);
   tUv += vec2f(0.5) - vec2f(params.offsetX, -params.offsetY);
 
-  // Sample media texture or synthesize procedural pattern
   var baseColor: vec3f;
   if (params.hasImage == 1u) {
     if (tUv.x < 0.0 || tUv.x > 1.0 || tUv.y < 0.0 || tUv.y > 1.0) {
@@ -344,7 +325,6 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     baseColor = generateProceduralColor(tUv);
   }
 
-  // Adjustments: Brightness -> Contrast -> Saturation -> Gamma
   baseColor += vec3f(params.brightness);
   baseColor = (baseColor - vec3f(0.5)) * max(params.contrast, 0.0) + vec3f(0.5);
   let luma = dot(baseColor, vec3f(0.299, 0.587, 0.114));
@@ -352,14 +332,12 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   baseColor = pow(max(baseColor, vec3f(0.0)), vec3f(1.0 / max(params.gamma, 0.001)));
   baseColor = clamp(baseColor, vec3f(0.0), vec3f(1.0));
 
-  // Calculate ITU-R BT.709 perceived luminance
   var gray = dot(baseColor, vec3f(0.2126, 0.7152, 0.0722));
   if (params.inverted == 1u) {
     gray = 1.0 - gray;
     baseColor = vec3f(1.0) - baseColor;
   }
 
-  // Evaluate dither matrix threshold
   var thresholdVal = getDitherPattern(pixelCoord, params.ditherType);
   let bias = (params.threshold - 0.5) * 0.8;
   thresholdVal = clamp(thresholdVal - bias, 0.0, 1.0);
@@ -372,7 +350,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   var outColor: vec4f;
 
   switch (params.colorMode) {
-    case 1u: { // Paper 3-Tone Ramp (Back, Front, Highlight accent)
+    case 1u: {
       var fg = params.colorFront.rgb * params.colorFront.a;
       var fgA = params.colorFront.a;
       let bg = params.colorBack.rgb * params.colorBack.a;
@@ -390,18 +368,18 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
       alpha = alpha + bgA * (1.0 - alpha);
       outColor = vec4f(col, alpha);
     }
-    case 2u: { // Duotone (Back to Front)
+    case 2u: {
       let bit = select(0.0, 1.0, modulatedLum >= 0.5);
       let col = mix(params.colorBack.rgb, params.colorFront.rgb, bit);
       let alpha = mix(params.colorBack.a, params.colorFront.a, bit);
       outColor = vec4f(col, alpha);
     }
-    case 3u: { // Original Colors Quantized
+    case 3u: {
       let normColor = baseColor / max(gray, 0.001);
       let quantizedRgb = clamp(normColor * quantLum, vec3f(0.0), vec3f(1.0));
       outColor = vec4f(quantizedRgb, 1.0);
     }
-    case 4u: { // Palette Array Quantized with perceptual distance
+    case 4u: {
       let count = max(params.paletteCount, 1u);
       var bestIdx = 0u;
       var bestDist = 99999.0;
@@ -419,7 +397,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
       }
       outColor = getPaletteColor(bestIdx);
     }
-    case 5u: { // Grayscale
+    case 5u: {
       outColor = vec4f(vec3f(quantLum), 1.0);
     }
     default: {
@@ -429,4 +407,3 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
 
   return vec4f(outColor.rgb, outColor.a);
 }
-`;

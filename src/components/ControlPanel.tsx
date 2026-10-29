@@ -1,29 +1,30 @@
 "use client";
 
-import React, { useState, useId } from "react";
+import React, { useState } from "react";
 import {
-  Sliders,
-  Palette,
+  SlidersIcon,
+  PaletteIcon,
   ImageIcon,
-  Bookmark,
-  Cpu,
-  Lightning,
-  Stack,
-  Camera,
-  VideoCameraIcon as VideoIcon,
-  ArrowCounterClockwise,
-  Check,
-  Scan,
-  CornersOut,
-  ArrowsOutLineVertical,
-  Sun,
-  MagnifyingGlass,
-  X,
-  Sparkle,
-  DiceFive,
-  CaretDown,
-  CaretRight,
-  Eyedropper,
+  BookmarkIcon,
+  CpuIcon,
+  LightningIcon,
+  StackIcon,
+  CameraIcon,
+  VideoCameraIcon,
+  ArrowCounterClockwiseIcon,
+  CheckIcon,
+  ScanIcon,
+  CornersOutIcon,
+  ArrowsOutLineVerticalIcon,
+  SunIcon,
+  MagnifyingGlassIcon,
+  XIcon,
+  SparkleIcon,
+  DiceFiveIcon,
+  CaretDownIcon,
+  CaretUpIcon,
+  CaretRightIcon,
+  EyedropperIcon,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { RETRO_PALETTES } from "@/engine/palettes";
@@ -44,8 +45,6 @@ interface ControlPanelProps {
   onToggleWebcam: () => void;
   isWebcamActive: boolean;
   onApplyPreset: (preset: Partial<DitherSettings>) => void;
-  isViewingOriginal?: boolean;
-  onToggleOriginal?: () => void;
 }
 
 const SAMPLE_MEDIA = [
@@ -402,9 +401,9 @@ function SectionHeader({
 
       <div className="flex items-center gap-2 shrink-0">
         {isOpen ? (
-          <CaretDown className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
+          <CaretDownIcon className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
         ) : (
-          <CaretRight className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
+          <CaretRightIcon className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
         )}
       </div>
     </button>
@@ -533,798 +532,918 @@ export function ControlPanel({
     }
   };
 
-  return (
-    <aside
-      className="w-full lg:w-[410px] bg-card border-l border-border flex flex-col h-full overflow-hidden select-none"
-      style={{ borderLeftWidth: "1px" }}
-    >
-      
-      <div className="h-11 px-4 bg-neutral-950 border-b border-border flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2 h-2 bg-white inline-block" />
-          <span className="text-xs sm:text-[13px] font-mono font-bold uppercase tracking-wider text-white">
-            STUDIO CONTROLS
+  type MobileTab = "media" | "dither" | "color" | "presets" | "adjust";
+  type MobileSheetState = "collapsed" | "docked" | "expanded";
+
+  const [mobileTab, setMobileTab] = useState<MobileTab>("dither");
+  const [mobileSheetState, setMobileSheetState] = useState<MobileSheetState>("docked");
+
+  const handleMobileTabClick = (tab: MobileTab) => {
+    if (mobileTab === tab) {
+      setMobileSheetState((prev) => (prev === "collapsed" ? "docked" : "collapsed"));
+    } else {
+      setMobileTab(tab);
+      if (mobileSheetState === "collapsed") {
+        setMobileSheetState("docked");
+      }
+    }
+  };
+
+  const renderMediaContent = () => (
+    <div className="p-3.5 sm:p-4 space-y-3.5 bg-black/40">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="flex items-center justify-center gap-2 py-2.5 px-3 bg-secondary/50 hover:bg-neutral-800 border border-border cursor-pointer font-mono text-xs text-white transition-colors btn-press font-bold">
+          <ImageIcon className="w-4 h-4 text-white" />
+          <span>IMAGE</span>
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.[0]) onUploadImage(e.target.files[0]);
+              e.target.value = "";
+            }}
+          />
+        </label>
+
+        <label className="flex items-center justify-center gap-2 py-2.5 px-3 bg-secondary/50 hover:bg-neutral-800 border border-border cursor-pointer font-mono text-xs text-white transition-colors btn-press font-bold">
+          <VideoCameraIcon className="w-4 h-4 text-white" />
+          <span>VIDEO</span>
+          <input
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.[0]) onUploadVideo(e.target.files[0]);
+              e.target.value = "";
+            }}
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={onToggleWebcam}
+          className={cn(
+            "flex items-center justify-center gap-2 py-2.5 px-3 border font-mono text-xs transition-colors btn-press font-bold",
+            isWebcamActive
+              ? "bg-white text-black font-bold border-white"
+              : "bg-secondary/50 hover:bg-neutral-800 border-border text-white"
+          )}
+        >
+          <CameraIcon className="w-4 h-4" />
+          <span>{isWebcamActive ? "STOP CAM" : "WEBCAM"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onChange({ mediaType: "procedural" })}
+          className={cn(
+            "flex items-center justify-center gap-2 py-2.5 px-3 border font-mono text-xs transition-colors btn-press font-bold",
+            settings.mediaType === "procedural" && !isWebcamActive
+              ? "bg-white text-black font-bold border-white"
+              : "bg-secondary/50 hover:bg-neutral-800 border-border text-white"
+          )}
+        >
+          <CpuIcon className="w-4 h-4" />
+          <span>PROCEDURAL</span>
+        </button>
+      </div>
+
+      <div className="pt-2.5 border-t border-border/60 space-y-2">
+        <span className="text-xs font-mono text-neutral-300 block font-bold uppercase tracking-wider">
+          Quick Sample Library
+        </span>
+        <div className="grid grid-cols-1 gap-1.5">
+          {SAMPLE_MEDIA.map((item) => {
+            const isSelected = settings.mediaUrl === item.url && settings.mediaType === "image";
+            return (
+              <button
+                key={item.name}
+                type="button"
+                onClick={() => onChange({ mediaType: "image", mediaUrl: item.url, animated: false })}
+                className={cn(
+                  "w-full flex items-center justify-between py-2 px-3 border font-mono text-xs transition-all text-left btn-press",
+                  isSelected
+                    ? "bg-white text-black border-white font-bold"
+                    : "bg-secondary/30 border-border text-neutral-300 hover:border-white hover:text-white"
+                )}
+              >
+                <span className="truncate">{item.name}</span>
+                <span
+                  className={cn(
+                    "text-[10px] uppercase font-mono px-1.5 py-0.5 border font-medium shrink-0 ml-2",
+                    isSelected
+                      ? "border-black text-black bg-neutral-200"
+                      : "border-neutral-700 text-neutral-400 bg-secondary"
+                  )}
+                >
+                  {item.type}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderDitherContent = () => (
+    <div className="p-3.5 sm:p-4 space-y-4 bg-black/40">
+      <div className="space-y-1.5">
+        <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+          Rendering Engine
+        </label>
+        <SegmentedControl
+          value={settings.engine}
+          onChange={(engine) => onChange({ engine })}
+          options={[
+            { value: "vgpu", label: "WebGPU", icon: LightningIcon },
+            { value: "webgl", label: "WebGL", icon: StackIcon },
+            { value: "cpu", label: "CPU", icon: CpuIcon },
+          ]}
+        />
+      </div>
+
+      {settings.engine !== "cpu" ? (
+        <div className="space-y-1.5">
+          <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+            Matrix Pattern
+          </label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {([
+              { id: "8x8", label: "Bayer 8×8" },
+              { id: "4x4", label: "Bayer 4×4" },
+              { id: "2x2", label: "Bayer 2×2" },
+              { id: "16x16", label: "Bayer 16×16" },
+              { id: "halftone", label: "Halftone" },
+              { id: "crosshatch", label: "Crosshatch" },
+              { id: "clustered", label: "Clustered" },
+              { id: "noise", label: "Noise" },
+            ] as const).map((item) => {
+              const isSelected = settings.ditherType === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onChange({ ditherType: item.id })}
+                  className={cn(
+                    "py-2.5 px-3 border text-left font-mono text-xs transition-all btn-press flex items-center justify-between font-bold",
+                    isSelected
+                      ? "bg-white text-black border-white shadow-sm"
+                      : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
+                  )}
+                >
+                  <span className="truncate">{item.label}</span>
+                  {isSelected && <CheckIcon className="w-4 h-4 text-black font-bold shrink-0 ml-1" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+            Diffusion Algorithm
+          </label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {([
+              { id: "floyd-steinberg", label: "Floyd-Steinberg" },
+              { id: "atkinson", label: "Atkinson" },
+              { id: "sierra3", label: "Sierra-3" },
+              { id: "sierra-lite", label: "Sierra Lite" },
+              { id: "burkes", label: "Burkes" },
+              { id: "stucki", label: "Stucki" },
+              { id: "jarvis", label: "Jarvis" },
+            ] as const).map((item) => {
+              const isSelected = settings.cpuAlgorithm === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onChange({ cpuAlgorithm: item.id })}
+                  className={cn(
+                    "py-2.5 px-3 border text-left font-mono text-xs transition-all btn-press flex items-center justify-between font-bold",
+                    isSelected
+                      ? "bg-white text-black border-white shadow-sm"
+                      : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
+                  )}
+                >
+                  <span className="truncate">{item.label}</span>
+                  {isSelected && <CheckIcon className="w-4 h-4 text-black shrink-0 font-bold ml-1" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="pt-2.5 border-t border-border/60 space-y-3.5">
+        <SliderControl
+          label="Pixel Size"
+          value={settings.pxSize}
+          min={0.5}
+          max={16}
+          step={0.5}
+          unit="px"
+          defaultValue={2}
+          onChange={(pxSize) => onChange({ pxSize })}
+        />
+
+        <SliderControl
+          label="Threshold Bias"
+          value={settings.threshold}
+          min={0.0}
+          max={1.0}
+          step={0.02}
+          defaultValue={0.5}
+          onChange={(threshold) => onChange({ threshold })}
+        />
+
+        {settings.ditherType === "halftone" && (
+          <>
+            <SliderControl
+              label="Screen Angle"
+              value={settings.halftoneAngle}
+              min={0}
+              max={90}
+              step={5}
+              unit="°"
+              defaultValue={45}
+              onChange={(halftoneAngle) => onChange({ halftoneAngle })}
+            />
+            <SliderControl
+              label="Dot Scale"
+              value={settings.halftoneScale}
+              min={1}
+              max={8}
+              step={0.5}
+              defaultValue={2}
+              onChange={(halftoneScale) => onChange({ halftoneScale })}
+            />
+          </>
+        )}
+      </div>
+
+      <div className="pt-2.5 border-t border-border/60">
+        <label className="flex items-center justify-between cursor-pointer font-mono text-xs p-2.5 bg-secondary/40 border border-border hover:border-white transition-colors">
+          <span className="text-white font-bold uppercase tracking-wide">▸ Invert Output</span>
+          <input
+            type="checkbox"
+            checked={settings.inverted}
+            onChange={(e) => onChange({ inverted: e.target.checked })}
+            className="w-4 h-4 border-border bg-black text-white focus:ring-ring focus:ring-offset-0 cursor-pointer accent-white"
+          />
+        </label>
+      </div>
+    </div>
+  );
+
+  const renderColorContent = () => (
+    <div className="p-3.5 sm:p-4 space-y-4 bg-black/40">
+      <div className="space-y-1.5">
+        <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+          Color Mode
+        </label>
+        <SegmentedControl
+          value={settings.colorMode}
+          onChange={(colorMode) => onChange({ colorMode })}
+          size="sm"
+          options={[
+            { value: "duotone", label: "Duotone" },
+            { value: "paper", label: "Paper" },
+            { value: "palette", label: "Palette" },
+            { value: "original", label: "RGB" },
+            { value: "grayscale", label: "Mono" },
+          ]}
+        />
+      </div>
+
+      {settings.colorMode === "duotone" && (
+        <div className="p-3 bg-secondary/30 border border-border space-y-1.5">
+          <span className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider mb-1.5">
+            Duotone Shades
           </span>
+          <DualColorPicker
+            backLabel="Dark Shade"
+            frontLabel="Light Shade"
+            colorBack={settings.colorBack}
+            colorFront={settings.colorFront}
+            onBackChange={(colorBack) => onChange({ colorBack })}
+            onFrontChange={(colorFront) => onChange({ colorFront })}
+            onSwap={() =>
+              onChange({
+                colorBack: settings.colorFront,
+                colorFront: settings.colorBack,
+              })
+            }
+          />
+          <p className="text-[10px] font-mono text-neutral-400 pt-1">
+            Tip: Click any Hardware Palette below to load its colors into Duotone!
+          </p>
+        </div>
+      )}
+
+      {settings.colorMode === "paper" && (
+        <div className="space-y-2.5 p-3 bg-secondary/30 border border-border">
+          <span className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider mb-1.5">
+            Paper Inks
+          </span>
+          <DualColorPicker
+            backLabel="Background"
+            frontLabel="Foreground"
+            colorBack={settings.colorBack}
+            colorFront={settings.colorFront}
+            onBackChange={(colorBack) => onChange({ colorBack })}
+            onFrontChange={(colorFront) => onChange({ colorFront })}
+            onSwap={() =>
+              onChange({
+                colorBack: settings.colorFront,
+                colorFront: settings.colorBack,
+              })
+            }
+          />
+          <ColorSwatchPicker
+            label="Highlight"
+            color={settings.colorHighlight}
+            onChange={(colorHighlight) => onChange({ colorHighlight })}
+          />
+        </div>
+      )}
+
+      <div className="p-3 bg-secondary/30 border border-border space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-200 font-bold uppercase tracking-wider">
+            <EyedropperIcon className="w-3.5 h-3.5 text-white" />
+            <span>Auto-Palette from Image</span>
+          </div>
+          <span className="text-[10px] font-mono text-neutral-400 font-bold">
+            PNNQUANT
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-mono text-neutral-300">Colors:</span>
+          <div className="flex gap-1">
+            {[2, 4, 8, 16].map((count) => (
+              <button
+                key={count}
+                type="button"
+                onClick={() => setExtractCount(count)}
+                className={cn(
+                  "px-2 py-0.5 text-[11px] font-mono border transition-colors btn-press",
+                  extractCount === count
+                    ? "bg-white text-black border-white font-bold"
+                    : "bg-black/60 border-border text-neutral-400 hover:text-white"
+                )}
+              >
+                {count}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleExtractPalette}
+          disabled={isExtractingPalette || settings.mediaType !== "image"}
+          className="w-full py-2 px-3 bg-secondary hover:bg-neutral-800 text-white font-mono text-xs font-bold border border-border hover:border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-40 btn-press"
+        >
+          <SparkleIcon className="w-3.5 h-3.5 text-white" />
+          <span>
+            {isExtractingPalette
+              ? "EXTRACTING..."
+              : `EXTRACT ${extractCount}-COLOR PALETTE`}
+          </span>
+        </button>
+      </div>
+
+      <div className="space-y-2 pt-2.5 border-t border-border/60">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+            Hardware Palettes
+          </label>
+          <span className="text-[10px] font-mono text-neutral-400 font-bold">
+            {settings.colorMode === "duotone"
+              ? "CLICK SETS DUOTONE"
+              : `${RETRO_PALETTES.length} PALETTES`}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 max-h-56 sm:max-h-60 overflow-y-auto pr-1">
+          {RETRO_PALETTES.map((pal) => {
+            const isSelected =
+              settings.paletteId === pal.id ||
+              (settings.colorMode === "duotone" &&
+                 settings.colorBack.toLowerCase() === pal.colors[0].toLowerCase() &&
+                settings.colorFront.toLowerCase() === pal.colors[pal.colors.length - 1].toLowerCase());
+
+            return (
+              <button
+                key={pal.id}
+                type="button"
+                onClick={() => handleHardwarePaletteClick(pal)}
+                className={cn(
+                  "p-2.5 border text-left font-mono transition-all btn-press flex flex-col gap-2 relative",
+                  isSelected
+                    ? "bg-neutral-900 text-white border-2 border-white shadow-sm"
+                    : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
+                )}
+                title={
+                  settings.colorMode === "duotone"
+                    ? `Set Duotone to ${pal.name} (${pal.colors[0]} & ${pal.colors[pal.colors.length - 1]})`
+                    : `Apply ${pal.name}`
+                }
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold truncate">
+                    {pal.name}
+                  </span>
+                  <span className="text-[10px] text-neutral-400">{pal.colors.length}c</span>
+                </div>
+                <div className="flex h-3 w-full overflow-hidden border border-border">
+                  {pal.colors.map((c, i) => (
+                    <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto divide-y divide-border text-xs text-foreground/90">
+      <div className="pt-2.5 border-t border-border/60">
+        <SliderControl
+          label="Quantization Steps"
+          value={settings.colorSteps}
+          min={1}
+          max={16}
+          step={1}
+          defaultValue={2}
+          onChange={(colorSteps) => onChange({ colorSteps })}
+        />
+      </div>
+    </div>
+  );
 
-        <section className="bg-card">
-          <SectionHeader
-            title="SOURCE MEDIA"
-            icon={ImageIcon}
-            isOpen={openSections.media}
-            onToggle={() => toggleSection("media")}
+  const renderPresetsContent = () => (
+    <div className="p-3.5 sm:p-4 space-y-3.5 bg-black/40">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={presetSearch}
+            onChange={(e) => setPresetSearch(e.target.value)}
+            placeholder="Search presets (Game Boy, 1-Bit...)"
+            className="w-full pl-9 pr-8 py-2 bg-black border border-border text-xs font-mono placeholder:text-neutral-500 text-white focus:outline-none focus:border-white transition-colors"
           />
-
-          {openSections.media && (
-            <div className="p-4 space-y-3.5 bg-black/40">
-              
-              <div className="grid grid-cols-2 gap-2">
-                <label className="flex items-center justify-center gap-2 py-2.5 px-3 bg-secondary/50 hover:bg-neutral-800 border border-border cursor-pointer font-mono text-xs text-white transition-colors btn-press font-bold">
-                  <ImageIcon className="w-4 h-4 text-white" />
-                  <span>IMAGE</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) onUploadImage(e.target.files[0]);
-                      // Reset so re-picking the same file fires onChange.
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-
-                <label className="flex items-center justify-center gap-2 py-2.5 px-3 bg-secondary/50 hover:bg-neutral-800 border border-border cursor-pointer font-mono text-xs text-white transition-colors btn-press font-bold">
-                  <VideoIcon className="w-4 h-4 text-white" />
-                  <span>VIDEO</span>
-                  <input
-                    type="file"
-                    accept="video/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) onUploadVideo(e.target.files[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={onToggleWebcam}
-                  className={cn(
-                    "flex items-center justify-center gap-2 py-2.5 px-3 border font-mono text-xs transition-colors btn-press font-bold",
-                    isWebcamActive
-                      ? "bg-white text-black font-bold border-white"
-                      : "bg-secondary/50 hover:bg-neutral-800 border-border text-white"
-                  )}
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>{isWebcamActive ? "STOP CAM" : "WEBCAM"}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onChange({ mediaType: "procedural" })}
-                  className={cn(
-                    "flex items-center justify-center gap-2 py-2.5 px-3 border font-mono text-xs transition-colors btn-press font-bold",
-                    settings.mediaType === "procedural" && !isWebcamActive
-                      ? "bg-white text-black font-bold border-white"
-                      : "bg-secondary/50 hover:bg-neutral-800 border-border text-white"
-                  )}
-                >
-                  <Cpu className="w-4 h-4" />
-                  <span>PROCEDURAL</span>
-                </button>
-              </div>
-
-              <div className="pt-2.5 border-t border-border/60 space-y-2">
-                <span className="text-xs font-mono text-neutral-300 block font-bold uppercase tracking-wider">
-                  Quick Sample Library
-                </span>
-                <div className="grid grid-cols-1 gap-1.5">
-                  {SAMPLE_MEDIA.map((item) => {
-                    const isSelected = settings.mediaUrl === item.url && settings.mediaType === "image";
-                    return (
-                      <button
-                        key={item.name}
-                        type="button"
-                        onClick={() => onChange({ mediaType: "image", mediaUrl: item.url })}
-                        className={cn(
-                          "w-full flex items-center justify-between py-2 px-3 border font-mono text-xs transition-all text-left btn-press",
-                          isSelected
-                            ? "bg-white text-black border-white font-bold"
-                            : "bg-secondary/30 border-border text-neutral-300 hover:border-white hover:text-white"
-                        )}
-                      >
-                        <span className="truncate">{item.name}</span>
-                        <span className={cn(
-                          "text-[10px] uppercase font-mono px-1.5 py-0.5 border font-medium",
-                          isSelected ? "border-black text-black bg-neutral-200" : "border-neutral-700 text-neutral-400 bg-secondary"
-                        )}>
-                          {item.type}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+          {presetSearch && (
+            <button
+              type="button"
+              onClick={() => setPresetSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-0.5"
+              title="Clear search"
+            >
+              <XIcon className="w-3.5 h-3.5" />
+            </button>
           )}
-        </section>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const rnd = PRESETS[Math.floor(Math.random() * PRESETS.length)];
+            if (rnd) onApplyPreset(rnd.preset);
+          }}
+          className="px-2.5 py-2 bg-secondary/60 hover:bg-neutral-800 border border-border hover:border-neutral-400 text-neutral-200 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-colors btn-press shrink-0"
+          title="Apply random curated preset"
+        >
+          <DiceFiveIcon className="w-3.5 h-3.5 text-primary" />
+          <span className="hidden sm:inline">RANDOM</span>
+        </button>
+      </div>
 
-        <section className="bg-card">
-          <SectionHeader
-            title="DITHER MATRIX & ENGINE"
-            icon={Sliders}
-            isOpen={openSections.dither}
-            onToggle={() => toggleSection("dither")}
-          />
-
-          {openSections.dither && (
-            <div className="p-4 space-y-4 bg-black/40">
-              
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
-                  Rendering Engine
-                </label>
-                <SegmentedControl
-                  value={settings.engine}
-                  onChange={(engine) => onChange({ engine })}
-                  options={[
-                    { value: "vgpu", label: "WebGPU", icon: Lightning },
-                    { value: "webgl", label: "WebGL", icon: Stack },
-                    { value: "cpu", label: "CPU", icon: Cpu },
-                  ]}
-                />
-              </div>
-
-              {settings.engine !== "cpu" ? (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
-                    Matrix Pattern
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {[
-                      { id: "8x8", label: "Bayer 8×8" },
-                      { id: "4x4", label: "Bayer 4×4" },
-                      { id: "2x2", label: "Bayer 2×2" },
-                      { id: "16x16", label: "Bayer 16×16" },
-                      { id: "halftone", label: "Halftone" },
-                      { id: "crosshatch", label: "Crosshatch" },
-                      { id: "clustered", label: "Clustered" },
-                      { id: "noise", label: "Noise" },
-                    ].map((item) => {
-                      const isSelected = settings.ditherType === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => onChange({ ditherType: item.id as any })}
-                          className={cn(
-                            "py-2.5 px-3 border text-left font-mono text-xs transition-all btn-press flex items-center justify-between font-bold",
-                            isSelected
-                              ? "bg-white text-black border-white shadow-sm"
-                              : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
-                          )}
-                        >
-                          <span>{item.label}</span>
-                          {isSelected && <Check className="w-4 h-4 text-black font-bold shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
-                    Diffusion Algorithm
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {[
-                      { id: "floyd-steinberg", label: "Floyd-Steinberg" },
-                      { id: "atkinson", label: "Atkinson" },
-                      { id: "sierra3", label: "Sierra-3" },
-                      { id: "sierra-lite", label: "Sierra Lite" },
-                      { id: "burkes", label: "Burkes" },
-                      { id: "stucki", label: "Stucki" },
-                      { id: "jarvis", label: "Jarvis" },
-                    ].map((item) => {
-                      const isSelected = settings.cpuAlgorithm === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => onChange({ cpuAlgorithm: item.id as any })}
-                          className={cn(
-                            "py-2.5 px-3 border text-left font-mono text-xs transition-all btn-press flex items-center justify-between font-bold",
-                            isSelected
-                              ? "bg-white text-black border-white shadow-sm"
-                              : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
-                          )}
-                        >
-                          <span className="truncate">{item.label}</span>
-                          {isSelected && <Check className="w-4 h-4 text-black shrink-0 font-bold" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {[
+          { id: "all", label: "ALL" },
+          { id: "mono", label: "1-BIT" },
+          { id: "print", label: "PRINT" },
+          { id: "retro", label: "RETRO" },
+          { id: "terminal", label: "CRT" },
+          { id: "stylized", label: "STYLE" },
+        ].map((cat) => {
+          const isSelected = presetCategory === cat.id;
+          const count =
+            cat.id === "all"
+              ? PRESETS.length
+              : PRESETS.filter((p) => p.category === cat.id).length;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setPresetCategory(cat.id)}
+              className={cn(
+                "px-2.5 py-1.5 text-xs font-mono whitespace-nowrap transition-all btn-press flex items-center gap-1.5",
+                isSelected
+                  ? "bg-white text-black font-bold border border-white"
+                  : "bg-secondary/40 text-neutral-300 hover:text-white hover:bg-secondary/70 border border-border"
               )}
-
-              <div className="pt-2.5 border-t border-border/60 space-y-3.5">
-                <SliderControl
-                  label="Pixel Size"
-                  value={settings.pxSize}
-                  min={0.5}
-                  max={16}
-                  step={0.5}
-                  unit="px"
-                  defaultValue={2}
-                  onChange={(pxSize) => onChange({ pxSize })}
-                />
-
-                <SliderControl
-                  label="Threshold Bias"
-                  value={settings.threshold}
-                  min={0.0}
-                  max={1.0}
-                  step={0.02}
-                  defaultValue={0.5}
-                  onChange={(threshold) => onChange({ threshold })}
-                />
-
-                {settings.ditherType === "halftone" && (
-                  <>
-                    <SliderControl
-                      label="Screen Angle"
-                      value={settings.halftoneAngle}
-                      min={0}
-                      max={90}
-                      step={5}
-                      unit="°"
-                      defaultValue={45}
-                      onChange={(halftoneAngle) => onChange({ halftoneAngle })}
-                    />
-                    <SliderControl
-                      label="Dot Scale"
-                      value={settings.halftoneScale}
-                      min={1}
-                      max={8}
-                      step={0.5}
-                      defaultValue={2}
-                      onChange={(halftoneScale) => onChange({ halftoneScale })}
-                    />
-                  </>
+            >
+              <span>{cat.label}</span>
+              <span
+                className={cn(
+                  "text-[10px] px-1 font-bold",
+                  isSelected
+                    ? "text-black/80"
+                    : "text-neutral-400"
                 )}
-              </div>
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-              <div className="pt-2.5 border-t border-border/60">
-                <label className="flex items-center justify-between cursor-pointer font-mono text-xs p-2.5 bg-secondary/40 border border-border hover:border-white transition-colors">
-                  <span className="text-white font-bold uppercase tracking-wide">▸ Invert Output</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.inverted}
-                    onChange={(e) => onChange({ inverted: e.target.checked })}
-                    className="w-4 h-4 border-border bg-black text-white focus:ring-ring focus:ring-offset-0 cursor-pointer accent-white"
-                  />
-                </label>
-              </div>
-            </div>
-          )}
-        </section>
+      <div className="space-y-1.5 max-h-64 sm:max-h-72 overflow-y-auto pr-1">
+        {PRESETS.filter((preset) => {
+          const matchesCat =
+            presetCategory === "all" || preset.category === presetCategory;
+          const query = presetSearch.trim().toLowerCase();
+          const matchesQuery =
+            !query ||
+            preset.name.toLowerCase().includes(query) ||
+            preset.desc.toLowerCase().includes(query) ||
+            preset.category.toLowerCase().includes(query);
+          return matchesCat && matchesQuery;
+        }).map((preset) => {
+          const isCurrent =
+            (preset.preset.paletteId && settings.paletteId === preset.preset.paletteId) ||
+            (preset.preset.colorMode === "paper" &&
+              settings.colorMode === "paper" &&
+              settings.colorBack === preset.preset.colorBack) ||
+            (preset.preset.engine === "cpu" &&
+              settings.engine === "cpu" &&
+              settings.cpuAlgorithm === preset.preset.cpuAlgorithm) ||
+            (preset.name === "Newspaper Halftone" &&
+              settings.ditherType === "halftone" &&
+              settings.halftoneAngle === 45) ||
+            (preset.name === "Manga Screentone" &&
+              settings.ditherType === "halftone" &&
+              settings.halftoneAngle === 60) ||
+            (preset.name === "Blueprint" &&
+              settings.ditherType === "crosshatch" &&
+              settings.colorBack === "#002b5c") ||
+            (preset.name === "Vintage Sepia" &&
+              settings.colorMode === "duotone" &&
+              settings.colorFront === "#1a0f07");
 
-        <section className="bg-card">
-          <SectionHeader
-            title="COLOR & PALETTES"
-            icon={Palette}
-            isOpen={openSections.color}
-            onToggle={() => toggleSection("color")}
-          />
-
-          {openSections.color && (
-            <div className="p-4 space-y-4 bg-black/40">
-              
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
-                  Color Mode
-                </label>
-                <SegmentedControl
-                  value={settings.colorMode}
-                  onChange={(colorMode) => onChange({ colorMode })}
-                  size="sm"
-                  options={[
-                    { value: "duotone", label: "Duotone" },
-                    { value: "paper", label: "Paper" },
-                    { value: "palette", label: "Palette" },
-                    { value: "original", label: "RGB" },
-                    { value: "grayscale", label: "Mono" },
-                  ]}
-                />
-              </div>
-
-              {settings.colorMode === "duotone" && (
-                <div className="p-3 bg-secondary/30 border border-border space-y-1.5">
-                  <span className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider mb-1.5">
-                    Duotone Shades
-                  </span>
-                  <DualColorPicker
-                    backLabel="Dark Shade"
-                    frontLabel="Light Shade"
-                    colorBack={settings.colorBack}
-                    colorFront={settings.colorFront}
-                    onBackChange={(colorBack) => onChange({ colorBack })}
-                    onFrontChange={(colorFront) => onChange({ colorFront })}
-                    onSwap={() =>
-                      onChange({
-                        colorBack: settings.colorFront,
-                        colorFront: settings.colorBack,
-                      })
-                    }
-                  />
-                  <p className="text-[10px] font-mono text-neutral-400 pt-1">
-                    Tip: Click any Hardware Palette below to load its colors into Duotone!
-                  </p>
-                </div>
+          return (
+            <button
+              key={preset.name}
+              type="button"
+              onClick={() => onApplyPreset(preset.preset)}
+              className={cn(
+                "w-full flex flex-col p-2.5 border text-left transition-all btn-press gap-1.5 group relative",
+                isCurrent
+                  ? "bg-neutral-900 border-2 border-white shadow-sm"
+                  : "bg-secondary/30 hover:bg-secondary/70 border-border hover:border-neutral-400"
               )}
-
-              {settings.colorMode === "paper" && (
-                <div className="space-y-2.5 p-3 bg-secondary/30 border border-border">
-                  <span className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider mb-1.5">
-                    Paper Inks
+            >
+              <div className="flex items-center justify-between w-full gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={cn(
+                      "text-xs font-mono font-bold truncate transition-colors",
+                      isCurrent
+                        ? "text-white"
+                        : "text-foreground group-hover:text-white"
+                    )}
+                  >
+                    {preset.name}
                   </span>
-                  <DualColorPicker
-                    backLabel="Background"
-                    frontLabel="Foreground"
-                    colorBack={settings.colorBack}
-                    colorFront={settings.colorFront}
-                    onBackChange={(colorBack) => onChange({ colorBack })}
-                    onFrontChange={(colorFront) => onChange({ colorFront })}
-                    onSwap={() =>
-                      onChange({
-                        colorBack: settings.colorFront,
-                        colorFront: settings.colorBack,
-                      })
-                    }
-                  />
-                  <ColorSwatchPicker
-                    label="Highlight"
-                    color={settings.colorHighlight}
-                    onChange={(colorHighlight) => onChange({ colorHighlight })}
-                  />
-                </div>
-              )}
-
-              {/* Extract Palette from Image */}
-              <div className="p-3 bg-secondary/30 border border-border space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-200 font-bold uppercase tracking-wider">
-                    <Eyedropper className="w-3.5 h-3.5 text-white" />
-                    <span>Auto-Palette from Image</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-neutral-400 font-bold">
-                    PNNQUANT
+                  <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-300 px-1.5 py-0.5 bg-secondary border border-border shrink-0 font-bold">
+                    {preset.category}
                   </span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono text-neutral-300">Colors:</span>
-                  <div className="flex gap-1">
-                    {[2, 4, 8, 16].map((count) => (
-                      <button
-                        key={count}
-                        type="button"
-                        onClick={() => setExtractCount(count)}
-                        className={cn(
-                          "px-2 py-0.5 text-[11px] font-mono border transition-colors btn-press",
-                          extractCount === count
-                            ? "bg-white text-black border-white font-bold"
-                            : "bg-black/60 border-border text-neutral-400 hover:text-white"
-                        )}
-                      >
-                        {count}
-                      </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isCurrent && <CheckIcon className="w-4 h-4 text-white shrink-0 font-bold" />}
+                  <div className="flex h-3 w-16 overflow-hidden border border-border">
+                    {preset.colors.map((c, i) => (
+                      <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
                     ))}
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleExtractPalette}
-                  disabled={isExtractingPalette || settings.mediaType !== "image"}
-                  className="w-full py-2 px-3 bg-secondary hover:bg-neutral-800 text-white font-mono text-xs font-bold border border-border hover:border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-40 btn-press"
-                >
-                  <Sparkle className="w-3.5 h-3.5 text-white" />
-                  <span>
-                    {isExtractingPalette
-                      ? "EXTRACTING..."
-                      : `EXTRACT ${extractCount}-COLOR PALETTE`}
-                  </span>
-                </button>
               </div>
+              <span className="text-[11px] font-mono text-neutral-400 line-clamp-1">
+                {preset.desc}
+              </span>
+            </button>
+          );
+        })}
 
-              <div className="space-y-2 pt-2.5 border-t border-border/60">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
-                    Hardware Palettes
-                  </label>
-                  <span className="text-[10px] font-mono text-neutral-400 font-bold">
-                    {settings.colorMode === "duotone"
-                      ? "CLICK SETS DUOTONE"
-                      : `${RETRO_PALETTES.length} PALETTES`}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-                  {RETRO_PALETTES.map((pal) => {
-                    const isSelected =
-                      settings.paletteId === pal.id ||
-                      (settings.colorMode === "duotone" &&
-                        settings.colorBack.toLowerCase() === pal.colors[0].toLowerCase() &&
-                        settings.colorFront.toLowerCase() === pal.colors[pal.colors.length - 1].toLowerCase());
-
-                    return (
-                      <button
-                        key={pal.id}
-                        type="button"
-                        onClick={() => handleHardwarePaletteClick(pal)}
-                        className={cn(
-                          "p-2.5 border text-left font-mono transition-all btn-press flex flex-col gap-2 relative",
-                          isSelected
-                            ? "bg-neutral-900 text-white border-2 border-white shadow-sm"
-                            : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
-                        )}
-                        title={
-                          settings.colorMode === "duotone"
-                            ? `Set Duotone to ${pal.name} (${pal.colors[0]} & ${pal.colors[pal.colors.length - 1]})`
-                            : `Apply ${pal.name}`
-                        }
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold truncate">
-                            {pal.name}
-                          </span>
-                          <span className="text-[10px] text-neutral-400">{pal.colors.length}c</span>
-                        </div>
-                        <div className="flex h-3 w-full overflow-hidden border border-border">
-                          {pal.colors.map((c, i) => (
-                            <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="pt-2.5 border-t border-border/60">
-                <SliderControl
-                  label="Quantization Steps"
-                  value={settings.colorSteps}
-                  min={1}
-                  max={16}
-                  step={1}
-                  defaultValue={2}
-                  onChange={(colorSteps) => onChange({ colorSteps })}
-                />
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="bg-card">
-          <SectionHeader
-            title="STYLE PRESETS"
-            icon={Bookmark}
-            isOpen={openSections.presets}
-            onToggle={() => toggleSection("presets")}
-          />
-
-          {openSections.presets && (
-            <div className="p-4 space-y-3.5 bg-black/40">
-              
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <MagnifyingGlass className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={presetSearch}
-                    onChange={(e) => setPresetSearch(e.target.value)}
-                    placeholder="Search presets (Game Boy, 1-Bit...)"
-                    className="w-full pl-9 pr-8 py-2 bg-black border border-border text-xs font-mono placeholder:text-neutral-500 text-white focus:outline-none focus:border-white transition-colors"
-                  />
-                  {presetSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setPresetSearch("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1"
-                      title="Clear search"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const rnd = PRESETS[Math.floor(Math.random() * PRESETS.length)];
-                    if (rnd) onApplyPreset(rnd.preset);
-                  }}
-                  className="px-2.5 py-2 bg-secondary/60 hover:bg-neutral-800 border border-border hover:border-neutral-400 text-neutral-200 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-colors btn-press shrink-0"
-                  title="Apply random curated preset"
-                >
-                  <DiceFive className="w-3.5 h-3.5 text-primary" />
-                  <span className="hidden sm:inline">RANDOM</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                {[
-                  { id: "all", label: "ALL" },
-                  { id: "mono", label: "1-BIT" },
-                  { id: "print", label: "PRINT" },
-                  { id: "retro", label: "RETRO" },
-                  { id: "terminal", label: "CRT" },
-                  { id: "stylized", label: "STYLE" },
-                ].map((cat) => {
-                  const isSelected = presetCategory === cat.id;
-                  const count =
-                    cat.id === "all"
-                      ? PRESETS.length
-                      : PRESETS.filter((p) => p.category === cat.id).length;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setPresetCategory(cat.id)}
-                      className={cn(
-                        "px-2.5 py-1.5 text-xs font-mono whitespace-nowrap transition-all btn-press flex items-center gap-1.5",
-                        isSelected
-                          ? "bg-white text-black font-bold border border-white"
-                          : "bg-secondary/40 text-neutral-300 hover:text-white hover:bg-secondary/70 border border-border"
-                      )}
-                    >
-                      <span>{cat.label}</span>
-                      <span
-                        className={cn(
-                          "text-[10px] px-1 font-bold",
-                          isSelected
-                            ? "text-black/80"
-                            : "text-neutral-400"
-                        )}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                {PRESETS.filter((preset) => {
-                  const matchesCat =
-                    presetCategory === "all" || preset.category === presetCategory;
-                  const query = presetSearch.trim().toLowerCase();
-                  const matchesQuery =
-                    !query ||
-                    preset.name.toLowerCase().includes(query) ||
-                    preset.desc.toLowerCase().includes(query) ||
-                    preset.category.toLowerCase().includes(query);
-                  return matchesCat && matchesQuery;
-                }).map((preset) => {
-                  const isCurrent =
-                    (preset.preset.paletteId && settings.paletteId === preset.preset.paletteId) ||
-                    (preset.preset.colorMode === "paper" &&
-                      settings.colorMode === "paper" &&
-                      settings.colorBack === preset.preset.colorBack) ||
-                    (preset.preset.engine === "cpu" &&
-                      settings.engine === "cpu" &&
-                      settings.cpuAlgorithm === preset.preset.cpuAlgorithm) ||
-                    (preset.name === "Newspaper Halftone" &&
-                      settings.ditherType === "halftone" &&
-                      settings.halftoneAngle === 45) ||
-                    (preset.name === "Manga Screentone" &&
-                      settings.ditherType === "halftone" &&
-                      settings.halftoneAngle === 60) ||
-                    (preset.name === "Blueprint" &&
-                      settings.ditherType === "crosshatch" &&
-                      settings.colorBack === "#002b5c") ||
-                    (preset.name === "Vintage Sepia" &&
-                      settings.colorMode === "duotone" &&
-                      settings.colorFront === "#1a0f07");
-
-                  return (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => onApplyPreset(preset.preset)}
-                      className={cn(
-                        "w-full flex flex-col p-2.5 border text-left transition-all btn-press gap-1.5 group relative",
-                        isCurrent
-                          ? "bg-neutral-900 border-2 border-white shadow-sm"
-                          : "bg-secondary/30 hover:bg-secondary/70 border-border hover:border-neutral-400"
-                      )}
-                    >
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className={cn(
-                              "text-xs font-mono font-bold truncate transition-colors",
-                              isCurrent
-                                ? "text-white"
-                                : "text-foreground group-hover:text-white"
-                            )}
-                          >
-                            {preset.name}
-                          </span>
-                          <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-300 px-1.5 py-0.5 bg-secondary border border-border shrink-0 font-bold">
-                            {preset.category}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {isCurrent && <Check className="w-4 h-4 text-white shrink-0 font-bold" />}
-                          <div className="flex h-3 w-16 overflow-hidden border border-border">
-                            {preset.colors.map((c, i) => (
-                              <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-mono text-neutral-400 line-clamp-1">
-                        {preset.desc}
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {PRESETS.filter((preset) => {
-                  const matchesCat =
-                    presetCategory === "all" || preset.category === presetCategory;
-                  const query = presetSearch.trim().toLowerCase();
-                  return (
-                    matchesCat &&
-                    (!query ||
-                      preset.name.toLowerCase().includes(query) ||
-                      preset.desc.toLowerCase().includes(query))
-                  );
-                }).length === 0 && (
-                  <div className="p-4 text-center text-neutral-400 font-mono text-xs border border-dashed border-border space-y-1.5">
-                    <p>No presets found matching "{presetSearch}"</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPresetSearch("");
-                        setPresetCategory("all");
-                      }}
-                      className="text-white hover:underline text-xs font-bold"
-                    >
-                      Reset filters
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="bg-card">
-          <SectionHeader
-            title="FRAMING & ADJUSTMENTS"
-            icon={Sun}
-            isOpen={openSections.adjust}
-            onToggle={() => toggleSection("adjust")}
-          />
-
-          {openSections.adjust && (
-            <div className="p-4 space-y-4 bg-black/40">
-              
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
-                  Framing & Fit
-                </label>
-                <SegmentedControl
-                  value={settings.fit}
-                  onChange={(fit) => onChange({ fit })}
-                  options={[
-                    { value: "contain", label: "Fit", icon: Scan },
-                    { value: "cover", label: "Fill", icon: CornersOut },
-                    { value: "fill", label: "Stretch", icon: ArrowsOutLineVertical },
-                  ]}
-                />
-              </div>
-
-              <div className="space-y-3.5 pt-2.5 border-t border-border/60">
-                <SliderControl
-                  label="Scale"
-                  value={settings.scale}
-                  min={0.2}
-                  max={3.0}
-                  step={0.05}
-                  unit="x"
-                  defaultValue={1.0}
-                  onChange={(scale) => onChange({ scale })}
-                />
-
-                <SliderControl
-                  label="Rotation"
-                  value={settings.rotation}
-                  min={0}
-                  max={360}
-                  step={5}
-                  unit="°"
-                  defaultValue={0}
-                  onChange={(rotation) => onChange({ rotation })}
-                />
-              </div>
-
-              <div className="space-y-3.5 pt-2.5 border-t border-border/60">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-neutral-200 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <Sun className="w-4 h-4 text-neutral-400" />
-                    Tone & Contrast
-                  </span>
-                  <button
-                    type="button"
-                    onClick={resetAdjustments}
-                    className="flex items-center gap-1 text-xs font-mono text-neutral-400 hover:text-white transition-colors btn-press font-bold"
-                    title="Reset adjustments to defaults"
-                  >
-                    <ArrowCounterClockwise className="w-3 h-3" />
-                    RESET
-                  </button>
-                </div>
-
-                <SliderControl
-                  label="Brightness"
-                  value={settings.brightness}
-                  min={-0.5}
-                  max={0.5}
-                  step={0.02}
-                  defaultValue={0}
-                  formatValue={(v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
-                  onChange={(brightness) => onChange({ brightness })}
-                />
-
-                <SliderControl
-                  label="Contrast"
-                  value={settings.contrast}
-                  min={0.2}
-                  max={2.5}
-                  step={0.05}
-                  unit="x"
-                  defaultValue={1.0}
-                  onChange={(contrast) => onChange({ contrast })}
-                />
-
-                <SliderControl
-                  label="Saturation"
-                  value={settings.saturation}
-                  min={0.0}
-                  max={2.0}
-                  step={0.05}
-                  unit="x"
-                  defaultValue={1.0}
-                  onChange={(saturation) => onChange({ saturation })}
-                />
-
-                <SliderControl
-                  label="Gamma"
-                  value={settings.gamma}
-                  min={0.5}
-                  max={2.5}
-                  step={0.05}
-                  unit="x"
-                  defaultValue={1.0}
-                  onChange={(gamma) => onChange({ gamma })}
-                />
-              </div>
-            </div>
-          )}
-        </section>
-
+        {PRESETS.filter((preset) => {
+          const matchesCat =
+            presetCategory === "all" || preset.category === presetCategory;
+          const query = presetSearch.trim().toLowerCase();
+          return (
+            matchesCat &&
+            (!query ||
+              preset.name.toLowerCase().includes(query) ||
+              preset.desc.toLowerCase().includes(query))
+          );
+        }).length === 0 && (
+          <div className="p-4 text-center text-neutral-400 font-mono text-xs border border-dashed border-border space-y-1.5">
+            <p>No presets found matching "{presetSearch}"</p>
+            <button
+              type="button"
+              onClick={() => {
+                setPresetSearch("");
+                setPresetCategory("all");
+              }}
+              className="text-white hover:underline text-xs font-bold"
+            >
+              Reset filters
+            </button>
+          </div>
+        )}
       </div>
-    </aside>
+    </div>
+  );
+
+  const renderAdjustContent = () => (
+    <div className="p-3.5 sm:p-4 space-y-4 bg-black/40">
+      <div className="space-y-1.5">
+        <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+          Framing & Fit
+        </label>
+        <SegmentedControl
+          value={settings.fit}
+          onChange={(fit) => onChange({ fit })}
+          options={[
+            { value: "contain", label: "Fit", icon: ScanIcon },
+            { value: "cover", label: "Fill", icon: CornersOutIcon },
+            { value: "fill", label: "Stretch", icon: ArrowsOutLineVerticalIcon },
+          ]}
+        />
+      </div>
+
+      <div className="space-y-3.5 pt-2.5 border-t border-border/60">
+        <SliderControl
+          label="Scale"
+          value={settings.scale}
+          min={0.2}
+          max={3.0}
+          step={0.05}
+          unit="x"
+          defaultValue={1.0}
+          onChange={(scale) => onChange({ scale })}
+        />
+
+        <SliderControl
+          label="Rotation"
+          value={settings.rotation}
+          min={0}
+          max={360}
+          step={5}
+          unit="°"
+          defaultValue={0}
+          onChange={(rotation) => onChange({ rotation })}
+        />
+      </div>
+
+      <div className="space-y-3.5 pt-2.5 border-t border-border/60">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-mono text-neutral-200 font-bold uppercase tracking-wider flex items-center gap-1.5">
+            <SunIcon className="w-4 h-4 text-neutral-400" />
+            Tone & Contrast
+          </span>
+          <button
+            type="button"
+            onClick={resetAdjustments}
+            className="flex items-center gap-1 text-xs font-mono text-neutral-400 hover:text-white transition-colors btn-press font-bold"
+            title="Reset adjustments to defaults"
+          >
+            <ArrowCounterClockwiseIcon className="w-3 h-3" />
+            RESET
+          </button>
+        </div>
+
+        <SliderControl
+          label="Brightness"
+          value={settings.brightness}
+          min={-0.5}
+          max={0.5}
+          step={0.02}
+          defaultValue={0}
+          formatValue={(v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
+          onChange={(brightness) => onChange({ brightness })}
+        />
+
+        <SliderControl
+          label="Contrast"
+          value={settings.contrast}
+          min={0.2}
+          max={2.5}
+          step={0.05}
+          unit="x"
+          defaultValue={1.0}
+          onChange={(contrast) => onChange({ contrast })}
+        />
+
+        <SliderControl
+          label="Saturation"
+          value={settings.saturation}
+          min={0.0}
+          max={2.0}
+          step={0.05}
+          unit="x"
+          defaultValue={1.0}
+          onChange={(saturation) => onChange({ saturation })}
+        />
+
+        <SliderControl
+          label="Gamma"
+          value={settings.gamma}
+          min={0.5}
+          max={2.5}
+          step={0.05}
+          unit="x"
+          defaultValue={1.0}
+          onChange={(gamma) => onChange({ gamma })}
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <aside
+        className="hidden sm:flex sm:w-[320px] md:w-[350px] lg:w-[380px] xl:w-[410px] bg-card border-l border-border flex-col h-full overflow-hidden select-none shrink-0"
+        style={{ borderLeftWidth: "1px" }}
+      >
+        <div className="h-11 px-4 bg-neutral-950 border-b border-border flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 bg-white inline-block" />
+            <span className="text-xs sm:text-[13px] font-mono font-bold uppercase tracking-wider text-white">
+              STUDIO CONTROLS
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-border text-xs text-foreground/90">
+          <section className="bg-card">
+            <SectionHeader
+              title="SOURCE MEDIA"
+              icon={ImageIcon}
+              isOpen={openSections.media}
+              onToggle={() => toggleSection("media")}
+            />
+            {openSections.media && renderMediaContent()}
+          </section>
+
+          <section className="bg-card">
+            <SectionHeader
+              title="DITHER MATRIX & ENGINE"
+              icon={SlidersIcon}
+              isOpen={openSections.dither}
+              onToggle={() => toggleSection("dither")}
+            />
+            {openSections.dither && renderDitherContent()}
+          </section>
+
+          <section className="bg-card">
+            <SectionHeader
+              title="COLOR & PALETTES"
+              icon={PaletteIcon}
+              isOpen={openSections.color}
+              onToggle={() => toggleSection("color")}
+            />
+            {openSections.color && renderColorContent()}
+          </section>
+
+          <section className="bg-card">
+            <SectionHeader
+              title="STYLE PRESETS"
+              icon={BookmarkIcon}
+              isOpen={openSections.presets}
+              onToggle={() => toggleSection("presets")}
+            />
+            {openSections.presets && renderPresetsContent()}
+          </section>
+
+          <section className="bg-card">
+            <SectionHeader
+              title="FRAMING & ADJUSTMENTS"
+              icon={SunIcon}
+              isOpen={openSections.adjust}
+              onToggle={() => toggleSection("adjust")}
+            />
+            {openSections.adjust && renderAdjustContent()}
+          </section>
+        </div>
+      </aside>
+
+      <div
+        className={cn(
+          "flex sm:hidden flex-col shrink-0 border-t border-border bg-card z-30 transition-[height] duration-150 ease-out select-none",
+          mobileSheetState === "collapsed" && "h-[calc(3.5rem+env(safe-area-inset-bottom,0px))]",
+          mobileSheetState === "docked" && "h-[48dvh] max-h-[48dvh]",
+          mobileSheetState === "expanded" && "h-[78dvh] max-h-[78dvh]"
+        )}
+      >
+        {mobileSheetState !== "collapsed" && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-black/60 border-b border-border">
+            <div className="h-10 px-3 bg-neutral-950 border-b border-border flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                {mobileTab === "media" && <ImageIcon className="w-4 h-4 text-white shrink-0" />}
+                {mobileTab === "dither" && <SlidersIcon className="w-4 h-4 text-white shrink-0" />}
+                {mobileTab === "color" && <PaletteIcon className="w-4 h-4 text-white shrink-0" />}
+                {mobileTab === "presets" && <BookmarkIcon className="w-4 h-4 text-white shrink-0" />}
+                {mobileTab === "adjust" && <SunIcon className="w-4 h-4 text-white shrink-0" />}
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-white truncate">
+                  {mobileTab === "media" && "SOURCE MEDIA"}
+                  {mobileTab === "dither" && "DITHER MATRIX"}
+                  {mobileTab === "color" && "COLOR & PALETTES"}
+                  {mobileTab === "presets" && "STYLE PRESETS"}
+                  {mobileTab === "adjust" && "FRAMING & ADJUST"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMobileSheetState((prev) => (prev === "docked" ? "expanded" : "docked"))
+                  }
+                  className="px-2 py-1 text-[10px] font-mono border border-border hover:border-white text-neutral-300 hover:text-white transition-colors btn-press flex items-center gap-1"
+                  title={mobileSheetState === "docked" ? "Expand panel" : "Dock panel"}
+                >
+                  {mobileSheetState === "docked" ? (
+                    <>
+                      <CaretUpIcon className="w-3 h-3" />
+                      <span>EXPAND</span>
+                    </>
+                  ) : (
+                    <>
+                      <CaretDownIcon className="w-3 h-3" />
+                      <span>HALF</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMobileSheetState("collapsed")}
+                  className="p-1 text-neutral-400 hover:text-white border border-transparent hover:border-neutral-700 transition-colors btn-press flex items-center justify-center"
+                  title="Collapse panel"
+                >
+                  <XIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y p-3.5 space-y-4">
+              {mobileTab === "media" && renderMediaContent()}
+              {mobileTab === "dither" && renderDitherContent()}
+              {mobileTab === "color" && renderColorContent()}
+              {mobileTab === "presets" && renderPresetsContent()}
+              {mobileTab === "adjust" && renderAdjustContent()}
+            </div>
+          </div>
+        )}
+
+        <nav
+          aria-label="Studio Navigation"
+          className="h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] pb-safe bg-neutral-950 flex items-stretch divide-x divide-border/60 shrink-0"
+        >
+          {[
+            { id: "media" as const, label: "MEDIA", icon: ImageIcon },
+            { id: "dither" as const, label: "DITHER", icon: SlidersIcon },
+            { id: "color" as const, label: "COLOR", icon: PaletteIcon },
+            { id: "presets" as const, label: "PRESETS", icon: BookmarkIcon },
+            { id: "adjust" as const, label: "ADJUST", icon: SunIcon },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isSelected = mobileTab === tab.id && mobileSheetState !== "collapsed";
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleMobileTabClick(tab.id)}
+                className={cn(
+                  "flex-1 flex flex-col items-center justify-center gap-1 font-mono transition-all btn-press text-[10px]",
+                  isSelected
+                    ? "bg-white text-black font-bold shadow-inner"
+                    : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                )}
+              >
+                <Icon className={cn("w-4 h-4", isSelected ? "text-black" : "text-neutral-300")} />
+                <span className="tracking-wider text-[9px] sm:text-[10px]">{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </>
   );
 }

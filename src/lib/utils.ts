@@ -32,10 +32,9 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 export function getLuminance(r: number, g: number, b: number): number {
-  return colord({ r, g, b }).brightness() * 255;
+  return (299 * r + 587 * g + 114 * b) / 1000;
 }
 
-/** CIEDE2000 perceptual color distance via colord/lab */
 export function deltaE(
   c1: string | { r: number; g: number; b: number },
   c2: string | { r: number; g: number; b: number }

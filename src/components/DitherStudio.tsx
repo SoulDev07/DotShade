@@ -2,14 +2,15 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import {
-  CornersOut,
-  CornersIn,
-  SquareSplitHorizontal,
-  ArrowCounterClockwise,
-  DownloadSimple,
-  Eye,
-  EyeSlash,
-  DiceFive,
+  CornersOutIcon,
+  CornersInIcon,
+  SquareSplitHorizontalIcon,
+  ArrowCounterClockwiseIcon,
+  DownloadSimpleIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  DiceFiveIcon,
+  DotsThreeVerticalIcon,
 } from "@phosphor-icons/react";
 import { DitherCanvas, type DitherCanvasHandle } from "./DitherCanvas";
 import { ControlPanel } from "./ControlPanel";
@@ -69,21 +70,22 @@ export function DitherStudio() {
   const [isWebcamActive, setIsWebcamActive] = useState(false);
   const [mediaDimensions, setMediaDimensions] = useState<{ width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState<number>(1);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const prevMediaTypeRef = useRef<MediaType | null>(null);
+  const prevAnimatedRef = useRef(false);
   const ditherRef = useRef<DitherCanvasHandle>(null);
   const cpuCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHeldRef = useRef(false);
   const cachedCpuImageRef = useRef<{ url: string; img: HTMLImageElement } | null>(null);
-  // Mirror of `settings` for callbacks; avoids re-rendering memoized trees.
+  const cpuVideoNoticeRef = useRef(false);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  // Revoke late: deferred renders / in-flight loads may still read the URL.
   const scheduleRevoke = useCallback((url: string | undefined) => {
     if (!url || !url.startsWith("blob:")) return;
     window.setTimeout(() => URL.revokeObjectURL(url), 1500);
@@ -95,7 +97,6 @@ export function DitherStudio() {
     };
   }, []);
 
-  // Ensure the webcam is released if the studio unmounts while it's active.
   useEffect(() => {
     return () => {
       webcamStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -155,7 +156,6 @@ export function DitherStudio() {
       if (updater.mediaUrl !== undefined && updater.mediaUrl !== prevUrl) {
         scheduleRevoke(prevUrl);
       }
-      // Sync the mirror even between renders for back-to-back updates.
       settingsRef.current = { ...settingsRef.current, ...updater };
       setSettings((prev) => ({ ...prev, ...updater }));
     },
@@ -168,7 +168,7 @@ export function DitherStudio() {
         const file = acceptedFiles[0];
         const url = URL.createObjectURL(file);
         if (file.type.startsWith("image/")) {
-          updateSettings({ mediaType: "image", mediaUrl: url });
+          updateSettings({ mediaType: "image", mediaUrl: url, animated: false });
           toast.success("Loaded image into workspace", { description: file.name });
         } else if (file.type.startsWith("video/")) {
           updateSettings({ mediaType: "video", mediaUrl: url, animated: true });
@@ -197,7 +197,7 @@ export function DitherStudio() {
         const file = e.clipboardData.files[0];
         if (file.type.startsWith("image/")) {
           const url = URL.createObjectURL(file);
-          updateSettings({ mediaType: "image", mediaUrl: url });
+          updateSettings({ mediaType: "image", mediaUrl: url, animated: false });
           toast.success("Image pasted from clipboard!");
         }
       }
@@ -212,10 +212,13 @@ export function DitherStudio() {
       webcamStreamRef.current = null;
       if (videoElementRef.current) videoElementRef.current.srcObject = null;
       setIsWebcamActive(false);
-      // Restore whatever media type was on screen before the camera took over.
+      const wasPrevTypeImage = prevMediaTypeRef.current === "image";
       const prevType = prevMediaTypeRef.current;
+      const prevAnimated = prevAnimatedRef.current;
       prevMediaTypeRef.current = null;
-      if (prevType) updateSettings({ mediaType: prevType });
+      if (prevType) {
+        updateSettings({ mediaType: prevType, animated: !wasPrevTypeImage && prevAnimated });
+      }
       toast.info("Webcam disconnected");
       return;
     }
@@ -225,8 +228,9 @@ export function DitherStudio() {
         video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       prevMediaTypeRef.current = settingsRef.current.mediaType;
+      prevAnimatedRef.current = settingsRef.current.animated;
       webcamStreamRef.current = stream;
-      updateSettings({ mediaType: "video" });
+      updateSettings({ mediaType: "video", animated: true });
       setIsWebcamActive(true);
       toast.success("Live webcam connected!");
     } catch (err) {
@@ -235,7 +239,6 @@ export function DitherStudio() {
     }
   }, [isWebcamActive, updateSettings]);
 
-  // Bind post-commit: React's src writes would otherwise clobber srcObject.
   useEffect(() => {
     const video = videoElementRef.current;
     if (!video) return;
@@ -252,7 +255,7 @@ export function DitherStudio() {
 
   const handleUploadImage = useCallback((file: File) => {
     const url = URL.createObjectURL(file);
-    updateSettings({ mediaType: "image", mediaUrl: url });
+    updateSettings({ mediaType: "image", mediaUrl: url, animated: false });
     toast.success("Uploaded image", { description: file.name });
   }, [updateSettings]);
 
@@ -318,11 +321,11 @@ export function DitherStudio() {
     const randomMode = colorModes[Math.floor(Math.random() * colorModes.length)];
 
     const randomPalette = RETRO_PALETTES[Math.floor(Math.random() * RETRO_PALETTES.length)];
-    const randomPxSize = Number((1 + Math.random() * 3).toFixed(1)); // 1.0 to 4.0
-    const randomThreshold = Number((0.35 + Math.random() * 0.3).toFixed(2)); // 0.35 to 0.65
-    const randomColorSteps = Math.floor(2 + Math.random() * 6); // 2 to 7
+    const randomPxSize = Number((1 + Math.random() * 3).toFixed(1));
+    const randomThreshold = Number((0.35 + Math.random() * 0.3).toFixed(2));
+    const randomColorSteps = Math.floor(2 + Math.random() * 6);
 
-    const randomAngle = Math.floor(Math.random() * 12) * 15; // 0, 15, 30...
+    const randomAngle = Math.floor(Math.random() * 12) * 15;
     const randomHalftoneScale = Number((1 + Math.random() * 3).toFixed(1));
 
     const colorBack = randomPalette.colors[0] || "#000000";
@@ -360,14 +363,12 @@ export function DitherStudio() {
     }
   }, []);
 
-  // Resync if fullscreen is left via the browser UI (Esc) instead of the button.
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  // Declarative keyboard shortcuts powered by react-hotkeys-hook
   useHotkeys("escape", (e) => {
     e.preventDefault();
     if (isExportOpen) {
@@ -407,13 +408,23 @@ export function DitherStudio() {
   useEffect(() => {
     if (deferredSettings.engine !== "cpu" || !cpuCanvasRef.current) return;
     const canvas = cpuCanvasRef.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
     let isSubscribed = true;
 
     const runCpu = async () => {
       if (!deferredSettings.mediaUrl) return;
+
+      if (deferredSettings.mediaType !== "image" || isWebcamActive) {
+        if (!cpuVideoNoticeRef.current) {
+          cpuVideoNoticeRef.current = true;
+          toast.info("CPU engine dithers still images only", {
+            description: "Switch to the WebGPU or WebGL engine for video/webcam.",
+          });
+        }
+        return;
+      }
 
       const processWithImage = async (img: HTMLImageElement) => {
         if (!isSubscribed) return;
@@ -429,7 +440,6 @@ export function DitherStudio() {
             h = maxDim;
           }
         }
-        // Ultra-thin sources can round down to 0, which makes ImageData throw.
         w = Math.max(1, w);
         h = Math.max(1, h);
         canvas.width = w;
@@ -492,8 +502,6 @@ export function DitherStudio() {
     deferredSettings.contrast,
     deferredSettings.gamma,
     deferredSettings.inverted,
-    // <canvas> remounts when split view re-parents it
-    isSplitView,
   ]);
 
   const handleCaptureBlob = useCallback(
@@ -541,7 +549,6 @@ export function DitherStudio() {
     [deferredSettings, activeMediaSrc]
   );
 
-  // Always mounted so view toggles/peeking never dispose the pipeline.
   const ditheredElement =
     settings.engine === "cpu" ? (
       <canvas ref={cpuCanvasRef} className="w-full h-full object-contain pixel-art" />
@@ -549,7 +556,6 @@ export function DitherStudio() {
       ditherCanvasElement
     );
 
-  // Ref-like accessor: resolves the live canvas at export time.
   const exportCanvasRef = useMemo<React.RefObject<HTMLCanvasElement | null>>(
     () => ({
       get current() {
@@ -628,25 +634,25 @@ export function DitherStudio() {
   }, [mediaDimensions, settings.fit, zoom]);
 
   return (
-    <div className="flex flex-col lg:flex-row w-screen h-screen overflow-hidden bg-background text-foreground font-sans select-none">
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="h-12 border-b border-border bg-card px-4 flex items-center justify-between z-30 shrink-0 gap-3" style={{ boxShadow: "0 1px 0 rgba(255,255,255,0.08)" }}>
-          <div className="flex items-center gap-2.5 shrink-0">
-            <DotShadeLogo size={20} />
+    <div className="flex flex-col sm:flex-row w-full h-[100dvh] max-h-[100dvh] overflow-hidden bg-background text-foreground font-sans select-none">
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+        <header className="h-12 border-b border-border bg-card px-2.5 sm:px-4 flex items-center justify-between z-30 shrink-0 gap-1.5 sm:gap-3" style={{ boxShadow: "0 1px 0 rgba(255,255,255,0.08)" }}>
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <DotShadeLogo size={18} />
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
               DotShade
             </span>
-            <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-secondary border border-border text-foreground font-medium" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)" }}>
+            <span className="hidden sm:inline-block text-[10px] font-mono uppercase px-2 py-0.5 bg-secondary border border-border text-foreground font-medium" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)" }}>
               {settings.engine}
             </span>
             {mediaDimensions && (
-              <span className="hidden sm:inline-block text-[10px] font-mono text-muted-foreground border-l border-border pl-2.5">
+              <span className="hidden md:inline-block text-[10px] font-mono text-muted-foreground border-l border-border pl-2.5">
                 {mediaDimensions.width} × {mediaDimensions.height} px
               </span>
             )}
           </div>
 
-          <div className="flex items-center bg-secondary/80 p-0.5 border border-border" style={{ gap: "1px" }}>
+          <div className="flex items-center bg-secondary/80 p-0.5 border border-border shrink-0" style={{ gap: "1px" }}>
             <button
               type="button"
               onClick={() => {
@@ -654,7 +660,7 @@ export function DitherStudio() {
                 setIsSplitView(false);
               }}
               className={cn(
-                "px-2.5 py-1 text-xs font-mono transition-all btn-press",
+                "px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-mono transition-all btn-press",
                 !isViewingOriginal && !isSplitView
                   ? "bg-primary text-primary-foreground font-bold border border-primary"
                   : "text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
@@ -674,7 +680,7 @@ export function DitherStudio() {
               }}
               disabled={settings.mediaType === "procedural" && !isWebcamActive}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono transition-all btn-press",
+                "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-mono transition-all btn-press",
                 settings.mediaType === "procedural" && !isWebcamActive
                   ? "opacity-40 cursor-not-allowed text-muted-foreground/50 border border-transparent"
                   : isSplitView
@@ -683,8 +689,8 @@ export function DitherStudio() {
               )}
               title="Split Comparison (Tab)"
             >
-              <SquareSplitHorizontal className="w-3.5 h-3.5" />
-              <span>SPLIT</span>
+              <SquareSplitHorizontalIcon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">SPLIT</span>
             </button>
             <button
               type="button"
@@ -694,7 +700,7 @@ export function DitherStudio() {
               onPointerLeave={handleOriginalPointerLeave}
               disabled={settings.mediaType === "procedural" && !isWebcamActive}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono transition-all btn-press",
+                "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-mono transition-all btn-press",
                 settings.mediaType === "procedural" && !isWebcamActive
                   ? "opacity-40 cursor-not-allowed text-muted-foreground/50 border border-transparent"
                   : isViewingOriginal
@@ -704,16 +710,16 @@ export function DitherStudio() {
               title="View Original (Click to toggle, hold to peek, or press 'O')"
             >
               {isViewingOriginal ? (
-                <EyeSlash className="w-3.5 h-3.5" />
+                <EyeSlashIcon className="w-3.5 h-3.5" />
               ) : (
-                <Eye className="w-3.5 h-3.5" />
+                <EyeIcon className="w-3.5 h-3.5" />
               )}
-              <span>SOURCE</span>
+              <span className="hidden sm:inline">SOURCE</span>
             </button>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden md:flex items-center bg-secondary/80 p-0.5 border border-border" style={{ gap: "1px" }}>
+            <div className="hidden xl:flex items-center bg-secondary/80 p-0.5 border border-border" style={{ gap: "1px" }}>
               <button
                 type="button"
                 onClick={() => updateSettings({ fit: "contain" })}
@@ -742,7 +748,7 @@ export function DitherStudio() {
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center bg-secondary/80 border border-border px-1 py-0.5" style={{ gap: "1px" }}>
+            <div className="hidden xl:flex items-center bg-secondary/80 border border-border px-1 py-0.5" style={{ gap: "1px" }}>
               <button
                 type="button"
                 onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.15).toFixed(2))))}
@@ -774,25 +780,149 @@ export function DitherStudio() {
               className="flex items-center gap-1 px-2 py-1 bg-secondary hover:bg-neutral-800 border border-border hover:border-neutral-400 text-neutral-200 hover:text-white text-xs font-mono transition-colors btn-press"
               title="Randomize style (X)"
             >
-              <DiceFive className="w-3.5 h-3.5 text-primary" />
+              <DiceFiveIcon className="w-3.5 h-3.5 text-primary" />
               <span className="hidden sm:inline font-bold">RANDOM</span>
             </button>
 
             <button
               onClick={handleReset}
-              className="p-1.5 bg-secondary hover:bg-secondary/80 border border-border hover:border-border-hover text-muted-foreground hover:text-foreground text-xs font-mono transition-colors btn-press"
+              className="hidden xl:flex p-1.5 bg-secondary hover:bg-secondary/80 border border-border hover:border-border-hover text-muted-foreground hover:text-foreground text-xs font-mono transition-colors btn-press"
               title="Reset Settings (R)"
             >
-              <ArrowCounterClockwise className="w-3.5 h-3.5" />
+              <ArrowCounterClockwiseIcon className="w-3.5 h-3.5" />
             </button>
 
             <button
               onClick={toggleFullscreen}
-              className="p-1.5 bg-secondary hover:bg-secondary/80 border border-border hover:border-border-hover text-muted-foreground hover:text-foreground text-xs font-mono transition-colors btn-press"
+              className="hidden xl:flex p-1.5 bg-secondary hover:bg-secondary/80 border border-border hover:border-border-hover text-muted-foreground hover:text-foreground text-xs font-mono transition-colors btn-press"
               title="Toggle Fullscreen (F)"
             >
-              {isFullscreen ? <CornersIn className="w-3.5 h-3.5" /> : <CornersOut className="w-3.5 h-3.5" />}
+              {isFullscreen ? <CornersInIcon className="w-3.5 h-3.5" /> : <CornersOutIcon className="w-3.5 h-3.5" />}
             </button>
+
+            <div className="relative xl:hidden">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen((v) => !v)}
+                className={cn(
+                  "p-1.5 border transition-colors btn-press flex items-center justify-center",
+                  isMobileMenuOpen
+                    ? "bg-white text-black border-white font-bold"
+                    : "bg-secondary hover:bg-secondary/80 border-border text-muted-foreground hover:text-foreground"
+                )}
+                title="More Studio Tools"
+              >
+                <DotsThreeVerticalIcon className="w-4 h-4" />
+              </button>
+
+              {isMobileMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1.5 w-52 bg-black border-2 border-white p-2.5 z-50 flex flex-col gap-2 modal-enter shadow-[3px_3px_0_rgba(255,255,255,0.25)]">
+                    <div className="text-[10px] font-mono font-bold text-neutral-400 uppercase tracking-widest border-b border-neutral-800 pb-1 flex justify-between items-center">
+                      <span>OPTIONS</span>
+                      {mediaDimensions && (
+                        <span className="text-[9px] text-neutral-300">
+                          {mediaDimensions.width}×{mediaDimensions.height}px
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-neutral-300 text-[11px]">Framing</span>
+                      <div className="flex border border-border bg-neutral-900">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateSettings({ fit: "contain" });
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={cn(
+                            "px-2 py-0.5 text-[10px] font-mono",
+                            settings.fit === "contain"
+                              ? "bg-white text-black font-bold"
+                              : "text-neutral-400"
+                          )}
+                        >
+                          FIT
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateSettings({ fit: "cover" });
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={cn(
+                            "px-2 py-0.5 text-[10px] font-mono",
+                            settings.fit === "cover"
+                              ? "bg-white text-black font-bold"
+                              : "text-neutral-400"
+                          )}
+                        >
+                          FILL
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-neutral-300 text-[11px]">Zoom</span>
+                      <div className="flex items-center border border-border bg-neutral-900 px-1 py-0.5 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.15).toFixed(2))))}
+                          className="px-1 text-xs text-neutral-400 hover:text-white"
+                        >
+                          -
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setZoom(1)}
+                          className="text-[10px] text-white font-bold"
+                        >
+                          {Math.round(zoom * 100)}%
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setZoom((z) => Math.min(3, Number((z + 0.15).toFixed(2))))}
+                          className="px-1 text-xs text-neutral-400 hover:text-white"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-neutral-800 pt-1.5 flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleReset();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-[11px] font-mono bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-border"
+                      >
+                        <span>RESET ALL</span>
+                        <ArrowCounterClockwiseIcon className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleFullscreen();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-[11px] font-mono bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-border"
+                      >
+                        <span>{isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"}</span>
+                        {isFullscreen ? <CornersInIcon className="w-3.5 h-3.5" /> : <CornersOutIcon className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             <button
               onClick={handleOpenExport}
@@ -800,7 +930,7 @@ export function DitherStudio() {
               title="Export (Ctrl+S)"
               style={{ boxShadow: "2px 2px 0 rgba(255,255,255,0.3)" }}
             >
-              <DownloadSimple className="w-3.5 h-3.5" />
+              <DownloadSimpleIcon className="w-3.5 h-3.5" />
               <span>EXPORT</span>
             </button>
           </div>
@@ -809,7 +939,7 @@ export function DitherStudio() {
         <div
           ref={stageRef}
           {...getRootProps()}
-          className="flex-1 relative flex items-center justify-center p-4 lg:p-6 overflow-hidden bg-background outline-none"
+          className="flex-1 min-h-0 relative flex items-center justify-center p-2 sm:p-4 lg:p-6 overflow-hidden bg-background outline-none"
         >
           <input {...getInputProps()} />
           {isDragActive && (
@@ -827,16 +957,13 @@ export function DitherStudio() {
             className="relative border border-border bg-card/90 overflow-hidden flex items-center justify-center transition-[transform] duration-150 ease-out"
             style={{ ...stageContainerStyle, boxShadow: "0 0 0 1px rgba(255,255,255,0.18), 2px 2px 0 rgba(0,0,0,1)" }}
           >
-            {/* Dithered layer stays mounted so peeking doesn't dispose the GPU
-                pipeline and exports still have a live canvas. */}
             <div className={cn("absolute inset-0", isViewingOriginal && "invisible")}>
-              {isSplitView && !isViewingOriginal ? (
+              {ditheredElement}
+
+              {isSplitView && !isViewingOriginal && (
                 <SplitCompareSlider
                   originalElement={originalMediaElement}
-                  ditheredElement={ditheredElement}
                 />
-              ) : (
-                ditheredElement
               )}
             </div>
 
@@ -872,7 +999,7 @@ export function DitherStudio() {
 
             {isViewingOriginal && (
               <div className="absolute top-3 left-3 z-20 flex items-center gap-2 px-3 py-1.5 bg-black border border-white text-xs font-mono text-white" style={{ boxShadow: "2px 2px 0 rgba(0,0,0,1)" }}>
-                <Eye className="w-3.5 h-3.5 text-white" />
+                <EyeIcon className="w-3.5 h-3.5 text-white" />
                 <span className="font-bold uppercase tracking-wider text-[11px]">
                   SOURCE {settings.mediaType === "video" || isWebcamActive ? "VIDEO" : "PHOTO"}
                 </span>
@@ -884,14 +1011,14 @@ export function DitherStudio() {
                   className="ml-1 p-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   title="Return to dithered (O)"
                 >
-                  <EyeSlash className="w-3.5 h-3.5" />
+                  <EyeSlashIcon className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
           </div>
 
           {settings.mediaType === "video" && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-20">
+            <div className="absolute bottom-2.5 sm:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-2 sm:px-4 z-20">
               <VideoControls videoRef={videoElementRef} />
             </div>
           )}
@@ -906,8 +1033,6 @@ export function DitherStudio() {
         onToggleWebcam={toggleWebcam}
         isWebcamActive={isWebcamActive}
         onApplyPreset={updateSettings}
-        isViewingOriginal={isViewingOriginal}
-        onToggleOriginal={handleOriginalClick}
       />
 
       <ExportModal

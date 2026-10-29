@@ -7,7 +7,7 @@ interface CpuDitherWorkerApi {
     width: number,
     height: number,
     options: CpuDitherOptions
-  ): Uint8ClampedArray;
+  ): Uint8ClampedArray<ArrayBuffer>;
 }
 
 let workerInstance: Comlink.Remote<CpuDitherWorkerApi> | null = null;
@@ -32,24 +32,22 @@ function getWorker(): Comlink.Remote<CpuDitherWorkerApi> | null {
   return workerInstance;
 }
 
-/** Offloads CPU error-diffusion to a Web Worker, falling back to synchronous execution */
 export async function processCpuDitheringAsync(
   imageData: ImageData,
   options: CpuDitherOptions
 ): Promise<ImageData> {
   const worker = getWorker();
+  const { width, height } = imageData;
   if (worker) {
     try {
       const copy = new Uint8ClampedArray(imageData.data);
-      const processedBuffer = await worker.process(
-        copy,
-        imageData.width,
-        imageData.height,
+      const processed = await worker.process(
+        Comlink.transfer(copy, [copy.buffer]),
+        width,
+        height,
         options
       );
-      const output = new ImageData(imageData.width, imageData.height);
-      output.data.set(processedBuffer);
-      return output;
+      return new ImageData(processed as Uint8ClampedArray<ArrayBuffer>, width, height);
     } catch (err) {
       console.warn("Worker error during dithering, falling back to sync:", err);
     }

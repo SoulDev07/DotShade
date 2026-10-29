@@ -1,5 +1,5 @@
 import * as Comlink from "comlink";
-import { processCpuDithering, type CpuDitherOptions } from "../cpu-dither";
+import { processCpuDitheringData, type CpuDitherOptions } from "../cpu-dither";
 
 export const cpuDitherWorker = {
   process(
@@ -8,10 +8,8 @@ export const cpuDitherWorker = {
     height: number,
     options: CpuDitherOptions
   ): Uint8ClampedArray {
-    const imgData = new ImageData(width, height);
-    imgData.data.set(buffer);
-    const result = processCpuDithering(imgData, options);
-    return result.data;
+    const result = processCpuDitheringData(buffer, width, height, options);
+    return Comlink.transfer(result.data, [result.data.buffer]);
   },
 };
 

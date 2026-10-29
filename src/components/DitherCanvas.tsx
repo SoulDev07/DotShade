@@ -43,28 +43,22 @@ export const DitherCanvas = React.memo(
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const mountRef = useRef<ActiveDitherMount | null>(null);
 
-    // Track active engine and version to guarantee a fresh canvas on engine change/fallback
     const [activeEngine, setActiveEngine] = useState<"vgpu" | "webgl">(
       settings.engine === "vgpu" ? "vgpu" : "webgl"
     );
     const [engineVersion, setEngineVersion] = useState(0);
 
-    // Synchronize active engine when settings.engine changes
     useEffect(() => {
       const targetEngine = settings.engine === "vgpu" ? "vgpu" : "webgl";
       setActiveEngine(targetEngine);
       setEngineVersion((v) => v + 1);
     }, [settings.engine]);
 
-    // Guards against a stale async load overwriting a newer source.
     const sourceTokenRef = useRef(0);
-
-    // Read through refs: async (WebGPU) init outlives captured prop values.
     const settingsRef = useRef(settings);
     settingsRef.current = settings;
     const srcRef = useRef(src);
     srcRef.current = src;
-    // Refs keep callback churn from re-running the mount effect (GPU re-init).
     const onReadyRef = useRef(onReady);
     onReadyRef.current = onReady;
     const onErrorRef = useRef(onError);
@@ -139,13 +133,11 @@ export const DitherCanvas = React.memo(
             if (ok) {
               activeMount = vgpuMount;
               mountRef.current = vgpuMount;
-              // Re-apply options changed during the async init.
               vgpuMount.updateOptions(settingsRef.current);
               onReadyRef.current?.(vgpuMount);
               applySource(vgpuMount, srcRef.current);
               return;
             }
-            // Init failed; fall back to WebGL2 below.
             vgpuMount.dispose();
           } catch (err) {
             console.warn("vgpu (WebGPU) initialization failed, falling back to WebGL2:", err);
@@ -200,7 +192,6 @@ export const DitherCanvas = React.memo(
         activeMount?.dispose();
         mountRef.current = null;
       };
-      // settings/src are read via refs above; prop changes must not teardown the GPU.
     }, [activeEngine, engineVersion, applySource]);
 
     useEffect(() => {
@@ -235,7 +226,6 @@ export const DitherCanvas = React.memo(
         className={cn("relative w-full h-full overflow-hidden select-none", className)}
         style={style}
       >
-        {/* Key forces fresh canvas DOM element on engine switch to prevent WebGPU / WebGL2 context collisions */}
         <canvas
           key={`${activeEngine}-${engineVersion}`}
           ref={canvasRef}
@@ -246,4 +236,3 @@ export const DitherCanvas = React.memo(
     );
   })
 );
-
