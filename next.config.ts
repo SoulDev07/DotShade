@@ -1,5 +1,5 @@
-import type { NextConfig } from "next";
 import { wgslTurbopackRule } from "@vgpu/wgsl/next";
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   turbopack: {

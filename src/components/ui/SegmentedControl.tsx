@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import type React from "react";
 import { cn } from "@/lib/utils";
 
 export interface SegmentOption<T extends string> {
@@ -28,10 +28,7 @@ export function SegmentedControl<T extends string>({
   return (
     <div
       role="radiogroup"
-      className={cn(
-        "grid bg-muted/40 p-0.5 border border-border select-none",
-        className
-      )}
+      className={cn("bg-muted/40 border-border grid border p-0.5 select-none", className)}
       style={{
         gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
         gap: "1px",
@@ -49,11 +46,11 @@ export function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "flex items-center justify-center gap-1.5 font-mono transition-all duration-75 relative text-center btn-press",
-              size === "sm" ? "py-1.5 px-2 text-[11px]" : "py-2 px-2.5 text-xs",
+              "btn-press relative flex items-center justify-center gap-1.5 text-center font-mono transition-all duration-75",
+              size === "sm" ? "px-2 py-1.5 text-[11px]" : "px-2.5 py-2 text-xs",
               isActive
-                ? "bg-white text-black font-bold border border-white shadow-sm"
-                : "text-neutral-300 hover:text-white hover:bg-secondary/50 border border-transparent hover:border-neutral-700"
+                ? "border border-white bg-white font-bold text-black shadow-sm"
+                : "hover:bg-secondary/50 border border-transparent text-neutral-300 hover:border-neutral-700 hover:text-white",
             )}
             title={opt.description || opt.label}
           >
@@ -61,8 +58,8 @@ export function SegmentedControl<T extends string>({
               <Icon
                 className={cn(
                   "shrink-0",
-                  size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4",
-                  isActive ? "text-primary-foreground" : "text-muted-foreground"
+                  size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4",
+                  isActive ? "text-primary-foreground" : "text-muted-foreground",
                 )}
               />
             )}

@@ -16,12 +16,7 @@ declare module "gifenc" {
     bytesView(): Uint8Array;
     buffer: ArrayBuffer;
     writeHeader(): void;
-    writeFrame(
-      index: Uint8Array,
-      width: number,
-      height: number,
-      opts?: GifFrameOptions
-    ): void;
+    writeFrame(index: Uint8Array, width: number, height: number, opts?: GifFrameOptions): void;
   }
 
   export function GIFEncoder(opt?: {
@@ -38,17 +33,17 @@ declare module "gifenc" {
       clearAlpha?: boolean;
       clearAlphaThreshold?: number;
       clearAlphaColor?: number;
-    }
+    },
   ): number[][];
 
   export function applyPalette(
     rgba: Uint8Array | Uint8ClampedArray,
     palette: number[][],
-    format?: string
+    format?: string,
   ): Uint8Array;
 
   export function nearestColorIndex(
     palette: number[][],
-    rgb: [number, number, number] | [number, number, number, number]
+    rgb: [number, number, number] | [number, number, number, number],
   ): number;
 }

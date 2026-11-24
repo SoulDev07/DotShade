@@ -1,4 +1,4 @@
-import { GIFEncoder, quantize, applyPalette } from "gifenc";
+import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import { colord } from "@/lib/utils";
 
 export class ClientGifEncoder {
@@ -32,10 +32,7 @@ export class ClientGifEncoder {
 
   public addFrame(imageData: ImageData, delayMs = 100) {
     const { data } = imageData;
-    const pal =
-      this.palette && this.palette.length > 0
-        ? this.palette
-        : quantize(data, 256);
+    const pal = this.palette && this.palette.length > 0 ? this.palette : quantize(data, 256);
 
     const index = applyPalette(data, pal);
 
@@ -54,10 +51,7 @@ export class ClientGifEncoder {
   }
 }
 
-export function extractPaletteFromImageData(
-  imageData: ImageData,
-  maxColors = 8
-): string[] {
+export function extractPaletteFromImageData(imageData: ImageData, maxColors = 8): string[] {
   const count = Math.min(256, Math.max(2, maxColors));
   const rawPalette = quantize(imageData.data, count);
   return rawPalette.map(([r, g, b]: number[]) => colord({ r, g, b }).toHex());

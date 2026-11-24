@@ -1,39 +1,40 @@
 "use client";
 
-import React, { useState } from "react";
 import {
-  SlidersIcon,
-  PaletteIcon,
-  ImageIcon,
-  BookmarkIcon,
-  CpuIcon,
-  LightningIcon,
-  StackIcon,
-  CameraIcon,
-  VideoCameraIcon,
   ArrowCounterClockwiseIcon,
-  CheckIcon,
-  ScanIcon,
-  CornersOutIcon,
   ArrowsOutLineVerticalIcon,
-  SunIcon,
-  MagnifyingGlassIcon,
-  XIcon,
-  SparkleIcon,
-  DiceFiveIcon,
+  BookmarkIcon,
+  CameraIcon,
   CaretDownIcon,
-  CaretUpIcon,
   CaretRightIcon,
+  CaretUpIcon,
+  CheckIcon,
+  CornersOutIcon,
+  CpuIcon,
+  DiceFiveIcon,
   EyedropperIcon,
+  ImageIcon,
+  LightningIcon,
+  MagnifyingGlassIcon,
+  PaletteIcon,
+  ScanIcon,
+  SlidersIcon,
+  SparkleIcon,
+  StackIcon,
+  SunIcon,
+  VideoCameraIcon,
+  XIcon,
 } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
+import type React from "react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { extractPaletteFromImageData } from "@/engine/gif-export";
 import { RETRO_PALETTES } from "@/engine/palettes";
 import type { DitherSettings } from "@/engine/types";
-import { extractPaletteFromImageData } from "@/engine/gif-export";
-import { toast } from "sonner";
-import { SliderControl } from "./ui/SliderControl";
+import { cn } from "@/lib/utils";
+import { ColorSwatchPicker, DualColorPicker } from "./ui/ColorSwatchPicker";
 import { SegmentedControl } from "./ui/SegmentedControl";
-import { DualColorPicker, ColorSwatchPicker } from "./ui/ColorSwatchPicker";
+import { SliderControl } from "./ui/SliderControl";
 
 export type { DitherSettings } from "@/engine/types";
 
@@ -259,10 +260,22 @@ const PRESETS: PresetItem[] = [
       colorMode: "palette" as const,
       paletteId: "pico-8",
       palette: [
-        "#000000", "#1d2b53", "#7e2553", "#008751",
-        "#ab5236", "#5f574f", "#c2c3c7", "#fff1e8",
-        "#ff004d", "#ffa300", "#ffec27", "#00e436",
-        "#29adff", "#83769c", "#ff77a8", "#ffccaa"
+        "#000000",
+        "#1d2b53",
+        "#7e2553",
+        "#008751",
+        "#ab5236",
+        "#5f574f",
+        "#c2c3c7",
+        "#fff1e8",
+        "#ff004d",
+        "#ffa300",
+        "#ffec27",
+        "#00e436",
+        "#29adff",
+        "#83769c",
+        "#ff77a8",
+        "#ffccaa",
       ],
       pxSize: 2,
       threshold: 0.5,
@@ -296,10 +309,22 @@ const PRESETS: PresetItem[] = [
       colorMode: "palette" as const,
       paletteId: "commodore-64",
       palette: [
-        "#000000", "#ffffff", "#880000", "#aaffee",
-        "#cc44cc", "#00cc55", "#0000aa", "#eeee77",
-        "#dd8855", "#664400", "#ff7777", "#333333",
-        "#777777", "#aaff66", "#0088ff", "#bbbbbb"
+        "#000000",
+        "#ffffff",
+        "#880000",
+        "#aaffee",
+        "#cc44cc",
+        "#00cc55",
+        "#0000aa",
+        "#eeee77",
+        "#dd8855",
+        "#664400",
+        "#ff7777",
+        "#333333",
+        "#777777",
+        "#aaff66",
+        "#0088ff",
+        "#bbbbbb",
       ],
       pxSize: 2.5,
       threshold: 0.5,
@@ -379,31 +404,26 @@ interface SectionHeaderProps {
   onToggle: () => void;
 }
 
-function SectionHeader({
-  title,
-  icon: Icon,
-  isOpen,
-  onToggle,
-}: SectionHeaderProps) {
+function SectionHeader({ title, icon: Icon, isOpen, onToggle }: SectionHeaderProps) {
   return (
     <button
       type="button"
       onClick={onToggle}
-      className="w-full flex items-center justify-between py-2.5 px-4 bg-neutral-950 hover:bg-neutral-900 border-y border-border transition-colors text-left btn-press select-none group"
+      className="border-border btn-press group flex w-full items-center justify-between border-y bg-neutral-950 px-4 py-2.5 text-left transition-colors select-none hover:bg-neutral-900"
       style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)" }}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <Icon className="w-4 h-4 text-neutral-300 group-hover:text-white transition-colors shrink-0" />
-        <span className="text-xs sm:text-[13px] font-mono font-bold uppercase tracking-wider text-white truncate">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <Icon className="h-4 w-4 shrink-0 text-neutral-300 transition-colors group-hover:text-white" />
+        <span className="truncate font-mono text-xs font-bold tracking-wider text-white uppercase sm:text-[13px]">
           {title}
         </span>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
         {isOpen ? (
-          <CaretDownIcon className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
+          <CaretDownIcon className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-white" />
         ) : (
-          <CaretRightIcon className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
+          <CaretRightIcon className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-white" />
         )}
       </div>
     </button>
@@ -550,10 +570,10 @@ export function ControlPanel({
   };
 
   const renderMediaContent = () => (
-    <div className="p-3.5 sm:p-4 space-y-3.5 bg-black/40">
+    <div className="space-y-3.5 bg-black/40 p-3.5 sm:p-4">
       <div className="grid grid-cols-2 gap-2">
-        <label className="flex items-center justify-center gap-2 py-2.5 px-3 bg-secondary/50 hover:bg-neutral-800 border border-border cursor-pointer font-mono text-xs text-white transition-colors btn-press font-bold">
-          <ImageIcon className="w-4 h-4 text-white" />
+        <label className="bg-secondary/50 border-border btn-press flex cursor-pointer items-center justify-center gap-2 border px-3 py-2.5 font-mono text-xs font-bold text-white transition-colors hover:bg-neutral-800">
+          <ImageIcon className="h-4 w-4 text-white" />
           <span>IMAGE</span>
           <input
             type="file"
@@ -566,8 +586,8 @@ export function ControlPanel({
           />
         </label>
 
-        <label className="flex items-center justify-center gap-2 py-2.5 px-3 bg-secondary/50 hover:bg-neutral-800 border border-border cursor-pointer font-mono text-xs text-white transition-colors btn-press font-bold">
-          <VideoCameraIcon className="w-4 h-4 text-white" />
+        <label className="bg-secondary/50 border-border btn-press flex cursor-pointer items-center justify-center gap-2 border px-3 py-2.5 font-mono text-xs font-bold text-white transition-colors hover:bg-neutral-800">
+          <VideoCameraIcon className="h-4 w-4 text-white" />
           <span>VIDEO</span>
           <input
             type="file"
@@ -584,13 +604,13 @@ export function ControlPanel({
           type="button"
           onClick={onToggleWebcam}
           className={cn(
-            "flex items-center justify-center gap-2 py-2.5 px-3 border font-mono text-xs transition-colors btn-press font-bold",
+            "btn-press flex items-center justify-center gap-2 border px-3 py-2.5 font-mono text-xs font-bold transition-colors",
             isWebcamActive
-              ? "bg-white text-black font-bold border-white"
-              : "bg-secondary/50 hover:bg-neutral-800 border-border text-white"
+              ? "border-white bg-white font-bold text-black"
+              : "bg-secondary/50 border-border text-white hover:bg-neutral-800",
           )}
         >
-          <CameraIcon className="w-4 h-4" />
+          <CameraIcon className="h-4 w-4" />
           <span>{isWebcamActive ? "STOP CAM" : "WEBCAM"}</span>
         </button>
 
@@ -598,19 +618,19 @@ export function ControlPanel({
           type="button"
           onClick={() => onChange({ mediaType: "procedural" })}
           className={cn(
-            "flex items-center justify-center gap-2 py-2.5 px-3 border font-mono text-xs transition-colors btn-press font-bold",
+            "btn-press flex items-center justify-center gap-2 border px-3 py-2.5 font-mono text-xs font-bold transition-colors",
             settings.mediaType === "procedural" && !isWebcamActive
-              ? "bg-white text-black font-bold border-white"
-              : "bg-secondary/50 hover:bg-neutral-800 border-border text-white"
+              ? "border-white bg-white font-bold text-black"
+              : "bg-secondary/50 border-border text-white hover:bg-neutral-800",
           )}
         >
-          <CpuIcon className="w-4 h-4" />
+          <CpuIcon className="h-4 w-4" />
           <span>PROCEDURAL</span>
         </button>
       </div>
 
-      <div className="pt-2.5 border-t border-border/60 space-y-2">
-        <span className="text-xs font-mono text-neutral-300 block font-bold uppercase tracking-wider">
+      <div className="border-border/60 space-y-2 border-t pt-2.5">
+        <span className="block font-mono text-xs font-bold tracking-wider text-neutral-300 uppercase">
           Quick Sample Library
         </span>
         <div className="grid grid-cols-1 gap-1.5">
@@ -620,21 +640,23 @@ export function ControlPanel({
               <button
                 key={item.name}
                 type="button"
-                onClick={() => onChange({ mediaType: "image", mediaUrl: item.url, animated: false })}
+                onClick={() =>
+                  onChange({ mediaType: "image", mediaUrl: item.url, animated: false })
+                }
                 className={cn(
-                  "w-full flex items-center justify-between py-2 px-3 border font-mono text-xs transition-all text-left btn-press",
+                  "btn-press flex w-full items-center justify-between border px-3 py-2 text-left font-mono text-xs transition-all",
                   isSelected
-                    ? "bg-white text-black border-white font-bold"
-                    : "bg-secondary/30 border-border text-neutral-300 hover:border-white hover:text-white"
+                    ? "border-white bg-white font-bold text-black"
+                    : "bg-secondary/30 border-border text-neutral-300 hover:border-white hover:text-white",
                 )}
               >
                 <span className="truncate">{item.name}</span>
                 <span
                   className={cn(
-                    "text-[10px] uppercase font-mono px-1.5 py-0.5 border font-medium shrink-0 ml-2",
+                    "ml-2 shrink-0 border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase",
                     isSelected
-                      ? "border-black text-black bg-neutral-200"
-                      : "border-neutral-700 text-neutral-400 bg-secondary"
+                      ? "border-black bg-neutral-200 text-black"
+                      : "bg-secondary border-neutral-700 text-neutral-400",
                   )}
                 >
                   {item.type}
@@ -648,9 +670,9 @@ export function ControlPanel({
   );
 
   const renderDitherContent = () => (
-    <div className="p-3.5 sm:p-4 space-y-4 bg-black/40">
+    <div className="space-y-4 bg-black/40 p-3.5 sm:p-4">
       <div className="space-y-1.5">
-        <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+        <label className="block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
           Rendering Engine
         </label>
         <SegmentedControl
@@ -666,20 +688,22 @@ export function ControlPanel({
 
       {settings.engine !== "cpu" ? (
         <div className="space-y-1.5">
-          <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+          <label className="block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
             Matrix Pattern
           </label>
           <div className="grid grid-cols-2 gap-1.5">
-            {([
-              { id: "8x8", label: "Bayer 8×8" },
-              { id: "4x4", label: "Bayer 4×4" },
-              { id: "2x2", label: "Bayer 2×2" },
-              { id: "16x16", label: "Bayer 16×16" },
-              { id: "halftone", label: "Halftone" },
-              { id: "crosshatch", label: "Crosshatch" },
-              { id: "clustered", label: "Clustered" },
-              { id: "noise", label: "Noise" },
-            ] as const).map((item) => {
+            {(
+              [
+                { id: "8x8", label: "Bayer 8×8" },
+                { id: "4x4", label: "Bayer 4×4" },
+                { id: "2x2", label: "Bayer 2×2" },
+                { id: "16x16", label: "Bayer 16×16" },
+                { id: "halftone", label: "Halftone" },
+                { id: "crosshatch", label: "Crosshatch" },
+                { id: "clustered", label: "Clustered" },
+                { id: "noise", label: "Noise" },
+              ] as const
+            ).map((item) => {
               const isSelected = settings.ditherType === item.id;
               return (
                 <button
@@ -687,14 +711,16 @@ export function ControlPanel({
                   type="button"
                   onClick={() => onChange({ ditherType: item.id })}
                   className={cn(
-                    "py-2.5 px-3 border text-left font-mono text-xs transition-all btn-press flex items-center justify-between font-bold",
+                    "btn-press flex items-center justify-between border px-3 py-2.5 text-left font-mono text-xs font-bold transition-all",
                     isSelected
-                      ? "bg-white text-black border-white shadow-sm"
-                      : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
+                      ? "border-white bg-white text-black shadow-sm"
+                      : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white",
                   )}
                 >
                   <span className="truncate">{item.label}</span>
-                  {isSelected && <CheckIcon className="w-4 h-4 text-black font-bold shrink-0 ml-1" />}
+                  {isSelected && (
+                    <CheckIcon className="ml-1 h-4 w-4 shrink-0 font-bold text-black" />
+                  )}
                 </button>
               );
             })}
@@ -702,19 +728,21 @@ export function ControlPanel({
         </div>
       ) : (
         <div className="space-y-1.5">
-          <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+          <label className="block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
             Diffusion Algorithm
           </label>
           <div className="grid grid-cols-2 gap-1.5">
-            {([
-              { id: "floyd-steinberg", label: "Floyd-Steinberg" },
-              { id: "atkinson", label: "Atkinson" },
-              { id: "sierra3", label: "Sierra-3" },
-              { id: "sierra-lite", label: "Sierra Lite" },
-              { id: "burkes", label: "Burkes" },
-              { id: "stucki", label: "Stucki" },
-              { id: "jarvis", label: "Jarvis" },
-            ] as const).map((item) => {
+            {(
+              [
+                { id: "floyd-steinberg", label: "Floyd-Steinberg" },
+                { id: "atkinson", label: "Atkinson" },
+                { id: "sierra3", label: "Sierra-3" },
+                { id: "sierra-lite", label: "Sierra Lite" },
+                { id: "burkes", label: "Burkes" },
+                { id: "stucki", label: "Stucki" },
+                { id: "jarvis", label: "Jarvis" },
+              ] as const
+            ).map((item) => {
               const isSelected = settings.cpuAlgorithm === item.id;
               return (
                 <button
@@ -722,14 +750,16 @@ export function ControlPanel({
                   type="button"
                   onClick={() => onChange({ cpuAlgorithm: item.id })}
                   className={cn(
-                    "py-2.5 px-3 border text-left font-mono text-xs transition-all btn-press flex items-center justify-between font-bold",
+                    "btn-press flex items-center justify-between border px-3 py-2.5 text-left font-mono text-xs font-bold transition-all",
                     isSelected
-                      ? "bg-white text-black border-white shadow-sm"
-                      : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
+                      ? "border-white bg-white text-black shadow-sm"
+                      : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white",
                   )}
                 >
                   <span className="truncate">{item.label}</span>
-                  {isSelected && <CheckIcon className="w-4 h-4 text-black shrink-0 font-bold ml-1" />}
+                  {isSelected && (
+                    <CheckIcon className="ml-1 h-4 w-4 shrink-0 font-bold text-black" />
+                  )}
                 </button>
               );
             })}
@@ -737,7 +767,7 @@ export function ControlPanel({
         </div>
       )}
 
-      <div className="pt-2.5 border-t border-border/60 space-y-3.5">
+      <div className="border-border/60 space-y-3.5 border-t pt-2.5">
         <SliderControl
           label="Pixel Size"
           value={settings.pxSize}
@@ -784,14 +814,14 @@ export function ControlPanel({
         )}
       </div>
 
-      <div className="pt-2.5 border-t border-border/60">
-        <label className="flex items-center justify-between cursor-pointer font-mono text-xs p-2.5 bg-secondary/40 border border-border hover:border-white transition-colors">
-          <span className="text-white font-bold uppercase tracking-wide">▸ Invert Output</span>
+      <div className="border-border/60 border-t pt-2.5">
+        <label className="bg-secondary/40 border-border flex cursor-pointer items-center justify-between border p-2.5 font-mono text-xs transition-colors hover:border-white">
+          <span className="font-bold tracking-wide text-white uppercase">▸ Invert Output</span>
           <input
             type="checkbox"
             checked={settings.inverted}
             onChange={(e) => onChange({ inverted: e.target.checked })}
-            className="w-4 h-4 border-border bg-black text-white focus:ring-ring focus:ring-offset-0 cursor-pointer accent-white"
+            className="border-border focus:ring-ring h-4 w-4 cursor-pointer bg-black text-white accent-white focus:ring-offset-0"
           />
         </label>
       </div>
@@ -799,9 +829,9 @@ export function ControlPanel({
   );
 
   const renderColorContent = () => (
-    <div className="p-3.5 sm:p-4 space-y-4 bg-black/40">
+    <div className="space-y-4 bg-black/40 p-3.5 sm:p-4">
       <div className="space-y-1.5">
-        <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+        <label className="block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
           Color Mode
         </label>
         <SegmentedControl
@@ -819,8 +849,8 @@ export function ControlPanel({
       </div>
 
       {settings.colorMode === "duotone" && (
-        <div className="p-3 bg-secondary/30 border border-border space-y-1.5">
-          <span className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider mb-1.5">
+        <div className="bg-secondary/30 border-border space-y-1.5 border p-3">
+          <span className="mb-1.5 block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
             Duotone Shades
           </span>
           <DualColorPicker
@@ -837,15 +867,15 @@ export function ControlPanel({
               })
             }
           />
-          <p className="text-[10px] font-mono text-neutral-400 pt-1">
+          <p className="pt-1 font-mono text-[10px] text-neutral-400">
             Tip: Click any Hardware Palette below to load its colors into Duotone!
           </p>
         </div>
       )}
 
       {settings.colorMode === "paper" && (
-        <div className="space-y-2.5 p-3 bg-secondary/30 border border-border">
-          <span className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider mb-1.5">
+        <div className="bg-secondary/30 border-border space-y-2.5 border p-3">
+          <span className="mb-1.5 block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
             Paper Inks
           </span>
           <DualColorPicker
@@ -870,19 +900,17 @@ export function ControlPanel({
         </div>
       )}
 
-      <div className="p-3 bg-secondary/30 border border-border space-y-2">
+      <div className="bg-secondary/30 border-border space-y-2 border p-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-200 font-bold uppercase tracking-wider">
-            <EyedropperIcon className="w-3.5 h-3.5 text-white" />
+          <div className="flex items-center gap-1.5 font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
+            <EyedropperIcon className="h-3.5 w-3.5 text-white" />
             <span>Auto-Palette from Image</span>
           </div>
-          <span className="text-[10px] font-mono text-neutral-400 font-bold">
-            PNNQUANT
-          </span>
+          <span className="font-mono text-[10px] font-bold text-neutral-400">PNNQUANT</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono text-neutral-300">Colors:</span>
+          <span className="font-mono text-[11px] text-neutral-300">Colors:</span>
           <div className="flex gap-1">
             {[2, 4, 8, 16].map((count) => (
               <button
@@ -890,10 +918,10 @@ export function ControlPanel({
                 type="button"
                 onClick={() => setExtractCount(count)}
                 className={cn(
-                  "px-2 py-0.5 text-[11px] font-mono border transition-colors btn-press",
+                  "btn-press border px-2 py-0.5 font-mono text-[11px] transition-colors",
                   extractCount === count
-                    ? "bg-white text-black border-white font-bold"
-                    : "bg-black/60 border-border text-neutral-400 hover:text-white"
+                    ? "border-white bg-white font-bold text-black"
+                    : "border-border bg-black/60 text-neutral-400 hover:text-white",
                 )}
               >
                 {count}
@@ -906,36 +934,35 @@ export function ControlPanel({
           type="button"
           onClick={handleExtractPalette}
           disabled={isExtractingPalette || settings.mediaType !== "image"}
-          className="w-full py-2 px-3 bg-secondary hover:bg-neutral-800 text-white font-mono text-xs font-bold border border-border hover:border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-40 btn-press"
+          className="bg-secondary border-border btn-press flex w-full items-center justify-center gap-2 border px-3 py-2 font-mono text-xs font-bold text-white transition-colors hover:border-white hover:bg-neutral-800 disabled:opacity-40"
         >
-          <SparkleIcon className="w-3.5 h-3.5 text-white" />
+          <SparkleIcon className="h-3.5 w-3.5 text-white" />
           <span>
-            {isExtractingPalette
-              ? "EXTRACTING..."
-              : `EXTRACT ${extractCount}-COLOR PALETTE`}
+            {isExtractingPalette ? "EXTRACTING..." : `EXTRACT ${extractCount}-COLOR PALETTE`}
           </span>
         </button>
       </div>
 
-      <div className="space-y-2 pt-2.5 border-t border-border/60">
+      <div className="border-border/60 space-y-2 border-t pt-2.5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+          <label className="block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
             Hardware Palettes
           </label>
-          <span className="text-[10px] font-mono text-neutral-400 font-bold">
+          <span className="font-mono text-[10px] font-bold text-neutral-400">
             {settings.colorMode === "duotone"
               ? "CLICK SETS DUOTONE"
               : `${RETRO_PALETTES.length} PALETTES`}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 max-h-56 sm:max-h-60 overflow-y-auto pr-1">
+        <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:max-h-60">
           {RETRO_PALETTES.map((pal) => {
             const isSelected =
               settings.paletteId === pal.id ||
               (settings.colorMode === "duotone" &&
-                 settings.colorBack.toLowerCase() === pal.colors[0].toLowerCase() &&
-                settings.colorFront.toLowerCase() === pal.colors[pal.colors.length - 1].toLowerCase());
+                settings.colorBack.toLowerCase() === pal.colors[0].toLowerCase() &&
+                settings.colorFront.toLowerCase() ===
+                  pal.colors[pal.colors.length - 1].toLowerCase());
 
             return (
               <button
@@ -943,10 +970,10 @@ export function ControlPanel({
                 type="button"
                 onClick={() => handleHardwarePaletteClick(pal)}
                 className={cn(
-                  "p-2.5 border text-left font-mono transition-all btn-press flex flex-col gap-2 relative",
+                  "btn-press relative flex flex-col gap-2 border p-2.5 text-left font-mono transition-all",
                   isSelected
-                    ? "bg-neutral-900 text-white border-2 border-white shadow-sm"
-                    : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white"
+                    ? "border-2 border-white bg-neutral-900 text-white shadow-sm"
+                    : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white",
                 )}
                 title={
                   settings.colorMode === "duotone"
@@ -955,14 +982,12 @@ export function ControlPanel({
                 }
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold truncate">
-                    {pal.name}
-                  </span>
+                  <span className="truncate text-xs font-bold">{pal.name}</span>
                   <span className="text-[10px] text-neutral-400">{pal.colors.length}c</span>
                 </div>
-                <div className="flex h-3 w-full overflow-hidden border border-border">
+                <div className="border-border flex h-3 w-full overflow-hidden border">
                   {pal.colors.map((c, i) => (
-                    <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
+                    <div key={i} className="h-full flex-1" style={{ backgroundColor: c }} />
                   ))}
                 </div>
               </button>
@@ -971,7 +996,7 @@ export function ControlPanel({
         </div>
       </div>
 
-      <div className="pt-2.5 border-t border-border/60">
+      <div className="border-border/60 border-t pt-2.5">
         <SliderControl
           label="Quantization Steps"
           value={settings.colorSteps}
@@ -986,25 +1011,25 @@ export function ControlPanel({
   );
 
   const renderPresetsContent = () => (
-    <div className="p-3.5 sm:p-4 space-y-3.5 bg-black/40">
+    <div className="space-y-3.5 bg-black/40 p-3.5 sm:p-4">
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <MagnifyingGlassIcon className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           <input
             type="text"
             value={presetSearch}
             onChange={(e) => setPresetSearch(e.target.value)}
             placeholder="Search presets (Game Boy, 1-Bit...)"
-            className="w-full pl-9 pr-8 py-2 bg-black border border-border text-xs font-mono placeholder:text-neutral-500 text-white focus:outline-none focus:border-white transition-colors"
+            className="border-border w-full border bg-black py-2 pr-8 pl-9 font-mono text-xs text-white transition-colors placeholder:text-neutral-500 focus:border-white focus:outline-none"
           />
           {presetSearch && (
             <button
               type="button"
               onClick={() => setPresetSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-0.5"
+              className="absolute top-1/2 right-2 -translate-y-1/2 p-0.5 text-neutral-400 hover:text-white"
               title="Clear search"
             >
-              <XIcon className="w-3.5 h-3.5" />
+              <XIcon className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
@@ -1014,15 +1039,15 @@ export function ControlPanel({
             const rnd = PRESETS[Math.floor(Math.random() * PRESETS.length)];
             if (rnd) onApplyPreset(rnd.preset);
           }}
-          className="px-2.5 py-2 bg-secondary/60 hover:bg-neutral-800 border border-border hover:border-neutral-400 text-neutral-200 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-colors btn-press shrink-0"
+          className="bg-secondary/60 border-border btn-press flex shrink-0 items-center gap-1.5 border px-2.5 py-2 font-mono text-xs font-bold text-neutral-200 transition-colors hover:border-neutral-400 hover:bg-neutral-800 hover:text-white"
           title="Apply random curated preset"
         >
-          <DiceFiveIcon className="w-3.5 h-3.5 text-primary" />
+          <DiceFiveIcon className="text-primary h-3.5 w-3.5" />
           <span className="hidden sm:inline">RANDOM</span>
         </button>
       </div>
 
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex scrollbar-none items-center gap-1.5 overflow-x-auto pb-1">
         {[
           { id: "all", label: "ALL" },
           { id: "mono", label: "1-BIT" },
@@ -1033,28 +1058,24 @@ export function ControlPanel({
         ].map((cat) => {
           const isSelected = presetCategory === cat.id;
           const count =
-            cat.id === "all"
-              ? PRESETS.length
-              : PRESETS.filter((p) => p.category === cat.id).length;
+            cat.id === "all" ? PRESETS.length : PRESETS.filter((p) => p.category === cat.id).length;
           return (
             <button
               key={cat.id}
               type="button"
               onClick={() => setPresetCategory(cat.id)}
               className={cn(
-                "px-2.5 py-1.5 text-xs font-mono whitespace-nowrap transition-all btn-press flex items-center gap-1.5",
+                "btn-press flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-xs whitespace-nowrap transition-all",
                 isSelected
-                  ? "bg-white text-black font-bold border border-white"
-                  : "bg-secondary/40 text-neutral-300 hover:text-white hover:bg-secondary/70 border border-border"
+                  ? "border border-white bg-white font-bold text-black"
+                  : "bg-secondary/40 hover:bg-secondary/70 border-border border text-neutral-300 hover:text-white",
               )}
             >
               <span>{cat.label}</span>
               <span
                 className={cn(
-                  "text-[10px] px-1 font-bold",
-                  isSelected
-                    ? "text-black/80"
-                    : "text-neutral-400"
+                  "px-1 text-[10px] font-bold",
+                  isSelected ? "text-black/80" : "text-neutral-400",
                 )}
               >
                 {count}
@@ -1064,10 +1085,9 @@ export function ControlPanel({
         })}
       </div>
 
-      <div className="space-y-1.5 max-h-64 sm:max-h-72 overflow-y-auto pr-1">
+      <div className="max-h-64 space-y-1.5 overflow-y-auto pr-1 sm:max-h-72">
         {PRESETS.filter((preset) => {
-          const matchesCat =
-            presetCategory === "all" || preset.category === presetCategory;
+          const matchesCat = presetCategory === "all" || preset.category === presetCategory;
           const query = presetSearch.trim().toLowerCase();
           const matchesQuery =
             !query ||
@@ -1103,38 +1123,36 @@ export function ControlPanel({
               type="button"
               onClick={() => onApplyPreset(preset.preset)}
               className={cn(
-                "w-full flex flex-col p-2.5 border text-left transition-all btn-press gap-1.5 group relative",
+                "btn-press group relative flex w-full flex-col gap-1.5 border p-2.5 text-left transition-all",
                 isCurrent
-                  ? "bg-neutral-900 border-2 border-white shadow-sm"
-                  : "bg-secondary/30 hover:bg-secondary/70 border-border hover:border-neutral-400"
+                  ? "border-2 border-white bg-neutral-900 shadow-sm"
+                  : "bg-secondary/30 hover:bg-secondary/70 border-border hover:border-neutral-400",
               )}
             >
-              <div className="flex items-center justify-between w-full gap-2">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="flex w-full items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <span
                     className={cn(
-                      "text-xs font-mono font-bold truncate transition-colors",
-                      isCurrent
-                        ? "text-white"
-                        : "text-foreground group-hover:text-white"
+                      "truncate font-mono text-xs font-bold transition-colors",
+                      isCurrent ? "text-white" : "text-foreground group-hover:text-white",
                     )}
                   >
                     {preset.name}
                   </span>
-                  <span className="text-[9px] uppercase tracking-wider font-mono text-neutral-300 px-1.5 py-0.5 bg-secondary border border-border shrink-0 font-bold">
+                  <span className="bg-secondary border-border shrink-0 border px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-neutral-300 uppercase">
                     {preset.category}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {isCurrent && <CheckIcon className="w-4 h-4 text-white shrink-0 font-bold" />}
-                  <div className="flex h-3 w-16 overflow-hidden border border-border">
+                <div className="flex shrink-0 items-center gap-2">
+                  {isCurrent && <CheckIcon className="h-4 w-4 shrink-0 font-bold text-white" />}
+                  <div className="border-border flex h-3 w-16 overflow-hidden border">
                     {preset.colors.map((c, i) => (
-                      <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
+                      <div key={i} className="h-full flex-1" style={{ backgroundColor: c }} />
                     ))}
                   </div>
                 </div>
               </div>
-              <span className="text-[11px] font-mono text-neutral-400 line-clamp-1">
+              <span className="line-clamp-1 font-mono text-[11px] text-neutral-400">
                 {preset.desc}
               </span>
             </button>
@@ -1142,8 +1160,7 @@ export function ControlPanel({
         })}
 
         {PRESETS.filter((preset) => {
-          const matchesCat =
-            presetCategory === "all" || preset.category === presetCategory;
+          const matchesCat = presetCategory === "all" || preset.category === presetCategory;
           const query = presetSearch.trim().toLowerCase();
           return (
             matchesCat &&
@@ -1152,7 +1169,7 @@ export function ControlPanel({
               preset.desc.toLowerCase().includes(query))
           );
         }).length === 0 && (
-          <div className="p-4 text-center text-neutral-400 font-mono text-xs border border-dashed border-border space-y-1.5">
+          <div className="border-border space-y-1.5 border border-dashed p-4 text-center font-mono text-xs text-neutral-400">
             <p>No presets found matching "{presetSearch}"</p>
             <button
               type="button"
@@ -1160,7 +1177,7 @@ export function ControlPanel({
                 setPresetSearch("");
                 setPresetCategory("all");
               }}
-              className="text-white hover:underline text-xs font-bold"
+              className="text-xs font-bold text-white hover:underline"
             >
               Reset filters
             </button>
@@ -1171,9 +1188,9 @@ export function ControlPanel({
   );
 
   const renderAdjustContent = () => (
-    <div className="p-3.5 sm:p-4 space-y-4 bg-black/40">
+    <div className="space-y-4 bg-black/40 p-3.5 sm:p-4">
       <div className="space-y-1.5">
-        <label className="text-xs font-mono text-neutral-200 block font-bold uppercase tracking-wider">
+        <label className="block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
           Framing & Fit
         </label>
         <SegmentedControl
@@ -1187,7 +1204,7 @@ export function ControlPanel({
         />
       </div>
 
-      <div className="space-y-3.5 pt-2.5 border-t border-border/60">
+      <div className="border-border/60 space-y-3.5 border-t pt-2.5">
         <SliderControl
           label="Scale"
           value={settings.scale}
@@ -1211,19 +1228,19 @@ export function ControlPanel({
         />
       </div>
 
-      <div className="space-y-3.5 pt-2.5 border-t border-border/60">
+      <div className="border-border/60 space-y-3.5 border-t pt-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-mono text-neutral-200 font-bold uppercase tracking-wider flex items-center gap-1.5">
-            <SunIcon className="w-4 h-4 text-neutral-400" />
+          <span className="flex items-center gap-1.5 font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
+            <SunIcon className="h-4 w-4 text-neutral-400" />
             Tone & Contrast
           </span>
           <button
             type="button"
             onClick={resetAdjustments}
-            className="flex items-center gap-1 text-xs font-mono text-neutral-400 hover:text-white transition-colors btn-press font-bold"
+            className="btn-press flex items-center gap-1 font-mono text-xs font-bold text-neutral-400 transition-colors hover:text-white"
             title="Reset adjustments to defaults"
           >
-            <ArrowCounterClockwiseIcon className="w-3 h-3" />
+            <ArrowCounterClockwiseIcon className="h-3 w-3" />
             RESET
           </button>
         </div>
@@ -1278,19 +1295,19 @@ export function ControlPanel({
   return (
     <>
       <aside
-        className="hidden sm:flex sm:w-[320px] md:w-[350px] lg:w-[380px] xl:w-[410px] bg-card border-l border-border flex-col h-full overflow-hidden select-none shrink-0"
+        className="bg-card border-border hidden h-full shrink-0 flex-col overflow-hidden border-l select-none sm:flex sm:w-[320px] md:w-[350px] lg:w-[380px] xl:w-[410px]"
         style={{ borderLeftWidth: "1px" }}
       >
-        <div className="h-11 px-4 bg-neutral-950 border-b border-border flex items-center justify-between shrink-0">
+        <div className="border-border flex h-11 shrink-0 items-center justify-between border-b bg-neutral-950 px-4">
           <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 bg-white inline-block" />
-            <span className="text-xs sm:text-[13px] font-mono font-bold uppercase tracking-wider text-white">
+            <span className="inline-block h-2 w-2 bg-white" />
+            <span className="font-mono text-xs font-bold tracking-wider text-white uppercase sm:text-[13px]">
               STUDIO CONTROLS
             </span>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-border text-xs text-foreground/90">
+        <div className="divide-border text-foreground/90 flex-1 divide-y overflow-y-auto text-xs">
           <section className="bg-card">
             <SectionHeader
               title="SOURCE MEDIA"
@@ -1345,22 +1362,24 @@ export function ControlPanel({
 
       <div
         className={cn(
-          "flex sm:hidden flex-col shrink-0 border-t border-border bg-card z-30 transition-[height] duration-150 ease-out select-none",
+          "border-border bg-card z-30 flex shrink-0 flex-col border-t transition-[height] duration-150 ease-out select-none sm:hidden",
           mobileSheetState === "collapsed" && "h-[calc(3.5rem+env(safe-area-inset-bottom,0px))]",
           mobileSheetState === "docked" && "h-[48dvh] max-h-[48dvh]",
-          mobileSheetState === "expanded" && "h-[78dvh] max-h-[78dvh]"
+          mobileSheetState === "expanded" && "h-[78dvh] max-h-[78dvh]",
         )}
       >
         {mobileSheetState !== "collapsed" && (
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-black/60 border-b border-border">
-            <div className="h-10 px-3 bg-neutral-950 border-b border-border flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                {mobileTab === "media" && <ImageIcon className="w-4 h-4 text-white shrink-0" />}
-                {mobileTab === "dither" && <SlidersIcon className="w-4 h-4 text-white shrink-0" />}
-                {mobileTab === "color" && <PaletteIcon className="w-4 h-4 text-white shrink-0" />}
-                {mobileTab === "presets" && <BookmarkIcon className="w-4 h-4 text-white shrink-0" />}
-                {mobileTab === "adjust" && <SunIcon className="w-4 h-4 text-white shrink-0" />}
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-white truncate">
+          <div className="border-border flex min-h-0 flex-1 flex-col overflow-hidden border-b bg-black/60">
+            <div className="border-border flex h-10 shrink-0 items-center justify-between border-b bg-neutral-950 px-3">
+              <div className="flex min-w-0 items-center gap-2">
+                {mobileTab === "media" && <ImageIcon className="h-4 w-4 shrink-0 text-white" />}
+                {mobileTab === "dither" && <SlidersIcon className="h-4 w-4 shrink-0 text-white" />}
+                {mobileTab === "color" && <PaletteIcon className="h-4 w-4 shrink-0 text-white" />}
+                {mobileTab === "presets" && (
+                  <BookmarkIcon className="h-4 w-4 shrink-0 text-white" />
+                )}
+                {mobileTab === "adjust" && <SunIcon className="h-4 w-4 shrink-0 text-white" />}
+                <span className="truncate font-mono text-xs font-bold tracking-wider text-white uppercase">
                   {mobileTab === "media" && "SOURCE MEDIA"}
                   {mobileTab === "dither" && "DITHER MATRIX"}
                   {mobileTab === "color" && "COLOR & PALETTES"}
@@ -1369,23 +1388,23 @@ export function ControlPanel({
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() =>
                     setMobileSheetState((prev) => (prev === "docked" ? "expanded" : "docked"))
                   }
-                  className="px-2 py-1 text-[10px] font-mono border border-border hover:border-white text-neutral-300 hover:text-white transition-colors btn-press flex items-center gap-1"
+                  className="border-border btn-press flex items-center gap-1 border px-2 py-1 font-mono text-[10px] text-neutral-300 transition-colors hover:border-white hover:text-white"
                   title={mobileSheetState === "docked" ? "Expand panel" : "Dock panel"}
                 >
                   {mobileSheetState === "docked" ? (
                     <>
-                      <CaretUpIcon className="w-3 h-3" />
+                      <CaretUpIcon className="h-3 w-3" />
                       <span>EXPAND</span>
                     </>
                   ) : (
                     <>
-                      <CaretDownIcon className="w-3 h-3" />
+                      <CaretDownIcon className="h-3 w-3" />
                       <span>HALF</span>
                     </>
                   )}
@@ -1394,15 +1413,15 @@ export function ControlPanel({
                 <button
                   type="button"
                   onClick={() => setMobileSheetState("collapsed")}
-                  className="p-1 text-neutral-400 hover:text-white border border-transparent hover:border-neutral-700 transition-colors btn-press flex items-center justify-center"
+                  className="btn-press flex items-center justify-center border border-transparent p-1 text-neutral-400 transition-colors hover:border-neutral-700 hover:text-white"
                   title="Collapse panel"
                 >
-                  <XIcon className="w-3.5 h-3.5" />
+                  <XIcon className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y p-3.5 space-y-4">
+            <div className="flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain p-3.5">
               {mobileTab === "media" && renderMediaContent()}
               {mobileTab === "dither" && renderDitherContent()}
               {mobileTab === "color" && renderColorContent()}
@@ -1414,7 +1433,7 @@ export function ControlPanel({
 
         <nav
           aria-label="Studio Navigation"
-          className="h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] pb-safe bg-neutral-950 flex items-stretch divide-x divide-border/60 shrink-0"
+          className="pb-safe divide-border/60 flex h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] shrink-0 items-stretch divide-x bg-neutral-950"
         >
           {[
             { id: "media" as const, label: "MEDIA", icon: ImageIcon },
@@ -1431,14 +1450,14 @@ export function ControlPanel({
                 type="button"
                 onClick={() => handleMobileTabClick(tab.id)}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center gap-1 font-mono transition-all btn-press text-[10px]",
+                  "btn-press flex flex-1 flex-col items-center justify-center gap-1 font-mono text-[10px] transition-all",
                   isSelected
-                    ? "bg-white text-black font-bold shadow-inner"
-                    : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                    ? "bg-white font-bold text-black shadow-inner"
+                    : "text-neutral-400 hover:bg-neutral-900 hover:text-white",
                 )}
               >
-                <Icon className={cn("w-4 h-4", isSelected ? "text-black" : "text-neutral-300")} />
-                <span className="tracking-wider text-[9px] sm:text-[10px]">{tab.label}</span>
+                <Icon className={cn("h-4 w-4", isSelected ? "text-black" : "text-neutral-300")} />
+                <span className="text-[9px] tracking-wider sm:text-[10px]">{tab.label}</span>
               </button>
             );
           })}

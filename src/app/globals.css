@@ -57,7 +57,9 @@
     --ease-smooth: cubic-bezier(0.23, 1, 0.32, 1);
   }
 
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     border-radius: 0 !important;
   }
 
@@ -66,7 +68,8 @@
     outline-offset: 1px !important;
   }
 
-  html, body {
+  html,
+  body {
     height: 100%;
     height: 100dvh;
     overflow: hidden;
@@ -83,7 +86,10 @@
     image-rendering: pixelated;
   }
 
-  button, a, input, select {
+  button,
+  a,
+  input,
+  select {
     touch-action: manipulation;
   }
 
@@ -205,10 +211,22 @@
 }
 
 @keyframes modalEnter {
-  0%   { opacity: 0; clip-path: inset(100% 0 0 0); }
-  33%  { opacity: 1; clip-path: inset(66% 0 0 0); }
-  66%  { opacity: 1; clip-path: inset(33% 0 0 0); }
-  100% { opacity: 1; clip-path: inset(0% 0 0 0); }
+  0% {
+    opacity: 0;
+    clip-path: inset(100% 0 0 0);
+  }
+  33% {
+    opacity: 1;
+    clip-path: inset(66% 0 0 0);
+  }
+  66% {
+    opacity: 1;
+    clip-path: inset(33% 0 0 0);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0% 0 0 0);
+  }
 }
 
 .modal-enter {
@@ -222,15 +240,13 @@
     linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.08) 75%),
     linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.08) 75%);
   background-size: 8px 8px;
-  background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+  background-position:
+    0 0,
+    0 4px,
+    4px -4px,
+    -4px 0px;
 }
 
 .pixel-progress {
-  background: repeating-linear-gradient(
-    90deg,
-    #ffffff 0px,
-    #ffffff 6px,
-    #555555 6px,
-    #555555 8px
-  );
+  background: repeating-linear-gradient(90deg, #ffffff 0px, #ffffff 6px, #555555 6px, #555555 8px);
 }

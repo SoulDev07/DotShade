@@ -1,4 +1,4 @@
-import { hexToRgb, parseColorToNormalizedRgba, deltaE } from "@/lib/utils";
+import { deltaE, parseColorToNormalizedRgba } from "@/lib/utils";
 
 export interface ColorPalette {
   id: string;
@@ -14,7 +14,8 @@ export const RETRO_PALETTES: ColorPalette[] = [
     name: "Paper Mint",
     category: "paper",
     colors: ["#000c38", "#94ffaf", "#eaff94"],
-    description: "Classic Paper Shaders 3-color palette with deep navy, mint ink, and neon lime highlights.",
+    description:
+      "Classic Paper Shaders 3-color palette with deep navy, mint ink, and neon lime highlights.",
   },
   {
     id: "gameboy-dmg",
@@ -77,22 +78,46 @@ export const RETRO_PALETTES: ColorPalette[] = [
     name: "Commodore 64",
     category: "retro",
     colors: [
-      "#000000", "#ffffff", "#880000", "#aaffee",
-      "#cc44cc", "#00cc55", "#0000aa", "#eeee77",
-      "#dd8855", "#664400", "#ff7777", "#333333",
-      "#777777", "#aaff66", "#0088ff", "#bbbbbb"
+      "#000000",
+      "#ffffff",
+      "#880000",
+      "#aaffee",
+      "#cc44cc",
+      "#00cc55",
+      "#0000aa",
+      "#eeee77",
+      "#dd8855",
+      "#664400",
+      "#ff7777",
+      "#333333",
+      "#777777",
+      "#aaff66",
+      "#0088ff",
+      "#bbbbbb",
     ],
-    description: "Full authentic 16-color palette from the best-selling Commodore 64 microcomputer.",
+    description:
+      "Full authentic 16-color palette from the best-selling Commodore 64 microcomputer.",
   },
   {
     id: "zx-spectrum",
     name: "ZX Spectrum",
     category: "retro",
     colors: [
-      "#000000", "#0000d7", "#d70000", "#d700d7",
-      "#00d700", "#00d7d7", "#d7d700", "#d7d7d7",
-      "#0000ff", "#ff0000", "#ff00ff", "#00ff00",
-      "#00ffff", "#ffff00", "#ffffff"
+      "#000000",
+      "#0000d7",
+      "#d70000",
+      "#d700d7",
+      "#00d700",
+      "#00d7d7",
+      "#d7d700",
+      "#d7d7d7",
+      "#0000ff",
+      "#ff0000",
+      "#ff00ff",
+      "#00ff00",
+      "#00ffff",
+      "#ffff00",
+      "#ffffff",
     ],
     description: "1982 Sinclair ZX Spectrum 15-color bright & standard palette.",
   },
@@ -101,10 +126,20 @@ export const RETRO_PALETTES: ColorPalette[] = [
     name: "NES 8-Bit",
     category: "retro",
     colors: [
-      "#000000", "#002070", "#183c5c", "#7c0800",
-      "#a01800", "#881400", "#384000", "#104c00",
-      "#fc9838", "#00a800", "#58d854", "#e45c10",
-      "#bcbcbc", "#f8f8f8"
+      "#000000",
+      "#002070",
+      "#183c5c",
+      "#7c0800",
+      "#a01800",
+      "#881400",
+      "#384000",
+      "#104c00",
+      "#fc9838",
+      "#00a800",
+      "#58d854",
+      "#e45c10",
+      "#bcbcbc",
+      "#f8f8f8",
     ],
     description: "Core action game colors from the Nintendo Entertainment System.",
   },
@@ -112,7 +147,17 @@ export const RETRO_PALETTES: ColorPalette[] = [
     id: "solarized-dark",
     name: "Solarized Dark",
     category: "stylized",
-    colors: ["#002b36", "#073642", "#268bd2", "#2aa198", "#859900", "#b58900", "#cb4b16", "#dc322f", "#eee8d5"],
+    colors: [
+      "#002b36",
+      "#073642",
+      "#268bd2",
+      "#2aa198",
+      "#859900",
+      "#b58900",
+      "#cb4b16",
+      "#dc322f",
+      "#eee8d5",
+    ],
     description: "Ethan Schoonover's precision Solarized color palette optimized for contrast.",
   },
   {
@@ -134,12 +179,25 @@ export const RETRO_PALETTES: ColorPalette[] = [
     name: "PICO-8",
     category: "retro",
     colors: [
-      "#000000", "#1d2b53", "#7e2553", "#008751",
-      "#ab5236", "#5f574f", "#c2c3c7", "#fff1e8",
-      "#ff004d", "#ffa300", "#ffec27", "#00e436",
-      "#29adff", "#83769c", "#ff77a8", "#ffccaa"
+      "#000000",
+      "#1d2b53",
+      "#7e2553",
+      "#008751",
+      "#ab5236",
+      "#5f574f",
+      "#c2c3c7",
+      "#fff1e8",
+      "#ff004d",
+      "#ffa300",
+      "#ffec27",
+      "#00e436",
+      "#29adff",
+      "#83769c",
+      "#ff77a8",
+      "#ffccaa",
     ],
-    description: "Lexaloffle's beloved 16-color fantasy console palette, widely celebrated in pixel art.",
+    description:
+      "Lexaloffle's beloved 16-color fantasy console palette, widely celebrated in pixel art.",
   },
   {
     id: "thermal-flir",
@@ -153,7 +211,8 @@ export const RETRO_PALETTES: ColorPalette[] = [
     name: "Risograph Pop",
     category: "paper",
     colors: ["#f6f4ee", "#fedb00", "#ff48b0", "#003882"],
-    description: "Spot color Risograph print: warm cream paper, sunflower yellow, fluorescent pink, and federal blue.",
+    description:
+      "Spot color Risograph print: warm cream paper, sunflower yellow, fluorescent pink, and federal blue.",
   },
   {
     id: "nord-frost",
@@ -173,7 +232,16 @@ export const RETRO_PALETTES: ColorPalette[] = [
     id: "teletext",
     name: "Teletext Ceefax",
     category: "retro",
-    colors: ["#000000", "#ff0000", "#00ff00", "#ffff00", "#0000ff", "#ff00ff", "#00ffff", "#ffffff"],
+    colors: [
+      "#000000",
+      "#ff0000",
+      "#00ff00",
+      "#ffff00",
+      "#0000ff",
+      "#ff00ff",
+      "#00ffff",
+      "#ffffff",
+    ],
     description: "1976 BBC broadcast teletext 3-bit RGB 8-color graphics.",
   },
   {
@@ -195,10 +263,22 @@ export const RETRO_PALETTES: ColorPalette[] = [
     name: "Sega Genesis",
     category: "retro",
     colors: [
-      "#000000", "#181818", "#383838", "#585858",
-      "#002040", "#005080", "#2080c0", "#60b0e0",
-      "#800000", "#d02000", "#f07000", "#f8b000",
-      "#005800", "#209020", "#58d058", "#f8f8f8"
+      "#000000",
+      "#181818",
+      "#383838",
+      "#585858",
+      "#002040",
+      "#005080",
+      "#2080c0",
+      "#60b0e0",
+      "#800000",
+      "#d02000",
+      "#f07000",
+      "#f8b000",
+      "#005800",
+      "#209020",
+      "#58d058",
+      "#f8f8f8",
     ],
     description: "Authentic 16-color arcade palette from the 16-bit Sega Genesis / Mega Drive.",
   },
@@ -208,7 +288,7 @@ export const RETRO_PALETTES: ColorPalette[] = [
  * Map of palette ID to palette definition for quick O(1) lookups.
  */
 export const PALETTE_MAP = new Map<string, ColorPalette>(
-  RETRO_PALETTES.map((palette) => [palette.id, palette])
+  RETRO_PALETTES.map((palette) => [palette.id, palette]),
 );
 
 export type RgbTuple = [number, number, number];
@@ -228,7 +308,7 @@ export function findClosestPaletteColor(
   r: number,
   g: number,
   b: number,
-  palette: RgbTuple[]
+  palette: RgbTuple[],
 ): RgbTuple {
   let minDistance = Infinity;
   let closestRgb: RgbTuple = palette[0] || [0, 0, 0];
@@ -236,10 +316,7 @@ export function findClosestPaletteColor(
   for (let i = 0; i < palette.length; i++) {
     const palRgb = palette[i];
     // CIEDE2000 perceptual color distance for superior visual accuracy
-    const distance = deltaE(
-      { r, g, b },
-      { r: palRgb[0], g: palRgb[1], b: palRgb[2] }
-    );
+    const distance = deltaE({ r, g, b }, { r: palRgb[0], g: palRgb[1], b: palRgb[2] });
 
     if (distance < minDistance) {
       minDistance = distance;
@@ -255,11 +332,12 @@ export function findClosestPaletteColor(
 export function paletteToVec4Array(
   colors: string[],
   maxColors = 16,
-  targetBuffer?: Float32Array
+  targetBuffer?: Float32Array,
 ): Float32Array {
-  const result = targetBuffer && targetBuffer.length >= maxColors * 4
-    ? targetBuffer
-    : new Float32Array(maxColors * 4);
+  const result =
+    targetBuffer && targetBuffer.length >= maxColors * 4
+      ? targetBuffer
+      : new Float32Array(maxColors * 4);
   for (let i = 0; i < maxColors; i++) {
     const colorHex = i < colors.length ? colors[i] : colors[colors.length - 1] || "#000000";
     const [r, g, b, a] = parseColorToNormalizedRgba(colorHex);

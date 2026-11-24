@@ -1,18 +1,18 @@
 import {
-  init,
-  surface,
+  type Effect,
   effect,
-  sampler,
-  texture,
   frame,
   type Gpu,
+  init,
   type Surface,
-  type Effect,
+  sampler,
+  surface,
   type Texture,
+  texture,
 } from "vgpu";
-import ditherShader from "./shaders/dither.wgsl";
 import { parseColorToNormalizedRgba } from "@/lib/utils";
 import { paletteToVec4Array } from "./palettes";
+import ditherShader from "./shaders/dither.wgsl";
 import type { DitherSettings } from "./types";
 
 const DITHER_TYPES: Record<string, number> = {
@@ -158,7 +158,7 @@ export class DitherVgpuMount {
         { texture: this.dummyTexture.gpu },
         dummyPixel,
         { bytesPerRow: 4 },
-        [1, 1]
+        [1, 1],
       );
 
       this.ditherEffect = effect(this.gpu, ditherShader);
@@ -213,7 +213,11 @@ export class DitherVgpuMount {
       const w = Math.max(1, Math.floor(width));
       const h = Math.max(1, Math.floor(height));
 
-      if (!this.sourceTexture || this.sourceTexture.size[0] !== w || this.sourceTexture.size[1] !== h) {
+      if (
+        !this.sourceTexture ||
+        this.sourceTexture.size[0] !== w ||
+        this.sourceTexture.size[1] !== h
+      ) {
         this.sourceTexture?.destroy();
         this.sourceTexture = texture(this.gpu, {
           kind: "2d",
@@ -227,7 +231,7 @@ export class DitherVgpuMount {
       this.gpu.gpu.queue.copyExternalImageToTexture(
         { source },
         { texture: this.sourceTexture.gpu },
-        [w, h]
+        [w, h],
       );
     } catch (e) {
       console.warn("Texture update failed in vgpu mount:", e);
@@ -269,7 +273,8 @@ export class DitherVgpuMount {
       this.cachedColorHighlight = opt.colorHighlight;
     }
 
-    const paletteColors = opt.palette && opt.palette.length > 0 ? opt.palette : ["#000000", "#ffffff"];
+    const paletteColors =
+      opt.palette && opt.palette.length > 0 ? opt.palette : ["#000000", "#ffffff"];
     const paletteKey = paletteColors.join(",");
     if (paletteKey !== this.cachedPaletteKey) {
       paletteToVec4Array(paletteColors, 16, this.cachedPaletteArray);
@@ -302,7 +307,8 @@ export class DitherVgpuMount {
   }
 
   public render() {
-    if (this.isDisposed || !this.isReady || !this.ditherEffect || !this.gpu || !this.vgpuSurface) return;
+    if (this.isDisposed || !this.isReady || !this.ditherEffect || !this.gpu || !this.vgpuSurface)
+      return;
     if (this.isRendering) return;
     this.isRendering = true;
 
@@ -369,7 +375,7 @@ export class DitherVgpuMount {
 
   public async getSnapshotBlob(
     type: "image/png" | "image/webp" | "image/jpeg" = "image/png",
-    quality = 0.95
+    quality = 0.95,
   ): Promise<Blob | null> {
     this.render();
     return new Promise((resolve) => {

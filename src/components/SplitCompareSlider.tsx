@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
 import { ArrowsLeftRightIcon } from "@phosphor-icons/react";
+import React, { useCallback, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface SplitCompareSliderProps {
@@ -54,12 +54,12 @@ export const SplitCompareSlider = React.memo(function SplitCompareSlider({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       className={cn(
-        "absolute inset-0 overflow-hidden cursor-ew-resize touch-none will-change-[clip-path]",
-        className
+        "absolute inset-0 cursor-ew-resize touch-none overflow-hidden will-change-[clip-path]",
+        className,
       )}
     >
       <div
-        className="absolute inset-0 w-full h-full pointer-events-none"
+        className="pointer-events-none absolute inset-0 h-full w-full"
         style={{
           clipPath: `inset(0 ${100 - splitPos}% 0 0)`,
         }}
@@ -68,27 +68,27 @@ export const SplitCompareSlider = React.memo(function SplitCompareSlider({
       </div>
 
       <div
-        className="absolute top-0 bottom-0 w-px bg-neutral-400/80 pointer-events-none z-20 will-change-[left]"
+        className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-neutral-400/80 will-change-[left]"
         style={{
           left: `${splitPos}%`,
         }}
       >
         <div
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-black border-2 border-white text-white flex items-center justify-center transition-all duration-75 ease-out",
+            "absolute top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center border-2 border-white bg-black text-white transition-all duration-75 ease-out",
             isDragging
               ? "scale-110 shadow-[2px_2px_0px_#ffffff]"
-              : "hover:scale-105 shadow-[1px_1px_0px_#ffffff]"
+              : "shadow-[1px_1px_0px_#ffffff] hover:scale-105",
           )}
         >
-          <ArrowsLeftRightIcon className="w-3.5 h-3.5" />
+          <ArrowsLeftRightIcon className="h-3.5 w-3.5" />
         </div>
       </div>
 
-      <div className="absolute top-3 left-3 px-2 py-1 bg-black border border-white text-[10px] font-mono font-bold text-white uppercase tracking-wider pointer-events-none z-10 shadow-[2px_2px_0px_rgba(0,0,0,0.8)]">
+      <div className="pointer-events-none absolute top-3 left-3 z-10 border border-white bg-black px-2 py-1 font-mono text-[10px] font-bold tracking-wider text-white uppercase shadow-[2px_2px_0px_rgba(0,0,0,0.8)]">
         ORIGINAL
       </div>
-      <div className="absolute top-3 right-3 px-2 py-1 bg-white border border-white text-[10px] font-mono font-bold text-black uppercase tracking-wider pointer-events-none z-10 shadow-[2px_2px_0px_rgba(0,0,0,0.8)] flex items-center gap-1.5">
+      <div className="pointer-events-none absolute top-3 right-3 z-10 flex items-center gap-1.5 border border-white bg-white px-2 py-1 font-mono text-[10px] font-bold tracking-wider text-black uppercase shadow-[2px_2px_0px_rgba(0,0,0,0.8)]">
         <span>DITHERED</span>
       </div>
     </div>

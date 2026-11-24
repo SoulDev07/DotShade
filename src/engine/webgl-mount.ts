@@ -1,6 +1,6 @@
-import { ditherVertexShader, ditherFragmentShader } from "./shaders/dither.glsl";
 import { parseColorToNormalizedRgba } from "@/lib/utils";
 import { paletteToVec4Array } from "./palettes";
+import { ditherFragmentShader, ditherVertexShader } from "./shaders/dither.glsl";
 import type { DitherSettings } from "./types";
 
 /**
@@ -109,7 +109,7 @@ export class DitherWebGLMount {
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
       const info = gl.getShaderInfoLog(shader);
       gl.deleteShader(shader);
-      throw new Error("WebGL Shader compile error: " + info);
+      throw new Error(`WebGL Shader compile error: ${info}`);
     }
     return shader;
   }
@@ -131,7 +131,7 @@ export class DitherWebGLMount {
       gl.deleteShader(vs);
       gl.deleteShader(fs);
       gl.deleteProgram(program);
-      throw new Error("WebGL program link error: " + info);
+      throw new Error(`WebGL program link error: ${info}`);
     }
 
     gl.deleteShader(vs);
@@ -139,14 +139,7 @@ export class DitherWebGLMount {
 
     this.program = program;
 
-    const positions = new Float32Array([
-      -1, -1,
-       1, -1,
-      -1,  1,
-      -1,  1,
-       1, -1,
-       1,  1,
-    ]);
+    const positions = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
 
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
@@ -172,7 +165,7 @@ export class DitherWebGLMount {
       0,
       gl.RGBA,
       gl.UNSIGNED_BYTE,
-      new Uint8Array([255, 255, 255, 255])
+      new Uint8Array([255, 255, 255, 255]),
     );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -233,7 +226,8 @@ export class DitherWebGLMount {
       this.cachedHlRgba[3] = a;
       this.cachedColorHighlight = this.options.colorHighlight;
     }
-    const paletteColors = this.options.palette?.length > 0 ? this.options.palette : ["#000000", "#ffffff"];
+    const paletteColors =
+      this.options.palette?.length > 0 ? this.options.palette : ["#000000", "#ffffff"];
     const paletteKey = paletteColors.join(",");
     if (paletteKey !== this.cachedPaletteKey) {
       paletteToVec4Array(paletteColors, 16, this.cachedPaletteArray);
@@ -261,26 +255,11 @@ export class DitherWebGLMount {
     }
 
     if (srcW > 0 && srcH > 0 && this.texWidth === srcW && this.texHeight === srcH) {
-      gl.texSubImage2D(
-        gl.TEXTURE_2D,
-        0,
-        0,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        this.imageSource
-      );
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.imageSource);
     } else {
       this.texWidth = srcW;
       this.texHeight = srcH;
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        this.imageSource
-      );
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.imageSource);
     }
   }
 
@@ -304,7 +283,7 @@ export class DitherWebGLMount {
    * Updates video frame textures if active, configures resolution and uniforms,
    * binds textures, and draws the full-screen triangle quad.
    */
-  public render(now = 0) {
+  public render(_now = 0) {
     if (this.isDisposed || !this.gl || !this.program) return;
     const gl = this.gl;
 
@@ -417,7 +396,7 @@ export class DitherWebGLMount {
 
   public async getSnapshotBlob(
     type: "image/png" | "image/webp" | "image/jpeg" = "image/png",
-    quality = 0.95
+    quality = 0.95,
   ): Promise<Blob | null> {
     return new Promise((resolve) => {
       this.canvas.toBlob((blob) => resolve(blob), type, quality);

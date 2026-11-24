@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef } from "react";
 import { ArrowsLeftRightIcon } from "@phosphor-icons/react";
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface ColorSwatchPickerProps {
@@ -11,19 +11,14 @@ interface ColorSwatchPickerProps {
   className?: string;
 }
 
-export function ColorSwatchPicker({
-  label,
-  color,
-  onChange,
-  className,
-}: ColorSwatchPickerProps) {
+export function ColorSwatchPicker({ label, color, onChange, className }: ColorSwatchPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div
       className={cn(
-        "flex items-center justify-between p-2 bg-secondary/40 border border-border hover:border-white/50 transition-colors",
-        className
+        "bg-secondary/40 border-border flex items-center justify-between border p-2 transition-colors hover:border-white/50",
+        className,
       )}
     >
       <div className="flex items-center gap-3">
@@ -31,7 +26,7 @@ export function ColorSwatchPicker({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="w-8 h-8 border border-white/60 shadow-inner overflow-hidden cursor-pointer btn-press block relative"
+            className="btn-press relative block h-8 w-8 cursor-pointer overflow-hidden border border-white/60 shadow-inner"
             style={{ backgroundColor: color }}
             title={`Change ${label} color`}
           />
@@ -40,15 +35,15 @@ export function ColorSwatchPicker({
             type="color"
             value={color}
             onChange={(e) => onChange(e.target.value)}
-            className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none w-0 h-0"
+            className="pointer-events-none absolute inset-0 h-0 w-0 cursor-pointer opacity-0"
           />
         </div>
 
         <div className="flex flex-col">
-          <span className="text-xs font-mono text-foreground font-bold uppercase tracking-wide">
+          <span className="text-foreground font-mono text-xs font-bold tracking-wide uppercase">
             {label}
           </span>
-          <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider">
+          <span className="font-mono text-[11px] tracking-wider text-neutral-400 uppercase">
             {color}
           </span>
         </div>
@@ -64,7 +59,7 @@ export function ColorSwatchPicker({
             onChange(val);
           }
         }}
-        className="w-20 px-2 py-1 text-center font-mono text-xs uppercase bg-black border border-border text-white focus:border-white focus:outline-none"
+        className="border-border w-20 border bg-black px-2 py-1 text-center font-mono text-xs text-white uppercase focus:border-white focus:outline-none"
       />
     </div>
   );
@@ -103,10 +98,10 @@ export function DualColorPicker({
           <button
             type="button"
             onClick={onSwap}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 bg-secondary border border-border text-foreground hover:bg-neutral-800 hover:text-white shadow-md transition-colors btn-press"
+            className="bg-secondary border-border text-foreground btn-press absolute top-1/2 right-3 z-10 -translate-y-1/2 border p-2 shadow-md transition-colors hover:bg-neutral-800 hover:text-white"
             title="Swap foreground & background colors"
           >
-            <ArrowsLeftRightIcon className="w-4 h-4" />
+            <ArrowsLeftRightIcon className="h-4 w-4" />
           </button>
         )}
       </div>

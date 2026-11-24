@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import {
-  PlayIcon,
-  PauseIcon,
   ArrowCounterClockwiseIcon,
+  PauseIcon,
+  PlayIcon,
+  RepeatIcon,
   SpeakerHighIcon,
   SpeakerSlashIcon,
-  RepeatIcon,
   SpeedometerIcon,
 } from "@phosphor-icons/react";
+import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface VideoControlsProps {
@@ -17,7 +17,10 @@ interface VideoControlsProps {
   className?: string;
 }
 
-export const VideoControls = React.memo(function VideoControls({ videoRef, className }: VideoControlsProps) {
+export const VideoControls = React.memo(function VideoControls({
+  videoRef,
+  className,
+}: VideoControlsProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -112,11 +115,11 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
   return (
     <div
       className={cn(
-        "flex flex-col gap-2.5 p-3.5 bg-black border-2 border-white text-white shadow-[4px_4px_0px_rgba(0,0,0,0.9)]",
-        className
+        "flex flex-col gap-2.5 border-2 border-white bg-black p-3.5 text-white shadow-[4px_4px_0px_rgba(0,0,0,0.9)]",
+        className,
       )}
     >
-      <div className="relative group/bar flex items-center h-6 cursor-pointer touch-pan-x">
+      <div className="group/bar relative flex h-6 cursor-pointer touch-pan-x items-center">
         <input
           type="range"
           min={0}
@@ -125,55 +128,61 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
           value={hasSeekableDuration ? Math.min(currentTime, duration) : 0}
           onChange={handleSeek}
           disabled={!hasSeekableDuration}
-          className="w-full z-10 opacity-0 cursor-pointer absolute inset-0 disabled:cursor-default"
+          className="absolute inset-0 z-10 w-full cursor-pointer opacity-0 disabled:cursor-default"
         />
-        <div className="w-full h-1.5 bg-neutral-900 border border-neutral-700 overflow-hidden">
+        <div className="h-1.5 w-full overflow-hidden border border-neutral-700 bg-neutral-900">
           <div
-            className="h-full pixel-progress transition-all duration-75 ease-out"
+            className="pixel-progress h-full transition-all duration-75 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 text-xs font-mono">
+      <div className="flex flex-wrap items-center justify-between gap-1.5 font-mono text-xs sm:gap-2">
         <div className="flex items-center gap-1 sm:gap-1.5">
           <button
+            type="button"
             onClick={togglePlay}
-            className="p-1.5 bg-white text-black hover:bg-neutral-200 border border-white transition-colors btn-press font-bold"
+            className="btn-press border border-white bg-white p-1.5 font-bold text-black transition-colors hover:bg-neutral-200"
             title={isPlaying ? "Pause (Space)" : "Play (Space)"}
           >
-            {isPlaying ? <PauseIcon className="w-3.5 h-3.5" /> : <PlayIcon className="w-3.5 h-3.5" />}
+            {isPlaying ? (
+              <PauseIcon className="h-3.5 w-3.5" />
+            ) : (
+              <PlayIcon className="h-3.5 w-3.5" />
+            )}
           </button>
 
           <button
+            type="button"
             onClick={() => {
               if (videoRef.current) videoRef.current.currentTime = 0;
             }}
-            className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 transition-colors btn-press"
+            className="btn-press border border-neutral-700 bg-neutral-900 p-1.5 text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-white"
             title="Restart"
           >
-            <ArrowCounterClockwiseIcon className="w-3.5 h-3.5" />
+            <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
           </button>
 
-          <span className="text-[10px] sm:text-[11px] text-neutral-300 pl-1 font-mono tracking-tight tabular-nums">
+          <span className="pl-1 font-mono text-[10px] tracking-tight text-neutral-300 tabular-nums sm:text-[11px]">
             {hasSeekableDuration ? (
               <>
                 {formatTime(currentTime)} <span className="text-neutral-500">/</span>{" "}
                 {formatTime(duration)}
               </>
             ) : (
-              <span className="text-red-400 font-bold tracking-widest">● LIVE</span>
+              <span className="font-bold tracking-widest text-red-400">● LIVE</span>
             )}
           </span>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-1.5 ml-auto">
-          <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 px-1.5 py-0.5">
-            <SpeedometerIcon className="w-3 h-3 text-neutral-400" />
+        <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+          <div className="flex items-center gap-1 border border-neutral-700 bg-neutral-900 px-1.5 py-0.5">
+            <SpeedometerIcon className="h-3 w-3 text-neutral-400" />
             <select
               value={playbackRate}
               onChange={(e) => changeRate(parseFloat(e.target.value))}
-              className="bg-transparent text-white text-[10px] sm:text-[11px] font-mono focus:outline-none cursor-pointer"
+              className="cursor-pointer bg-transparent font-mono text-[10px] text-white focus:outline-none sm:text-[11px]"
             >
               <option value="0.25">0.25x</option>
               <option value="0.5">0.5x</option>
@@ -184,24 +193,30 @@ export const VideoControls = React.memo(function VideoControls({ videoRef, class
           </div>
 
           <button
+            type="button"
             onClick={toggleLoop}
             className={cn(
-              "p-1.5 border transition-colors btn-press",
+              "btn-press border p-1.5 transition-colors",
               isLooping
-                ? "bg-white text-black border-white"
-                : "border-neutral-700 text-neutral-400 hover:text-white hover:border-neutral-500"
+                ? "border-white bg-white text-black"
+                : "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white",
             )}
             title="Toggle Loop"
           >
-            <RepeatIcon className="w-3.5 h-3.5" />
+            <RepeatIcon className="h-3.5 w-3.5" />
           </button>
 
           <button
+            type="button"
             onClick={toggleMute}
-            className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 transition-colors btn-press"
+            className="btn-press border border-neutral-700 bg-neutral-900 p-1.5 text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-white"
             title={isMuted ? "Unmute" : "Mute"}
           >
-            {isMuted ? <SpeakerSlashIcon className="w-3.5 h-3.5" /> : <SpeakerHighIcon className="w-3.5 h-3.5" />}
+            {isMuted ? (
+              <SpeakerSlashIcon className="h-3.5 w-3.5" />
+            ) : (
+              <SpeakerHighIcon className="h-3.5 w-3.5" />
+            )}
           </button>
         </div>
       </div>

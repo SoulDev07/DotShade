@@ -1,22 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
 import {
-  XIcon,
-  DownloadSimpleIcon,
   CopyIcon,
-  VideoCameraIcon,
-  ImageIcon,
+  DownloadSimpleIcon,
   FilmStripIcon,
+  ImageIcon,
+  VideoCameraIcon,
+  XIcon,
 } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
+import type React from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ClientGifEncoder } from "@/engine/gif-export";
 import type { DitherSettings } from "@/engine/types";
-import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 let mediabunnyModule: Promise<typeof import("mediabunny")> | null = null;
-const loadMediabunny = () =>
-  (mediabunnyModule ??= import("mediabunny"));
+const loadMediabunny = () => (mediabunnyModule ??= import("mediabunny"));
 
 type MediaOutput = InstanceType<typeof import("mediabunny").Output>;
 
@@ -48,9 +48,7 @@ export function ExportModal({
         { id: "image" as const, label: "FRAME", icon: ImageIcon, badge: "STILL" },
       ];
     }
-    return [
-      { id: "image" as const, label: "IMAGE", icon: ImageIcon, badge: "PNG / WEBP / JPEG" },
-    ];
+    return [{ id: "image" as const, label: "IMAGE", icon: ImageIcon, badge: "PNG / WEBP / JPEG" }];
   }, [isMotionMedia]);
 
   const [activeTab, setActiveTab] = useState<"image" | "video" | "gif">("image");
@@ -94,11 +92,7 @@ export function ExportModal({
     setIsExporting(true);
     try {
       const mimeType =
-        imageFormat === "png"
-          ? "image/png"
-          : imageFormat === "webp"
-          ? "image/webp"
-          : "image/jpeg";
+        imageFormat === "png" ? "image/png" : imageFormat === "webp" ? "image/webp" : "image/jpeg";
 
       const blob = await onCaptureBlob(mimeType);
       if (!blob) throw new Error("Failed to generate image blob");
@@ -128,9 +122,7 @@ export function ExportModal({
     try {
       const blob = await onCaptureBlob("image/png");
       if (blob && navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([
-          new ClipboardItem({ "image/png": blob }),
-        ]);
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         toast.success("Image copied to clipboard!");
       } else {
         throw new Error("Clipboard API not supported");
@@ -158,13 +150,10 @@ export function ExportModal({
       const mimeType =
         typeof MediaRecorder !== "undefined"
           ? ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((type) =>
-              MediaRecorder.isTypeSupported(type)
+              MediaRecorder.isTypeSupported(type),
             )
           : undefined;
-      const mediaRecorder = new MediaRecorder(
-        stream,
-        mimeType ? { mimeType } : undefined
-      );
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
       const chunks: Blob[] = [];
       mediaRecorder.ondataavailable = (e) => {
@@ -311,8 +300,7 @@ export function ExportModal({
       console.error("MP4 export error:", err);
       try {
         if (output && output.state !== "finalized") await output.cancel();
-      } catch {
-      }
+      } catch {}
       toast.error("MP4 export failed. Falling back to WebM...");
       handedOff = true;
       await handleExportWebm();
@@ -396,46 +384,49 @@ export function ExportModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-4"
       style={{ backdropFilter: "none" }}
     >
       <div
-        className="relative w-full max-w-md max-h-[92dvh] bg-black border-2 border-white overflow-hidden flex flex-col modal-enter"
+        className="modal-enter relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden border-2 border-white bg-black"
         style={{ boxShadow: "4px 4px 0 rgba(255,255,255,0.2)" }}
       >
-        
-        <div className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-border bg-neutral-900/60 shrink-0">
+        <div className="border-border flex shrink-0 items-center justify-between border-b bg-neutral-900/60 px-3.5 py-2.5 sm:px-4 sm:py-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+            <span className="font-mono text-xs font-bold tracking-wider text-white uppercase">
               ▓ EXPORT
             </span>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 text-neutral-400 hover:text-white border border-transparent hover:border-neutral-700 transition-colors btn-press"
+            className="btn-press border border-transparent p-1 text-neutral-400 transition-colors hover:border-neutral-700 hover:text-white"
             title="Close (Esc)"
           >
-            <XIcon className="w-4 h-4" />
+            <XIcon className="h-4 w-4" />
           </button>
         </div>
 
         {validTabs.length > 1 && (
-          <div className="flex border-b border-border bg-neutral-950 shrink-0" style={{ gap: "0" }}>
+          <div className="border-border flex shrink-0 border-b bg-neutral-950" style={{ gap: "0" }}>
             {validTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
+                  type="button"
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono border-b-2 transition-colors btn-press flex-1 justify-center",
+                    "btn-press flex flex-1 items-center justify-center gap-1.5 border-b-2 px-3 py-2 font-mono text-[11px] transition-colors",
                     isActive
-                      ? "border-white text-white font-bold bg-neutral-900"
-                      : "border-transparent text-neutral-400 hover:text-white"
+                      ? "border-white bg-neutral-900 font-bold text-white"
+                      : "border-transparent text-neutral-400 hover:text-white",
                   )}
                 >
-                  <Icon className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-neutral-400")} />
+                  <Icon
+                    className={cn("h-3.5 w-3.5", isActive ? "text-white" : "text-neutral-400")}
+                  />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -443,12 +434,11 @@ export function ExportModal({
           </div>
         )}
 
-        <div className="p-3.5 sm:p-4 space-y-4 flex-1 overflow-y-auto overscroll-contain">
-          
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain p-3.5 sm:p-4">
           {activeTab === "image" && (
             <div className="space-y-4">
               <div>
-                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-300 block mb-1.5 font-bold">
+                <label className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-neutral-300 uppercase">
                   File Format
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -462,14 +452,19 @@ export function ExportModal({
                       type="button"
                       onClick={() => setImageFormat(item.fmt)}
                       className={cn(
-                        "py-2 px-2 border text-left font-mono transition-colors btn-press flex flex-col items-center justify-center",
+                        "btn-press flex flex-col items-center justify-center border px-2 py-2 text-left font-mono transition-colors",
                         imageFormat === item.fmt
-                          ? "bg-white border-white text-black font-bold shadow-sm"
-                          : "bg-secondary/40 border-border text-neutral-300 hover:text-white hover:border-white"
+                          ? "border-white bg-white font-bold text-black shadow-sm"
+                          : "bg-secondary/40 border-border text-neutral-300 hover:border-white hover:text-white",
                       )}
                     >
-                      <span className="text-xs uppercase font-bold">{item.label}</span>
-                      <span className={cn("text-[9px]", imageFormat === item.fmt ? "text-black/80" : "text-neutral-400")}>
+                      <span className="text-xs font-bold uppercase">{item.label}</span>
+                      <span
+                        className={cn(
+                          "text-[9px]",
+                          imageFormat === item.fmt ? "text-black/80" : "text-neutral-400",
+                        )}
+                      >
                         {item.desc}
                       </span>
                     </button>
@@ -477,26 +472,28 @@ export function ExportModal({
                 </div>
               </div>
 
-              <div className="pt-2 flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                 <button
                   type="button"
                   onClick={handleExportImage}
                   disabled={isExporting}
-                  className="flex-1 py-2.5 px-3 bg-white hover:bg-neutral-200 text-black font-mono text-xs font-bold border border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50 btn-press"
+                  className="btn-press flex flex-1 items-center justify-center gap-2 border border-white bg-white px-3 py-2.5 font-mono text-xs font-bold text-black transition-colors hover:bg-neutral-200 disabled:opacity-50"
                   style={{ boxShadow: "2px 2px 0 rgba(255,255,255,0.2)" }}
                 >
-                  <DownloadSimpleIcon className="w-4 h-4" />
-                  <span>{isExporting ? "RENDERING..." : `DOWNLOAD .${imageFormat.toUpperCase()}`}</span>
+                  <DownloadSimpleIcon className="h-4 w-4" />
+                  <span>
+                    {isExporting ? "RENDERING..." : `DOWNLOAD .${imageFormat.toUpperCase()}`}
+                  </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleCopyImage}
                   disabled={isExporting}
-                  className="py-2.5 px-3 bg-secondary hover:bg-neutral-800 border border-border text-white font-mono text-xs flex items-center justify-center gap-2 transition-colors btn-press"
+                  className="bg-secondary border-border btn-press flex items-center justify-center gap-2 border px-3 py-2.5 font-mono text-xs text-white transition-colors hover:bg-neutral-800"
                   title="Copy directly to clipboard"
                 >
-                  <CopyIcon className="w-4 h-4" />
+                  <CopyIcon className="h-4 w-4" />
                   <span>COPY</span>
                 </button>
               </div>
@@ -506,7 +503,7 @@ export function ExportModal({
           {activeTab === "video" && isMotionMedia && (
             <div className="space-y-4">
               <div>
-                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-300 block mb-1.5 font-bold">
+                <label className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-neutral-300 uppercase">
                   Format
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -514,10 +511,10 @@ export function ExportModal({
                     type="button"
                     onClick={() => setVideoFormat("mp4")}
                     className={cn(
-                      "py-2 px-2.5 border text-xs font-mono transition-colors btn-press flex flex-col items-center",
+                      "btn-press flex flex-col items-center border px-2.5 py-2 font-mono text-xs transition-colors",
                       videoFormat === "mp4"
-                        ? "bg-white border-white text-black font-bold"
-                        : "bg-secondary/40 border-border text-neutral-300 hover:text-white hover:border-white"
+                        ? "border-white bg-white font-bold text-black"
+                        : "bg-secondary/40 border-border text-neutral-300 hover:border-white hover:text-white",
                     )}
                   >
                     <span>MP4 (H.264)</span>
@@ -527,10 +524,10 @@ export function ExportModal({
                     type="button"
                     onClick={() => setVideoFormat("webm")}
                     className={cn(
-                      "py-2 px-2.5 border text-xs font-mono transition-colors btn-press flex flex-col items-center",
+                      "btn-press flex flex-col items-center border px-2.5 py-2 font-mono text-xs transition-colors",
                       videoFormat === "webm"
-                        ? "bg-white border-white text-black font-bold"
-                        : "bg-secondary/40 border-border text-neutral-300 hover:text-white hover:border-white"
+                        ? "border-white bg-white font-bold text-black"
+                        : "bg-secondary/40 border-border text-neutral-300 hover:border-white hover:text-white",
                     )}
                   >
                     <span>WEBM (VP9)</span>
@@ -540,7 +537,7 @@ export function ExportModal({
               </div>
 
               <div>
-                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-300 block mb-1.5 font-bold">
+                <label className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-neutral-300 uppercase">
                   Recording Duration
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -550,10 +547,10 @@ export function ExportModal({
                       type="button"
                       onClick={() => setRecordDuration(dur)}
                       className={cn(
-                        "py-2 px-2.5 border text-xs font-mono transition-colors btn-press",
+                        "btn-press border px-2.5 py-2 font-mono text-xs transition-colors",
                         recordDuration === dur
-                          ? "bg-white border-white text-black font-bold"
-                          : "bg-secondary/40 border-border text-neutral-300 hover:text-white hover:border-white"
+                          ? "border-white bg-white font-bold text-black"
+                          : "bg-secondary/40 border-border text-neutral-300 hover:border-white hover:text-white",
                       )}
                     >
                       {dur} SECONDS
@@ -563,14 +560,16 @@ export function ExportModal({
               </div>
 
               {isRecording && (
-                <div className="space-y-1.5 p-3 bg-neutral-900 border border-neutral-700">
-                  <div className="flex justify-between text-xs font-mono">
-                    <span className="text-white font-bold">Recording {videoFormat.toUpperCase()} stream...</span>
+                <div className="space-y-1.5 border border-neutral-700 bg-neutral-900 p-3">
+                  <div className="flex justify-between font-mono text-xs">
+                    <span className="font-bold text-white">
+                      Recording {videoFormat.toUpperCase()} stream...
+                    </span>
                     <span className="text-neutral-300 tabular-nums">{recordProgress}%</span>
                   </div>
-                  <div className="w-full h-2 bg-neutral-950 border border-neutral-700 overflow-hidden">
+                  <div className="h-2 w-full overflow-hidden border border-neutral-700 bg-neutral-950">
                     <div
-                      className="h-full pixel-progress transition-all duration-75"
+                      className="pixel-progress h-full transition-all duration-75"
                       style={{ width: `${recordProgress}%` }}
                     />
                   </div>
@@ -581,9 +580,9 @@ export function ExportModal({
                 type="button"
                 onClick={handleExportVideo}
                 disabled={isRecording}
-                className="w-full py-2.5 px-3 bg-white hover:bg-neutral-200 text-black font-mono text-xs font-bold border border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50 btn-press"
+                className="btn-press flex w-full items-center justify-center gap-2 border border-white bg-white px-3 py-2.5 font-mono text-xs font-bold text-black transition-colors hover:bg-neutral-200 disabled:opacity-50"
               >
-                <VideoCameraIcon className="w-4 h-4" />
+                <VideoCameraIcon className="h-4 w-4" />
                 <span>
                   {isRecording
                     ? `RECORDING (${recordProgress}%)...`
@@ -597,13 +596,13 @@ export function ExportModal({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-300 block mb-1 font-bold">
+                  <label className="mb-1 block font-mono text-[11px] font-bold tracking-wider text-neutral-300 uppercase">
                     Frame Count
                   </label>
                   <select
                     value={gifFrames}
                     onChange={(e) => setGifFrames(parseInt(e.target.value, 10))}
-                    className="w-full p-2 bg-black border border-border text-xs font-mono text-white focus:outline-none focus:border-white"
+                    className="border-border w-full border bg-black p-2 font-mono text-xs text-white focus:border-white focus:outline-none"
                   >
                     <option value="15">15 Frames</option>
                     <option value="30">30 Frames</option>
@@ -612,13 +611,13 @@ export function ExportModal({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-300 block mb-1 font-bold">
+                  <label className="mb-1 block font-mono text-[11px] font-bold tracking-wider text-neutral-300 uppercase">
                     Frame Rate
                   </label>
                   <select
                     value={gifFps}
                     onChange={(e) => setGifFps(parseInt(e.target.value, 10))}
-                    className="w-full p-2 bg-black border border-border text-xs font-mono text-white focus:outline-none focus:border-white"
+                    className="border-border w-full border bg-black p-2 font-mono text-xs text-white focus:border-white focus:outline-none"
                   >
                     <option value="10">10 FPS</option>
                     <option value="15">15 FPS</option>
@@ -628,14 +627,14 @@ export function ExportModal({
               </div>
 
               {isExporting && (
-                <div className="space-y-1.5 p-3 bg-neutral-900 border border-neutral-700">
-                  <div className="flex justify-between text-xs font-mono">
-                    <span className="text-white font-bold">Encoding GIF...</span>
+                <div className="space-y-1.5 border border-neutral-700 bg-neutral-900 p-3">
+                  <div className="flex justify-between font-mono text-xs">
+                    <span className="font-bold text-white">Encoding GIF...</span>
                     <span className="text-neutral-300 tabular-nums">{gifProgress}%</span>
                   </div>
-                  <div className="w-full h-2 bg-neutral-950 border border-neutral-700 overflow-hidden">
+                  <div className="h-2 w-full overflow-hidden border border-neutral-700 bg-neutral-950">
                     <div
-                      className="h-full pixel-progress transition-all duration-75"
+                      className="pixel-progress h-full transition-all duration-75"
                       style={{ width: `${gifProgress}%` }}
                     />
                   </div>
@@ -646,9 +645,9 @@ export function ExportModal({
                 type="button"
                 onClick={handleExportGif}
                 disabled={isExporting}
-                className="w-full py-2.5 px-3 bg-white hover:bg-neutral-200 text-black font-mono text-xs font-bold border border-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50 btn-press"
+                className="btn-press flex w-full items-center justify-center gap-2 border border-white bg-white px-3 py-2.5 font-mono text-xs font-bold text-black transition-colors hover:bg-neutral-200 disabled:opacity-50"
               >
-                <FilmStripIcon className="w-4 h-4" />
+                <FilmStripIcon className="h-4 w-4" />
                 <span>{isExporting ? `ENCODING (${gifProgress}%)...` : "EXPORT ANIMATED GIF"}</span>
               </button>
             </div>

@@ -1,4 +1,4 @@
-import type { CpuAlgorithm, ColorMode } from "./types";
+import type { ColorMode, CpuAlgorithm } from "./types";
 
 export type { CpuAlgorithm } from "./types";
 
@@ -134,12 +134,12 @@ const LN_EPS = 216 / 24389;
 const LN_KAPPA = 24389 / 27;
 
 function clamp(v: number, min: number, max: number): number {
-  return v > max ? max : v < min ? min : v;
+  return v > max ? max : Math.max(v, min);
 }
 
 function linearize(c: number): number {
   const t = c / 255;
-  return t < 0.04045 ? t / 12.92 : Math.pow((t + 0.055) / 1.055, 2.4);
+  return t < 0.04045 ? t / 12.92 : ((t + 0.055) / 1.055) ** 2.4;
 }
 
 function labF(t: number): number {
@@ -168,23 +168,20 @@ function rgbToLab(r: number, g: number, b: number, out: Float64Array, outOffset 
   out[outOffset + 2] = Math.round(200 * (fy - fz) * 100) / 100;
 }
 
-function ciede2000(
-  l1: number, a1: number, b1: number,
-  l2: number, a2: number, b2: number
-): number {
+function ciede2000(l1: number, a1: number, b1: number, l2: number, a2: number, b2: number): number {
   const DEG = 180 / Math.PI;
   const RAD = Math.PI / 180;
 
-  const c1 = Math.pow(Math.pow(a1, 2) + Math.pow(b1, 2), 0.5);
-  const c2 = Math.pow(Math.pow(a2, 2) + Math.pow(b2, 2), 0.5);
+  const c1 = (a1 ** 2 + b1 ** 2) ** 0.5;
+  const c2 = (a2 ** 2 + b2 ** 2) ** 0.5;
   const meanL = (l1 + l2) / 2;
-  const gBase = Math.pow((c1 + c2) / 2, 7);
-  const g = 0.5 * (1 - Math.pow(gBase / (gBase + Math.pow(25, 7)), 0.5));
+  const gBase = ((c1 + c2) / 2) ** 7;
+  const g = 0.5 * (1 - (gBase / (gBase + 25 ** 7)) ** 0.5);
 
   const ap1 = a1 * (1 + g);
   const ap2 = a2 * (1 + g);
-  const cp1 = Math.pow(Math.pow(ap1, 2) + Math.pow(b1, 2), 0.5);
-  const cp2 = Math.pow(Math.pow(ap2, 2) + Math.pow(b2, 2), 0.5);
+  const cp1 = (ap1 ** 2 + b1 ** 2) ** 0.5;
+  const cp2 = (ap2 ** 2 + b2 ** 2) ** 0.5;
   const meanC = (cp1 + cp2) / 2;
 
   let h1 = ap1 === 0 && b1 === 0 ? 0 : Math.atan2(b1, ap1) * DEG;
@@ -210,24 +207,17 @@ function ciede2000(
 
   const dl = l2 - l1;
   const dc = cp2 - cp1;
-  const dp = 2 * Math.sin(RAD * dh / 2) * Math.pow(cp1 * cp2, 0.5);
+  const dp = 2 * Math.sin((RAD * dh) / 2) * (cp1 * cp2) ** 0.5;
 
-  const sl =
-    1 + (0.015 * Math.pow(meanL - 50, 2)) / Math.pow(20 + Math.pow(meanL - 50, 2), 0.5);
+  const sl = 1 + (0.015 * (meanL - 50) ** 2) / (20 + (meanL - 50) ** 2) ** 0.5;
   const sc = 1 + 0.045 * meanC;
   const sh = 1 + 0.015 * meanC * fT;
   const rt =
     -2 *
-    Math.pow(Math.pow(meanC, 7) / (Math.pow(meanC, 7) + Math.pow(25, 7)), 0.5) *
-    Math.sin(2 * RAD * 30 * Math.exp(-Math.pow((meanH - 275) / 25, 2)));
+    (meanC ** 7 / (meanC ** 7 + 25 ** 7)) ** 0.5 *
+    Math.sin(2 * RAD * 30 * Math.exp(-(((meanH - 275) / 25) ** 2)));
 
-  return Math.pow(
-    Math.pow(dl / sl, 2) +
-    Math.pow(dc / sc, 2) +
-    Math.pow(dp / sh, 2) +
-    (rt * dc * dp) / (sc * sh),
-    0.5
-  );
+  return ((dl / sl) ** 2 + (dc / sc) ** 2 + (dp / sh) ** 2 + (rt * dc * dp) / (sc * sh)) ** 0.5;
 }
 
 /**
@@ -236,12 +226,16 @@ function ciede2000(
  * (raw values ≥1 all collapse to 1 in the old colord-based engine).
  */
 function colordDelta(
-  l1: number, a1: number, b1: number,
-  l2: number, a2: number, b2: number
+  l1: number,
+  a1: number,
+  b1: number,
+  l2: number,
+  a2: number,
+  b2: number,
 ): number {
   const n = ciede2000(l1, a1, b1, l2, a2, b2) / 100;
   const rounded = Math.round(n * 1000) / 1000;
-  return rounded > 1 ? 1 : rounded < 0 ? 0 : rounded;
+  return rounded > 1 ? 1 : Math.max(rounded, 0);
 }
 
 const LUT_SHIFT = 3;
@@ -269,8 +263,12 @@ function buildPaletteLut(paletteLab: Float64Array, count: number): Uint8Array {
     for (let p = 0; p < count; p++) {
       const o = p * 3;
       const d = colordDelta(
-        lab[0], lab[1], lab[2],
-        paletteLab[o], paletteLab[o + 1], paletteLab[o + 2]
+        lab[0],
+        lab[1],
+        lab[2],
+        paletteLab[o],
+        paletteLab[o + 1],
+        paletteLab[o + 2],
       );
       if (d < bestDist) {
         bestDist = d;
@@ -314,10 +312,7 @@ function parseColor(hex: string | undefined, fallback: string): Rgb {
   return rgb;
 }
 
-export function processCpuDithering(
-  imageData: ImageData,
-  options: CpuDitherOptions
-): ImageData {
+export function processCpuDithering(imageData: ImageData, options: CpuDitherOptions): ImageData {
   return processCpuDitheringData(imageData.data, imageData.width, imageData.height, options);
 }
 
@@ -325,14 +320,13 @@ export function processCpuDitheringData(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-  options: CpuDitherOptions
+  options: CpuDitherOptions,
 ): ImageData {
   const output = new ImageData(width, height);
   const outData = output.data;
   const pixelCount = width * height;
 
-  const offsets =
-    FLAT_DIFFUSION[options.algorithm] ?? FLAT_DIFFUSION["floyd-steinberg"];
+  const offsets = FLAT_DIFFUSION[options.algorithm] ?? FLAT_DIFFUSION["floyd-steinberg"];
 
   const gradeLut = new Float32Array(256);
   const brightnessOffset = options.brightness ? options.brightness * 255 : 0;
@@ -346,7 +340,7 @@ export function processCpuDitheringData(
     let v = val;
     if (brightnessOffset) v += brightnessOffset;
     if (hasContrast) v = (v - 128) * contrast + 128;
-    if (hasGamma) v = 255 * Math.pow(Math.max(0, v / 255), invGamma);
+    if (hasGamma) v = 255 * Math.max(0, v / 255) ** invGamma;
     gradeLut[val] = Math.max(0, Math.min(255, v));
   }
 
@@ -366,21 +360,28 @@ export function processCpuDitheringData(
   const inverted = options.inverted;
 
   const mode =
-    options.colorMode === "paper" ? 0 :
-    options.colorMode === "duotone" ? 1 :
-    options.colorMode === "palette" ? 2 :
-    options.colorMode === "original" ? 3 : 4;
+    options.colorMode === "paper"
+      ? 0
+      : options.colorMode === "duotone"
+        ? 1
+        : options.colorMode === "palette"
+          ? 2
+          : options.colorMode === "original"
+            ? 3
+            : 4;
 
   let palIndices: Uint8Array | null = null;
   let palFlat: Float32Array | null = null;
   if (mode === 2) {
-    const palette = options.palette && options.palette.length > 0 ? options.palette : ["#000000", "#ffffff"];
+    const palette =
+      options.palette && options.palette.length > 0 ? options.palette : ["#000000", "#ffffff"];
     const paletteKey = palette.join(",");
     if (paletteKey !== lutPaletteKey || !lutPauseIndices) {
       const count = palette.length;
-      const paletteLab = (lutPaletteLab && lutPaletteLab.length >= count * 3)
-        ? lutPaletteLab
-        : new Float64Array(count * 3);
+      const paletteLab =
+        lutPaletteLab && lutPaletteLab.length >= count * 3
+          ? lutPaletteLab
+          : new Float64Array(count * 3);
       const rgb: Rgb = [0, 0, 0];
       for (let i = 0; i < count; i++) {
         parseHex(palette[i], rgb);
@@ -421,14 +422,14 @@ export function processCpuDitheringData(
         continue;
       }
 
-      let r = fb[errIdx];
-      let g = fb[errIdx + 1];
-      let b = fb[errIdx + 2];
+      const r = fb[errIdx];
+      const g = fb[errIdx + 1];
+      const b = fb[errIdx + 2];
 
       if (mode === 2) {
-        const rc = r < 0 ? 0 : r > 255 ? 255 : r;
-        const gc = g < 0 ? 0 : g > 255 ? 255 : g;
-        const bc = b < 0 ? 0 : b > 255 ? 255 : b;
+        const rc = r < 0 ? 0 : Math.min(r, 255);
+        const gc = g < 0 ? 0 : Math.min(g, 255);
+        const bc = b < 0 ? 0 : Math.min(b, 255);
         const ci =
           (((rc + 0.5) | 0) >> LUT_SHIFT) * LUT_STRIDE_R +
           (((gc + 0.5) | 0) >> LUT_SHIFT) * LUT_STRIDE_G +
@@ -438,9 +439,9 @@ export function processCpuDitheringData(
         newG = palFlat![pi + 1];
         newB = palFlat![pi + 2];
       } else {
-        const rc = r < 0 ? 0 : r > 255 ? 255 : r;
-        const gc = g < 0 ? 0 : g > 255 ? 255 : g;
-        const bc = b < 0 ? 0 : b > 255 ? 255 : b;
+        const rc = r < 0 ? 0 : Math.min(r, 255);
+        const gc = g < 0 ? 0 : Math.min(g, 255);
+        const bc = b < 0 ? 0 : Math.min(b, 255);
         let lum = (299 * rc + 587 * gc + 114 * bc) / 1000 / 255;
         lum = Math.round(lum * 100) / 100;
         if (inverted) lum = 1 - lum;
@@ -448,18 +449,28 @@ export function processCpuDitheringData(
         if (mode === 0) {
           if (lum >= threshold) {
             if (lum > 0.85) {
-              newR = hlRgb[0]; newG = hlRgb[1]; newB = hlRgb[2];
+              newR = hlRgb[0];
+              newG = hlRgb[1];
+              newB = hlRgb[2];
             } else {
-              newR = fgRgb[0]; newG = fgRgb[1]; newB = fgRgb[2];
+              newR = fgRgb[0];
+              newG = fgRgb[1];
+              newB = fgRgb[2];
             }
           } else {
-            newR = bgRgb[0]; newG = bgRgb[1]; newB = bgRgb[2];
+            newR = bgRgb[0];
+            newG = bgRgb[1];
+            newB = bgRgb[2];
           }
         } else if (mode === 1) {
           if (lum >= threshold) {
-            newR = fgRgb[0]; newG = fgRgb[1]; newB = fgRgb[2];
+            newR = fgRgb[0];
+            newG = fgRgb[1];
+            newB = fgRgb[2];
           } else {
-            newR = bgRgb[0]; newG = bgRgb[1]; newB = bgRgb[2];
+            newR = bgRgb[0];
+            newG = bgRgb[1];
+            newB = bgRgb[2];
           }
         } else if (mode === 3) {
           newR = Math.min(255, Math.max(0, Math.round(r * origInvStepSize) * origStepSize));
@@ -467,7 +478,9 @@ export function processCpuDitheringData(
           newB = Math.min(255, Math.max(0, Math.round(b * origInvStepSize) * origStepSize));
         } else {
           const bit = lum >= threshold ? 255 : 0;
-          newR = bit; newG = bit; newB = bit;
+          newR = bit;
+          newG = bit;
+          newB = bit;
         }
       }
 

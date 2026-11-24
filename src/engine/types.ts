@@ -23,14 +23,7 @@ export type ColorMode = "paper" | "duotone" | "original" | "palette" | "grayscal
 
 export type FitMode = "contain" | "cover" | "fill";
 
-export type ProceduralShape =
-  | "simplex"
-  | "warp"
-  | "dots"
-  | "waves"
-  | "ripple"
-  | "swirl"
-  | "sphere";
+export type ProceduralShape = "simplex" | "warp" | "dots" | "waves" | "ripple" | "swirl" | "sphere";
 
 export type MediaType = "image" | "video" | "webcam" | "procedural";
 

@@ -1,7 +1,7 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { type ClassValue, clsx } from "clsx";
 import { colord, extend } from "colord";
 import labPlugin from "colord/plugins/lab";
+import { twMerge } from "tailwind-merge";
 
 extend([labPlugin]);
 
@@ -37,17 +37,17 @@ export function getLuminance(r: number, g: number, b: number): number {
 
 export function deltaE(
   c1: string | { r: number; g: number; b: number },
-  c2: string | { r: number; g: number; b: number }
+  c2: string | { r: number; g: number; b: number },
 ): number {
   return colord(c1).delta(c2);
 }
 
 export function sRgbToLinear(c: number): number {
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
 
 export function linearToSRgb(c: number): number {
-  return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1.0 / 2.4) - 0.055;
+  return c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1.0 / 2.4) - 0.055;
 }
 
 export function calculateFitDimensions(
@@ -55,7 +55,7 @@ export function calculateFitDimensions(
   containerWidth: number,
   containerHeight: number,
   srcWidth: number,
-  srcHeight: number
+  srcHeight: number,
 ): { width: number; height: number; x: number; y: number } {
   if (fit === "fill" || srcWidth <= 0 || srcHeight <= 0) {
     return { width: containerWidth, height: containerHeight, x: 0, y: 0 };
@@ -90,8 +90,8 @@ export function calculateFitDimensions(
 export function formatBytes(bytes: number, decimals = 1): string {
   if (bytes === 0) return "0 B";
   const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
+  const dm = Math.max(decimals, 0);
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+  return `${parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`;
 }

@@ -1,18 +1,18 @@
 "use client";
 
 import React, {
-  useEffect,
-  useRef,
-  useImperativeHandle,
   forwardRef,
-  useState,
   useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
 } from "react";
-import { DitherWebGLMount } from "@/engine/webgl-mount";
-import { DitherVgpuMount } from "@/engine/vgpu-mount";
-import type { DitherSettings } from "@/engine/types";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import type { DitherSettings } from "@/engine/types";
+import { DitherVgpuMount } from "@/engine/vgpu-mount";
+import { DitherWebGLMount } from "@/engine/webgl-mount";
+import { cn } from "@/lib/utils";
 
 export type ActiveDitherMount = DitherWebGLMount | DitherVgpuMount;
 
@@ -31,20 +31,20 @@ export interface DitherCanvasHandle {
   render: () => void;
   getSnapshotBlob: (
     type?: "image/png" | "image/webp" | "image/jpeg",
-    quality?: number
+    quality?: number,
   ) => Promise<Blob | null>;
 }
 export const DitherCanvas = React.memo(
   forwardRef<DitherCanvasHandle, DitherCanvasProps>(function DitherCanvas(
     { settings, src, className, style, onReady, onError },
-    ref
+    ref,
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const mountRef = useRef<ActiveDitherMount | null>(null);
 
     const [activeEngine, setActiveEngine] = useState<"vgpu" | "webgl">(
-      settings.engine === "vgpu" ? "vgpu" : "webgl"
+      settings.engine === "vgpu" ? "vgpu" : "webgl",
     );
     const [engineVersion, setEngineVersion] = useState(0);
 
@@ -217,22 +217,22 @@ export const DitherCanvas = React.memo(
         getSnapshotBlob: (type, quality) =>
           mountRef.current?.getSnapshotBlob(type, quality) ?? Promise.resolve(null),
       }),
-      []
+      [],
     );
 
     return (
       <div
         ref={containerRef}
-        className={cn("relative w-full h-full overflow-hidden select-none", className)}
+        className={cn("relative h-full w-full overflow-hidden select-none", className)}
         style={style}
       >
         <canvas
           key={`${activeEngine}-${engineVersion}`}
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full pointer-events-none pixel-art"
+          className="pixel-art pointer-events-none absolute inset-0 h-full w-full"
           aria-label="DotShade Dither Canvas"
         />
       </div>
     );
-  })
+  }),
 );

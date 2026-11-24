@@ -1,12 +1,12 @@
 import * as Comlink from "comlink";
-import { processCpuDithering, type CpuDitherOptions } from "./cpu-dither";
+import { type CpuDitherOptions, processCpuDithering } from "./cpu-dither";
 
 interface CpuDitherWorkerApi {
   process(
     buffer: Uint8ClampedArray,
     width: number,
     height: number,
-    options: CpuDitherOptions
+    options: CpuDitherOptions,
   ): Uint8ClampedArray<ArrayBuffer>;
 }
 
@@ -19,10 +19,9 @@ function getWorker(): Comlink.Remote<CpuDitherWorkerApi> | null {
   }
   if (!workerInstance) {
     try {
-      const worker = new Worker(
-        new URL("./workers/cpu-dither.worker.ts", import.meta.url),
-        { type: "module" }
-      );
+      const worker = new Worker(new URL("./workers/cpu-dither.worker.ts", import.meta.url), {
+        type: "module",
+      });
       workerInstance = Comlink.wrap<CpuDitherWorkerApi>(worker);
     } catch (err) {
       console.warn("Web Worker init failed, using sync fallback:", err);
@@ -34,7 +33,7 @@ function getWorker(): Comlink.Remote<CpuDitherWorkerApi> | null {
 
 export async function processCpuDitheringAsync(
   imageData: ImageData,
-  options: CpuDitherOptions
+  options: CpuDitherOptions,
 ): Promise<ImageData> {
   const worker = getWorker();
   const { width, height } = imageData;
@@ -45,7 +44,7 @@ export async function processCpuDitheringAsync(
         Comlink.transfer(copy, [copy.buffer]),
         width,
         height,
-        options
+        options,
       );
       return new ImageData(processed as Uint8ClampedArray<ArrayBuffer>, width, height);
     } catch (err) {
