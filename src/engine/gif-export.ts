@@ -15,7 +15,11 @@ export class ClientGifEncoder {
     this.gif = GIFEncoder();
   }
 
-  public start(palette: string[] = ["#000000", "#ffffff"], loop = 0) {
+  /**
+   * @param palette Fixed palette shared by all frames. Pass `null` to quantize once from the
+   * first frame and reuse that palette for every later frame (avoids per-frame flicker).
+   */
+  public start(palette: string[] | null, loop = 0) {
     this.gif.reset();
     this.loopCount = loop;
     this.frameCount = 0;
@@ -32,7 +36,8 @@ export class ClientGifEncoder {
 
   public addFrame(imageData: ImageData, delayMs = 100) {
     const { data } = imageData;
-    const pal = this.palette && this.palette.length > 0 ? this.palette : quantize(data, 256);
+    if (!this.palette || this.palette.length === 0) this.palette = quantize(data, 256);
+    const pal = this.palette;
 
     const index = applyPalette(data, pal);
 

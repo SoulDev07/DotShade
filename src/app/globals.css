@@ -20,6 +20,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-border-hover: var(--border-hover);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -191,18 +192,6 @@
 .btn-press:active {
   transform: translate(1px, 1px) !important;
   box-shadow: none !important;
-}
-
-.glass-panel {
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: 2px 2px 0 rgba(255, 255, 255, 0.15);
-}
-
-.glass-panel-glow {
-  background: var(--card);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 1);
 }
 
 .pixel-art {

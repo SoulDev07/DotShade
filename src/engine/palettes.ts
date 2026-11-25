@@ -1,4 +1,4 @@
-import { deltaE, parseColorToNormalizedRgba } from "@/lib/utils";
+import { parseColorToNormalizedRgba } from "@/lib/utils";
 
 export interface ColorPalette {
   id: string;
@@ -290,43 +290,6 @@ export const RETRO_PALETTES: ColorPalette[] = [
 export const PALETTE_MAP = new Map<string, ColorPalette>(
   RETRO_PALETTES.map((palette) => [palette.id, palette]),
 );
-
-export type RgbTuple = [number, number, number];
-
-/**
- * Finds the closest color in a pre-parsed RGB color palette using perceptually-weighted
- * Euclidean distance in RGB color space without string parsing overhead.
- * Weights (0.30 R, 0.59 G, 0.11 B) account for human eye sensitivity to green wavelengths.
- *
- * @param r - Source red component [0..255]
- * @param g - Source green component [0..255]
- * @param b - Source blue component [0..255]
- * @param palette - Array of pre-parsed [r, g, b] tuples
- * @returns The closest [r, g, b] color tuple from the palette
- */
-export function findClosestPaletteColor(
-  r: number,
-  g: number,
-  b: number,
-  palette: RgbTuple[],
-): RgbTuple {
-  let minDistance = Infinity;
-  let closestRgb: RgbTuple = palette[0] || [0, 0, 0];
-
-  for (let i = 0; i < palette.length; i++) {
-    const palRgb = palette[i];
-    // CIEDE2000 perceptual color distance for superior visual accuracy
-    const distance = deltaE({ r, g, b }, { r: palRgb[0], g: palRgb[1], b: palRgb[2] });
-
-    if (distance < minDistance) {
-      minDistance = distance;
-      closestRgb = palRgb;
-      if (distance === 0) break;
-    }
-  }
-
-  return closestRgb;
-}
 
 /** Converts hex colors to a flat Float32Array for WebGL/WebGPU vec4 palette uniforms */
 export function paletteToVec4Array(

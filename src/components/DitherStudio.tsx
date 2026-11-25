@@ -401,7 +401,7 @@ export function DitherStudio() {
     handleOpenExport();
   });
 
-  useHotkeys("tab", (e) => {
+  useHotkeys("s", (e) => {
     e.preventDefault();
     setIsSplitView((prev) => !prev);
   });
@@ -709,7 +709,7 @@ export function DitherStudio() {
                     ? "bg-primary text-primary-foreground border-primary border font-bold"
                     : "text-muted-foreground hover:text-foreground hover:border-border border border-transparent",
               )}
-              title="Split Comparison (Tab)"
+              title="Split Comparison (S)"
             >
               <SquareSplitHorizontalIcon className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">SPLIT</span>

@@ -220,24 +220,6 @@ function ciede2000(l1: number, a1: number, b1: number, l2: number, a2: number, b
   return ((dl / sl) ** 2 + (dc / sc) ** 2 + (dp / sh) ** 2 + (rt * dc * dp) / (sc * sh)) ** 0.5;
 }
 
-/**
- * colord's delta() = clamp(round(ciede2000()/100, 3), 0, 1) — its helper `o`
- * defaults to a [0,1] clamp. Replicate so palette ties resolve identically
- * (raw values ≥1 all collapse to 1 in the old colord-based engine).
- */
-function colordDelta(
-  l1: number,
-  a1: number,
-  b1: number,
-  l2: number,
-  a2: number,
-  b2: number,
-): number {
-  const n = ciede2000(l1, a1, b1, l2, a2, b2) / 100;
-  const rounded = Math.round(n * 1000) / 1000;
-  return rounded > 1 ? 1 : Math.max(rounded, 0);
-}
-
 const LUT_SHIFT = 3;
 const LUT_SIZE = 1 << 15;
 const LUT_STRIDE_G = 1 << 5;
@@ -262,7 +244,7 @@ function buildPaletteLut(paletteLab: Float64Array, count: number): Uint8Array {
     let bestDist = Infinity;
     for (let p = 0; p < count; p++) {
       const o = p * 3;
-      const d = colordDelta(
+      const d = ciede2000(
         lab[0],
         lab[1],
         lab[2],

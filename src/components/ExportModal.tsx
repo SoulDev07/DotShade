@@ -18,6 +18,21 @@ import { cn } from "@/lib/utils";
 let mediabunnyModule: Promise<typeof import("mediabunny")> | null = null;
 const loadMediabunny = () => (mediabunnyModule ??= import("mediabunny"));
 
+function getGifPalette(s: DitherSettings): string[] | null {
+  switch (s.colorMode) {
+    case "palette":
+      return s.palette.length > 0 ? s.palette : ["#000000", "#ffffff"];
+    case "duotone":
+      return [s.colorBack, s.colorFront];
+    case "paper":
+      return [s.colorBack, s.colorFront, s.colorHighlight];
+    case "grayscale":
+      return ["#000000", "#ffffff"];
+    default:
+      return null;
+  }
+}
+
 type MediaOutput = InstanceType<typeof import("mediabunny").Output>;
 
 interface ExportModalProps {
@@ -36,9 +51,7 @@ export function ExportModal({
   canvasRef,
 }: ExportModalProps) {
   const isMotionMedia =
-    settings.mediaType === "video" ||
-    settings.mediaType === "webcam" ||
-    (settings.mediaType === "procedural" && settings.animated);
+    settings.mediaType === "video" || (settings.mediaType === "procedural" && settings.animated);
 
   const validTabs = useMemo(() => {
     if (isMotionMedia) {
@@ -73,18 +86,6 @@ export function ExportModal({
   const [gifFrames, setGifFrames] = useState(30);
   const [gifFps, setGifFps] = useState(15);
   const [gifProgress, setGifProgress] = useState(0);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -264,6 +265,7 @@ export function ExportModal({
       const frameIntervalMs = 1000 / fps;
 
       try {
+        const startedAt = performance.now();
         for (let i = 0; i < totalFrames; i++) {
           if (offscreenCtx) {
             offscreenCtx.drawImage(canvas, 0, 0, evenWidth, evenHeight);
@@ -271,7 +273,9 @@ export function ExportModal({
 
           await videoSource.add(i * frameDurationSec, frameDurationSec);
           setRecordProgress(Math.min(100, Math.round(((i + 1) / totalFrames) * 100)));
-          await new Promise((r) => setTimeout(r, frameIntervalMs));
+          // Schedule against the wall clock so encode time doesn't stretch the capture.
+          const target = startedAt + (i + 1) * frameIntervalMs;
+          await new Promise((r) => setTimeout(r, Math.max(0, target - performance.now())));
         }
       } finally {
         videoSource.close();
@@ -345,7 +349,7 @@ export function ExportModal({
       if (!ctx) throw new Error("Could not initialize offscreen context for GIF capture");
 
       const encoder = new ClientGifEncoder(exportW, exportH);
-      encoder.start(settings.palette || ["#000000", "#ffffff"], 0);
+      encoder.start(getGifPalette(settings), 0);
 
       const delayMs = Math.round(1000 / gifFps);
 

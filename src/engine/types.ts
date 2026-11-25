@@ -25,7 +25,7 @@ export type FitMode = "contain" | "cover" | "fill";
 
 export type ProceduralShape = "simplex" | "warp" | "dots" | "waves" | "ripple" | "swirl" | "sphere";
 
-export type MediaType = "image" | "video" | "webcam" | "procedural";
+export type MediaType = "image" | "video" | "procedural";
 
 export interface DitherSettings {
   engine: EngineMode;
