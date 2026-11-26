@@ -31,7 +31,8 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.1",
     "tailwindcss": "^4.3.5",
-    "vgpu": "0.6.0"
+    "vgpu": "0.6.0",
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.8",

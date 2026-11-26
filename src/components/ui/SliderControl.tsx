@@ -2,16 +2,14 @@
 
 import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
+import { type RangedSetting, SETTING_RANGES } from "@/engine/setting-ranges";
 import { cn } from "@/lib/utils";
 
 interface SliderControlProps {
   label: string;
+  setting: RangedSetting;
   value: number;
-  min: number;
-  max: number;
-  step?: number;
   unit?: string;
-  defaultValue?: number;
   formatValue?: (val: number) => string;
   onChange: (val: number) => void;
   className?: string;
@@ -19,16 +17,14 @@ interface SliderControlProps {
 
 export function SliderControl({
   label,
+  setting,
   value,
-  min,
-  max,
-  step = 1,
   unit = "",
-  defaultValue,
   formatValue,
   onChange,
   className,
 }: SliderControlProps) {
+  const { min, max, step, default: defaultValue } = SETTING_RANGES[setting];
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(value.toString());
 
@@ -61,7 +57,7 @@ export function SliderControl({
         <span className="font-bold tracking-wide text-neutral-200 uppercase">{label}</span>
 
         <div className="flex items-center gap-1.5">
-          {defaultValue !== undefined && Math.abs(value - defaultValue) > 0.0001 && (
+          {Math.abs(value - defaultValue) > 0.0001 && (
             <button
               type="button"
               onClick={() => onChange(defaultValue)}

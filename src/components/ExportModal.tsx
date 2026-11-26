@@ -11,23 +11,25 @@ import {
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DEFAULT_COLORS } from "@/engine/defaults";
 import { ClientGifEncoder } from "@/engine/gif-export";
-import type { DitherSettings } from "@/engine/types";
+import type { StyleSettings } from "@/engine/types";
 import { cn } from "@/lib/utils";
+import { useStudioStore } from "@/state/studio-store";
 
 let mediabunnyModule: Promise<typeof import("mediabunny")> | null = null;
 const loadMediabunny = () => (mediabunnyModule ??= import("mediabunny"));
 
-function getGifPalette(s: DitherSettings): string[] | null {
+function getGifPalette(s: StyleSettings): string[] | null {
   switch (s.colorMode) {
     case "palette":
-      return s.palette.length > 0 ? s.palette : ["#000000", "#ffffff"];
+      return s.palette.length > 0 ? s.palette : [DEFAULT_COLORS.back, DEFAULT_COLORS.front];
     case "duotone":
       return [s.colorBack, s.colorFront];
     case "paper":
       return [s.colorBack, s.colorFront, s.colorHighlight];
     case "grayscale":
-      return ["#000000", "#ffffff"];
+      return [DEFAULT_COLORS.back, DEFAULT_COLORS.front];
     default:
       return null;
   }
@@ -38,20 +40,15 @@ type MediaOutput = InstanceType<typeof import("mediabunny").Output>;
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  settings: DitherSettings;
   onCaptureBlob: (type: "image/png" | "image/webp" | "image/jpeg") => Promise<Blob | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
 }
 
-export function ExportModal({
-  isOpen,
-  onClose,
-  settings,
-  onCaptureBlob,
-  canvasRef,
-}: ExportModalProps) {
+export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: ExportModalProps) {
+  const style = useStudioStore((st) => st.style);
+  const source = useStudioStore((st) => st.source);
   const isMotionMedia =
-    settings.mediaType === "video" || (settings.mediaType === "procedural" && settings.animated);
+    source.mediaType === "video" || (source.mediaType === "procedural" && source.animated);
 
   const validTabs = useMemo(() => {
     if (isMotionMedia) {
@@ -101,7 +98,7 @@ export function ExportModal({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `dotshade-${settings.ditherType}-${Date.now()}.${imageFormat}`;
+      a.download = `dotshade-${style.ditherType}-${Date.now()}.${imageFormat}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -162,7 +159,6 @@ export function ExportModal({
       };
 
       mediaRecorder.onstop = () => {
-        // Stop capturing now that recording has finished.
         mediaStream.getTracks().forEach((track) => track.stop());
 
         const blob = new Blob(chunks, { type: "video/webm" });
@@ -349,7 +345,7 @@ export function ExportModal({
       if (!ctx) throw new Error("Could not initialize offscreen context for GIF capture");
 
       const encoder = new ClientGifEncoder(exportW, exportH);
-      encoder.start(getGifPalette(settings), 0);
+      encoder.start(getGifPalette(style), 0);
 
       const delayMs = Math.round(1000 / gifFps);
 

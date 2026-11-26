@@ -1,36 +1,51 @@
-export type EngineMode = "vgpu" | "webgl" | "cpu";
+export const ENGINE_MODES = ["vgpu", "webgl", "cpu"] as const;
+export type EngineMode = (typeof ENGINE_MODES)[number];
 
-export type DitherPattern =
-  | "8x8"
-  | "4x4"
-  | "2x2"
-  | "16x16"
-  | "noise"
-  | "halftone"
-  | "crosshatch"
-  | "clustered";
+export const DITHER_PATTERNS = [
+  "8x8",
+  "4x4",
+  "2x2",
+  "16x16",
+  "noise",
+  "halftone",
+  "crosshatch",
+  "clustered",
+] as const;
+export type DitherPattern = (typeof DITHER_PATTERNS)[number];
 
-export type CpuAlgorithm =
-  | "floyd-steinberg"
-  | "atkinson"
-  | "sierra3"
-  | "sierra-lite"
-  | "burkes"
-  | "stucki"
-  | "jarvis";
+export const CPU_ALGORITHMS = [
+  "floyd-steinberg",
+  "atkinson",
+  "sierra3",
+  "sierra-lite",
+  "burkes",
+  "stucki",
+  "jarvis",
+] as const;
+export type CpuAlgorithm = (typeof CPU_ALGORITHMS)[number];
 
-export type ColorMode = "paper" | "duotone" | "original" | "palette" | "grayscale";
+export const COLOR_MODES = ["paper", "duotone", "original", "palette", "grayscale"] as const;
+export type ColorMode = (typeof COLOR_MODES)[number];
 
-export type FitMode = "contain" | "cover" | "fill";
+export const FIT_MODES = ["contain", "cover", "fill"] as const;
+export type FitMode = (typeof FIT_MODES)[number];
 
-export type ProceduralShape = "simplex" | "warp" | "dots" | "waves" | "ripple" | "swirl" | "sphere";
+export const PROCEDURAL_SHAPES = [
+  "simplex",
+  "warp",
+  "dots",
+  "waves",
+  "ripple",
+  "swirl",
+  "sphere",
+] as const;
+export type ProceduralShape = (typeof PROCEDURAL_SHAPES)[number];
 
 export type MediaType = "image" | "video" | "procedural";
 
-export interface DitherSettings {
+/** Everything that defines the *look*. This is what share links carry. */
+export interface StyleSettings {
   engine: EngineMode;
-  mediaType: MediaType;
-  mediaUrl: string;
   ditherType: DitherPattern;
   cpuAlgorithm: CpuAlgorithm;
   pxSize: number;
@@ -45,16 +60,29 @@ export interface DitherSettings {
   palette: string[];
   colorSteps: number;
   inverted: boolean;
-  fit: FitMode;
-  scale: number;
-  rotation: number;
-  offsetX: number;
-  offsetY: number;
   brightness: number;
   contrast: number;
   saturation: number;
   gamma: number;
   proceduralShape: ProceduralShape;
-  animated: boolean;
   animationSpeed: number;
 }
+
+/** How the source is placed on the stage. Never shared. */
+export interface FrameSettings {
+  fit: FitMode;
+  scale: number;
+  rotation: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+/** Which media is loaded. */
+export interface SourceState {
+  mediaType: MediaType;
+  mediaUrl: string;
+  animated: boolean;
+}
+
+/** Flattened settings handed to the engine mounts. */
+export type RenderSettings = StyleSettings & FrameSettings & { animated: boolean };

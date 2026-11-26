@@ -1,7 +1,7 @@
 import { parseColorToNormalizedRgba } from "@/lib/utils";
 import { paletteToVec4Array } from "./palettes";
 import { ditherFragmentShader, ditherVertexShader } from "./shaders/dither.glsl";
-import type { DitherSettings } from "./types";
+import type { RenderSettings } from "./types";
 
 /**
  * Integer identifier mappings for shader uniform switches.
@@ -51,7 +51,7 @@ export class DitherWebGLMount {
   private rafId: number | null = null;
   private lastTime = 0;
   private currentTime = 0;
-  private options: DitherSettings;
+  private options: RenderSettings;
   private isDisposed = false;
 
   private imageSource: HTMLImageElement | HTMLVideoElement | ImageBitmap | null = null;
@@ -72,7 +72,7 @@ export class DitherWebGLMount {
   private texHeight = 0;
   private posBuffer: WebGLBuffer | null = null;
 
-  constructor(canvas: HTMLCanvasElement, options: DitherSettings) {
+  constructor(canvas: HTMLCanvasElement, options: RenderSettings) {
     this.canvas = canvas;
     this.options = { ...options };
 
@@ -263,7 +263,7 @@ export class DitherWebGLMount {
     }
   }
 
-  public updateOptions(newOptions: DitherSettings) {
+  public updateOptions(newOptions: RenderSettings) {
     if (this.isDisposed) return;
     const wasAnimated = this.options.animated;
     this.options = { ...newOptions };

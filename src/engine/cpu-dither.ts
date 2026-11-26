@@ -1,3 +1,4 @@
+import { DEFAULT_COLORS } from "./defaults";
 import type { ColorMode, CpuAlgorithm } from "./types";
 
 export type { CpuAlgorithm } from "./types";
@@ -335,9 +336,9 @@ export function processCpuDitheringData(
     fb[errIdx + 2] = gradeLut[data[dataIdx + 2]];
   }
 
-  const bgRgb = parseColor(options.colorBack, "#000c38");
-  const fgRgb = parseColor(options.colorFront, "#94ffaf");
-  const hlRgb = parseColor(options.colorHighlight, "#eaff94");
+  const bgRgb = parseColor(options.colorBack, DEFAULT_COLORS.back);
+  const fgRgb = parseColor(options.colorFront, DEFAULT_COLORS.front);
+  const hlRgb = parseColor(options.colorHighlight, DEFAULT_COLORS.highlight);
   const threshold = options.threshold ?? 0.5;
   const inverted = options.inverted;
 

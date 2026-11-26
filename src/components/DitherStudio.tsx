@@ -16,10 +16,11 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useDropzone } from "react-dropzone";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
+import { useShallow } from "zustand/react/shallow";
 import { processCpuDitheringAsync } from "@/engine/cpu-dither-client";
-import { RETRO_PALETTES } from "@/engine/palettes";
-import type { ColorMode, DitherPattern, DitherSettings, MediaType } from "@/engine/types";
+import type { MediaType } from "@/engine/types";
 import { cn } from "@/lib/utils";
+import { useStudioStore } from "@/state/studio-store";
 import { ControlPanel } from "./ControlPanel";
 import { DitherCanvas, type DitherCanvasHandle } from "./DitherCanvas";
 import { ExportModal } from "./ExportModal";
@@ -27,52 +28,44 @@ import { SplitCompareSlider } from "./SplitCompareSlider";
 import { DotShadeLogo } from "./ui/DotShadeLogo";
 import { VideoControls } from "./VideoControls";
 
-const INITIAL_SETTINGS: DitherSettings = {
-  engine: "vgpu",
-  mediaType: "image",
-  mediaUrl: "/samples/botanical-palm.webp",
-  ditherType: "8x8",
-  cpuAlgorithm: "floyd-steinberg",
-  pxSize: 2,
-  threshold: 0.5,
-  halftoneAngle: 45,
-  halftoneScale: 2,
-  colorMode: "original",
-  colorBack: "#000000",
-  colorFront: "#ffffff",
-  colorHighlight: "#e5e5e5",
-  paletteId: "macintosh-1bit",
-  palette: ["#000000", "#ffffff"],
-  colorSteps: 4,
-  inverted: false,
-  fit: "contain",
-  scale: 1,
-  rotation: 0,
-  offsetX: 0,
-  offsetY: 0,
-  brightness: 0,
-  contrast: 1,
-  saturation: 1,
-  gamma: 1,
-  proceduralShape: "simplex",
-  animated: false,
-  animationSpeed: 1,
-};
-
 export function DitherStudio() {
-  const [settings, setSettings] = useState<DitherSettings>(INITIAL_SETTINGS);
-  const deferredSettings = useDeferredValue(settings);
-  const [isSplitView, setIsSplitView] = useState(false);
-  const [isViewingOriginal, setIsViewingOriginal] = useState(false);
+  const style = useStudioStore((st) => st.style);
+  const frame = useStudioStore((st) => st.frame);
+  const source = useStudioStore((st) => st.source);
+  const isSplitView = useStudioStore((st) => st.isSplitView);
+  const isViewingOriginal = useStudioStore((st) => st.isViewingOriginal);
+  const isWebcamActive = useStudioStore((st) => st.isWebcamActive);
+  const mediaDimensions = useStudioStore((st) => st.mediaDimensions);
+  const zoom = useStudioStore((st) => st.zoom);
+  const {
+    setFrame,
+    setSource,
+    setSplitView: setIsSplitView,
+    setViewingOriginal: setIsViewingOriginal,
+    setZoom,
+    setWebcamActive: setIsWebcamActive,
+    setMediaDimensions,
+  } = useStudioStore(
+    useShallow((st) => ({
+      setFrame: st.setFrame,
+      setSource: st.setSource,
+      setSplitView: st.setSplitView,
+      setViewingOriginal: st.setViewingOriginal,
+      setZoom: st.setZoom,
+      setWebcamActive: st.setWebcamActive,
+      setMediaDimensions: st.setMediaDimensions,
+    })),
+  );
+  const renderSettings = useMemo(
+    () => ({ ...style, ...frame, animated: source.animated }),
+    [style, frame, source.animated],
+  );
+  const deferredSettings = useDeferredValue(renderSettings);
+  const deferredSource = useDeferredValue(source);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const handleCloseExport = useCallback(() => setIsExportOpen(false), []);
   const handleOpenExport = useCallback(() => setIsExportOpen(true), []);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isWebcamActive, setIsWebcamActive] = useState(false);
-  const [mediaDimensions, setMediaDimensions] = useState<{ width: number; height: number } | null>(
-    null,
-  );
-  const [zoom, setZoom] = useState<number>(1);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
@@ -86,14 +79,6 @@ export function DitherStudio() {
   const isHeldRef = useRef(false);
   const cachedCpuImageRef = useRef<{ url: string; img: HTMLImageElement } | null>(null);
   const cpuVideoNoticeRef = useRef(false);
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
-
-  const scheduleRevoke = useCallback((url: string | undefined) => {
-    if (!url?.startsWith("blob:")) return;
-    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
-  }, []);
-
   useEffect(() => {
     return () => {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
@@ -108,14 +93,14 @@ export function DitherStudio() {
   }, []);
 
   const handleOriginalPointerDown = useCallback(() => {
-    if (settings.mediaType === "procedural" && !isWebcamActive) return;
+    if (source.mediaType === "procedural" && !isWebcamActive) return;
     isHeldRef.current = false;
     holdTimerRef.current = setTimeout(() => {
       isHeldRef.current = true;
       setIsSplitView(false);
       setIsViewingOriginal(true);
     }, 180);
-  }, [settings.mediaType, isWebcamActive]);
+  }, [source.mediaType, isWebcamActive]);
 
   const handleOriginalPointerUp = useCallback(() => {
     if (holdTimerRef.current) {
@@ -140,7 +125,7 @@ export function DitherStudio() {
   }, []);
 
   const handleOriginalClick = useCallback(() => {
-    if (settings.mediaType === "procedural" && !isWebcamActive) {
+    if (source.mediaType === "procedural" && !isWebcamActive) {
       toast.info("Original view is not applicable for procedural patterns");
       return;
     }
@@ -151,19 +136,7 @@ export function DitherStudio() {
         return next;
       });
     }
-  }, [settings.mediaType, isWebcamActive]);
-
-  const updateSettings = useCallback(
-    (updater: Partial<DitherSettings>) => {
-      const prevUrl = settingsRef.current.mediaUrl;
-      if (updater.mediaUrl !== undefined && updater.mediaUrl !== prevUrl) {
-        scheduleRevoke(prevUrl);
-      }
-      settingsRef.current = { ...settingsRef.current, ...updater };
-      setSettings((prev) => ({ ...prev, ...updater }));
-    },
-    [scheduleRevoke],
-  );
+  }, [source.mediaType, isWebcamActive]);
 
   const onDropFiles = useCallback(
     (acceptedFiles: File[]) => {
@@ -171,17 +144,17 @@ export function DitherStudio() {
         const file = acceptedFiles[0];
         const url = URL.createObjectURL(file);
         if (file.type.startsWith("image/")) {
-          updateSettings({ mediaType: "image", mediaUrl: url, animated: false });
+          setSource({ mediaType: "image", mediaUrl: url, animated: false });
           toast.success("Loaded image into workspace", { description: file.name });
         } else if (file.type.startsWith("video/")) {
-          updateSettings({ mediaType: "video", mediaUrl: url, animated: true });
+          setSource({ mediaType: "video", mediaUrl: url, animated: true });
           toast.success("Loaded video into workspace", { description: file.name });
         } else {
           URL.revokeObjectURL(url);
         }
       }
     },
-    [updateSettings],
+    [setSource],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -200,14 +173,14 @@ export function DitherStudio() {
         const file = e.clipboardData.files[0];
         if (file.type.startsWith("image/")) {
           const url = URL.createObjectURL(file);
-          updateSettings({ mediaType: "image", mediaUrl: url, animated: false });
+          setSource({ mediaType: "image", mediaUrl: url, animated: false });
           toast.success("Image pasted from clipboard!");
         }
       }
     };
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [updateSettings]);
+  }, [setSource]);
 
   const toggleWebcam = useCallback(async () => {
     if (isWebcamActive) {
@@ -220,7 +193,7 @@ export function DitherStudio() {
       const prevAnimated = prevAnimatedRef.current;
       prevMediaTypeRef.current = null;
       if (prevType) {
-        updateSettings({ mediaType: prevType, animated: !wasPrevTypeImage && prevAnimated });
+        setSource({ mediaType: prevType, animated: !wasPrevTypeImage && prevAnimated });
       }
       toast.info("Webcam disconnected");
       return;
@@ -230,17 +203,18 @@ export function DitherStudio() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       });
-      prevMediaTypeRef.current = settingsRef.current.mediaType;
-      prevAnimatedRef.current = settingsRef.current.animated;
+      const current = useStudioStore.getState().source;
+      prevMediaTypeRef.current = current.mediaType;
+      prevAnimatedRef.current = current.animated;
       webcamStreamRef.current = stream;
-      updateSettings({ mediaType: "video", animated: true });
+      setSource({ mediaType: "video", animated: true });
       setIsWebcamActive(true);
       toast.success("Live webcam connected!");
     } catch (err) {
       console.error("Failed to access webcam:", err);
       toast.error("Could not access webcam. Please check permissions.");
     }
-  }, [isWebcamActive, updateSettings]);
+  }, [isWebcamActive, setSource, setIsWebcamActive]);
 
   useEffect(() => {
     const video = videoElementRef.current;
@@ -259,29 +233,29 @@ export function DitherStudio() {
   const handleUploadImage = useCallback(
     (file: File) => {
       const url = URL.createObjectURL(file);
-      updateSettings({ mediaType: "image", mediaUrl: url, animated: false });
+      setSource({ mediaType: "image", mediaUrl: url, animated: false });
       toast.success("Uploaded image", { description: file.name });
     },
-    [updateSettings],
+    [setSource],
   );
 
   const handleUploadVideo = useCallback(
     (file: File) => {
       const url = URL.createObjectURL(file);
-      updateSettings({ mediaType: "video", mediaUrl: url, animated: true });
+      setSource({ mediaType: "video", mediaUrl: url, animated: true });
       toast.success("Uploaded video", { description: file.name });
     },
-    [updateSettings],
+    [setSource],
   );
 
   useEffect(() => {
     let cancelled = false;
-    if (settings.mediaType === "image" && settings.mediaUrl) {
+    if (source.mediaType === "image" && source.mediaUrl) {
       const img = new Image();
-      if (settings.mediaUrl.startsWith("http://") || settings.mediaUrl.startsWith("https://")) {
+      if (source.mediaUrl.startsWith("http://") || source.mediaUrl.startsWith("https://")) {
         img.crossOrigin = "anonymous";
       }
-      img.src = settings.mediaUrl;
+      img.src = source.mediaUrl;
       img.onload = () => {
         if (cancelled) return;
         if (img.naturalWidth && img.naturalHeight) {
@@ -294,7 +268,7 @@ export function DitherStudio() {
       return () => {
         cancelled = true;
       };
-    } else if (settings.mediaType === "video" && videoElementRef.current) {
+    } else if (source.mediaType === "video" && videoElementRef.current) {
       const v = videoElementRef.current;
       const handleLoaded = () => {
         if (v.videoWidth && v.videoHeight) {
@@ -307,66 +281,19 @@ export function DitherStudio() {
       v.addEventListener("loadedmetadata", handleLoaded);
       if (v.videoWidth) handleLoaded();
       return () => v.removeEventListener("loadedmetadata", handleLoaded);
-    } else if (settings.mediaType === "procedural") {
+    } else if (source.mediaType === "procedural") {
       setMediaDimensions(null);
     }
-  }, [settings.mediaType, settings.mediaUrl]);
+  }, [source.mediaType, source.mediaUrl]);
 
   const handleReset = useCallback(() => {
-    scheduleRevoke(settingsRef.current.mediaUrl);
-    settingsRef.current = INITIAL_SETTINGS;
-    setSettings(INITIAL_SETTINGS);
-    setIsViewingOriginal(false);
+    useStudioStore.getState().resetAll();
     toast.info("Settings reset to defaults");
-  }, [scheduleRevoke]);
+  }, []);
 
   const handleRandomize = useCallback(() => {
-    const patterns: DitherPattern[] = [
-      "8x8",
-      "4x4",
-      "2x2",
-      "16x16",
-      "noise",
-      "halftone",
-      "crosshatch",
-      "clustered",
-    ];
-    const randomPattern = patterns[Math.floor(Math.random() * patterns.length)];
-
-    const colorModes: ColorMode[] = ["paper", "duotone", "palette", "original", "grayscale"];
-    const randomMode = colorModes[Math.floor(Math.random() * colorModes.length)];
-
-    const randomPalette = RETRO_PALETTES[Math.floor(Math.random() * RETRO_PALETTES.length)];
-    const randomPxSize = Number((1 + Math.random() * 3).toFixed(1));
-    const randomThreshold = Number((0.35 + Math.random() * 0.3).toFixed(2));
-    const randomColorSteps = Math.floor(2 + Math.random() * 6);
-
-    const randomAngle = Math.floor(Math.random() * 12) * 15;
-    const randomHalftoneScale = Number((1 + Math.random() * 3).toFixed(1));
-
-    const colorBack = randomPalette.colors[0] || "#000000";
-    const colorFront = randomPalette.colors[randomPalette.colors.length - 1] || "#ffffff";
-    const colorHighlight =
-      randomPalette.colors[1] || randomPalette.colors[randomPalette.colors.length - 1] || "#ffffff";
-
-    setSettings((prev) => ({
-      ...prev,
-      ditherType: randomPattern,
-      colorMode: randomMode,
-      paletteId: randomPalette.id,
-      palette: [...randomPalette.colors],
-      colorBack,
-      colorFront,
-      colorHighlight,
-      pxSize: randomPxSize,
-      threshold: randomThreshold,
-      colorSteps: randomColorSteps,
-      halftoneAngle: randomAngle,
-      halftoneScale: randomHalftoneScale,
-    }));
-
-    setIsViewingOriginal(false);
-    toast.success(`Randomized: ${randomPattern.toUpperCase()} • ${randomPalette.name}`);
+    const { pattern, paletteName } = useStudioStore.getState().randomize();
+    toast.success(`Randomized: ${pattern.toUpperCase()} • ${paletteName}`);
   }, []);
 
   const toggleFullscreen = useCallback(() => {
@@ -430,9 +357,9 @@ export function DitherStudio() {
     let isSubscribed = true;
 
     const runCpu = async () => {
-      if (!deferredSettings.mediaUrl) return;
+      if (!deferredSource.mediaUrl) return;
 
-      if (deferredSettings.mediaType !== "image" || isWebcamActive) {
+      if (deferredSource.mediaType !== "image" || isWebcamActive) {
         if (!cpuVideoNoticeRef.current) {
           cpuVideoNoticeRef.current = true;
           toast.info("CPU engine dithers still images only", {
@@ -482,22 +409,22 @@ export function DitherStudio() {
         }
       };
 
-      if (cachedCpuImageRef.current?.url === deferredSettings.mediaUrl) {
+      if (cachedCpuImageRef.current?.url === deferredSource.mediaUrl) {
         await processWithImage(cachedCpuImageRef.current.img);
         return;
       }
 
       const img = new Image();
       if (
-        deferredSettings.mediaUrl.startsWith("http://") ||
-        deferredSettings.mediaUrl.startsWith("https://")
+        deferredSource.mediaUrl.startsWith("http://") ||
+        deferredSource.mediaUrl.startsWith("https://")
       ) {
         img.crossOrigin = "anonymous";
       }
-      img.src = deferredSettings.mediaUrl;
+      img.src = deferredSource.mediaUrl;
       img.onload = async () => {
         if (!isSubscribed) return;
-        cachedCpuImageRef.current = { url: deferredSettings.mediaUrl, img };
+        cachedCpuImageRef.current = { url: deferredSource.mediaUrl, img };
         await processWithImage(img);
       };
     };
@@ -508,7 +435,7 @@ export function DitherStudio() {
     };
   }, [
     deferredSettings.engine,
-    deferredSettings.mediaUrl,
+    deferredSource.mediaUrl,
     deferredSettings.cpuAlgorithm,
     deferredSettings.colorMode,
     deferredSettings.colorBack,
@@ -525,36 +452,36 @@ export function DitherStudio() {
 
   const handleCaptureBlob = useCallback(
     async (type: "image/png" | "image/webp" | "image/jpeg"): Promise<Blob | null> => {
-      if (settings.engine === "cpu") {
+      if (style.engine === "cpu") {
         const canvas = cpuCanvasRef.current;
         if (!canvas) return null;
         return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), type, 0.95));
       }
       return (await ditherRef.current?.getSnapshotBlob(type, 0.95)) ?? null;
     },
-    [settings.engine],
+    [style.engine],
   );
 
   const objectFitClass =
-    settings.fit === "contain"
+    frame.fit === "contain"
       ? "object-contain"
-      : settings.fit === "fill"
+      : frame.fit === "fill"
         ? "object-fill"
         : "object-cover";
 
   const mediaTransformStyle = useMemo<React.CSSProperties>(
     () => ({
-      transform: `translate(${settings.offsetX * 100}%, ${settings.offsetY * 100}%) rotate(${settings.rotation}deg) scale(${settings.scale})`,
+      transform: `translate(${frame.offsetX * 100}%, ${frame.offsetY * 100}%) rotate(${frame.rotation}deg) scale(${frame.scale})`,
       transformOrigin: "center center",
     }),
-    [settings.offsetX, settings.offsetY, settings.rotation, settings.scale],
+    [frame.offsetX, frame.offsetY, frame.rotation, frame.scale],
   );
 
   const activeMediaSrc =
-    settings.mediaType === "video" || isWebcamActive
+    source.mediaType === "video" || isWebcamActive
       ? videoElementRef.current
-      : settings.mediaType === "image"
-        ? settings.mediaUrl
+      : source.mediaType === "image"
+        ? source.mediaUrl
         : null;
 
   const ditherCanvasElement = useMemo(
@@ -563,7 +490,7 @@ export function DitherStudio() {
   );
 
   const ditheredElement =
-    settings.engine === "cpu" ? (
+    style.engine === "cpu" ? (
       <canvas ref={cpuCanvasRef} className="pixel-art h-full w-full object-contain" />
     ) : (
       ditherCanvasElement
@@ -572,15 +499,13 @@ export function DitherStudio() {
   const exportCanvasRef = useMemo<React.RefObject<HTMLCanvasElement | null>>(
     () => ({
       get current() {
-        return settings.engine === "cpu"
-          ? cpuCanvasRef.current
-          : (ditherRef.current?.canvas ?? null);
+        return style.engine === "cpu" ? cpuCanvasRef.current : (ditherRef.current?.canvas ?? null);
       },
     }),
-    [settings.engine],
+    [style.engine],
   );
 
-  const showRawVideo = isViewingOriginal && (settings.mediaType === "video" || isWebcamActive);
+  const showRawVideo = isViewingOriginal && (source.mediaType === "video" || isWebcamActive);
 
   const originalMediaElement = useMemo(() => {
     if (isWebcamActive) {
@@ -602,10 +527,10 @@ export function DitherStudio() {
         />
       );
     }
-    if (settings.mediaType === "video") {
+    if (source.mediaType === "video") {
       return (
         <video
-          src={settings.mediaUrl}
+          src={source.mediaUrl}
           autoPlay
           loop
           muted
@@ -616,16 +541,16 @@ export function DitherStudio() {
     }
     return (
       <img
-        src={settings.mediaUrl}
+        src={source.mediaUrl}
         alt="Original Source"
         className={cn("h-full w-full", objectFitClass)}
         style={mediaTransformStyle}
       />
     );
-  }, [isWebcamActive, settings.mediaType, settings.mediaUrl, objectFitClass, mediaTransformStyle]);
+  }, [isWebcamActive, source.mediaType, source.mediaUrl, objectFitClass, mediaTransformStyle]);
 
   const stageContainerStyle = useMemo<React.CSSProperties>(() => {
-    if (!mediaDimensions || settings.fit !== "contain") {
+    if (!mediaDimensions || frame.fit !== "contain") {
       return {
         width: "100%",
         height: "100%",
@@ -644,7 +569,7 @@ export function DitherStudio() {
       maxHeight: "100%",
       transform: zoom !== 1 ? `scale(${zoom})` : undefined,
     };
-  }, [mediaDimensions, settings.fit, zoom]);
+  }, [mediaDimensions, frame.fit, zoom]);
 
   return (
     <div className="bg-background text-foreground flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden font-sans select-none sm:flex-row">
@@ -662,7 +587,7 @@ export function DitherStudio() {
               className="bg-secondary border-border text-foreground hidden border px-2 py-0.5 font-mono text-[10px] font-medium uppercase sm:inline-block"
               style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)" }}
             >
-              {settings.engine}
+              {style.engine}
             </span>
             {mediaDimensions && (
               <span className="text-muted-foreground border-border hidden border-l pl-2.5 font-mono text-[10px] md:inline-block">
@@ -693,17 +618,17 @@ export function DitherStudio() {
             <button
               type="button"
               onClick={() => {
-                if (settings.mediaType === "procedural" && !isWebcamActive) {
+                if (source.mediaType === "procedural" && !isWebcamActive) {
                   toast.info("Split view is not applicable for procedural mode");
                   return;
                 }
                 setIsViewingOriginal(false);
                 setIsSplitView((prev) => !prev);
               }}
-              disabled={settings.mediaType === "procedural" && !isWebcamActive}
+              disabled={source.mediaType === "procedural" && !isWebcamActive}
               className={cn(
                 "btn-press flex items-center gap-1 px-2 py-1 font-mono text-xs transition-all sm:gap-1.5 sm:px-2.5",
-                settings.mediaType === "procedural" && !isWebcamActive
+                source.mediaType === "procedural" && !isWebcamActive
                   ? "text-muted-foreground/50 cursor-not-allowed border border-transparent opacity-40"
                   : isSplitView
                     ? "bg-primary text-primary-foreground border-primary border font-bold"
@@ -720,10 +645,10 @@ export function DitherStudio() {
               onPointerDown={handleOriginalPointerDown}
               onPointerUp={handleOriginalPointerUp}
               onPointerLeave={handleOriginalPointerLeave}
-              disabled={settings.mediaType === "procedural" && !isWebcamActive}
+              disabled={source.mediaType === "procedural" && !isWebcamActive}
               className={cn(
                 "btn-press flex items-center gap-1 px-2 py-1 font-mono text-xs transition-all sm:gap-1.5 sm:px-2.5",
-                settings.mediaType === "procedural" && !isWebcamActive
+                source.mediaType === "procedural" && !isWebcamActive
                   ? "text-muted-foreground/50 cursor-not-allowed border border-transparent opacity-40"
                   : isViewingOriginal
                     ? "bg-primary text-primary-foreground border-primary border font-bold"
@@ -747,10 +672,10 @@ export function DitherStudio() {
             >
               <button
                 type="button"
-                onClick={() => updateSettings({ fit: "contain" })}
+                onClick={() => setFrame({ fit: "contain" })}
                 className={cn(
                   "btn-press px-2 py-0.5 font-mono text-[11px] transition-all",
-                  settings.fit === "contain"
+                  frame.fit === "contain"
                     ? "bg-primary text-primary-foreground border-primary border font-bold"
                     : "text-muted-foreground hover:text-foreground border border-transparent",
                 )}
@@ -760,10 +685,10 @@ export function DitherStudio() {
               </button>
               <button
                 type="button"
-                onClick={() => updateSettings({ fit: "cover" })}
+                onClick={() => setFrame({ fit: "cover" })}
                 className={cn(
                   "btn-press px-2 py-0.5 font-mono text-[11px] transition-all",
-                  settings.fit === "cover"
+                  frame.fit === "cover"
                     ? "bg-primary text-primary-foreground border-primary border font-bold"
                     : "text-muted-foreground hover:text-foreground border border-transparent",
                 )}
@@ -869,12 +794,12 @@ export function DitherStudio() {
                         <button
                           type="button"
                           onClick={() => {
-                            updateSettings({ fit: "contain" });
+                            setFrame({ fit: "contain" });
                             setIsMobileMenuOpen(false);
                           }}
                           className={cn(
                             "px-2 py-0.5 font-mono text-[10px]",
-                            settings.fit === "contain"
+                            frame.fit === "contain"
                               ? "bg-white font-bold text-black"
                               : "text-neutral-400",
                           )}
@@ -884,12 +809,12 @@ export function DitherStudio() {
                         <button
                           type="button"
                           onClick={() => {
-                            updateSettings({ fit: "cover" });
+                            setFrame({ fit: "cover" });
                             setIsMobileMenuOpen(false);
                           }}
                           className={cn(
                             "px-2 py-0.5 font-mono text-[10px]",
-                            settings.fit === "cover"
+                            frame.fit === "cover"
                               ? "bg-white font-bold text-black"
                               : "text-neutral-400",
                           )}
@@ -1009,13 +934,11 @@ export function DitherStudio() {
 
             <video
               ref={videoElementRef}
-              src={
-                settings.mediaType === "video" && !isWebcamActive ? settings.mediaUrl : undefined
-              }
+              src={source.mediaType === "video" && !isWebcamActive ? source.mediaUrl : undefined}
               loop={!isWebcamActive}
               muted
               playsInline
-              autoPlay={settings.mediaType === "video" || isWebcamActive}
+              autoPlay={source.mediaType === "video" || isWebcamActive}
               className={cn(
                 "absolute inset-0 h-full w-full select-none",
                 showRawVideo ? objectFitClass : "hidden",
@@ -1023,9 +946,9 @@ export function DitherStudio() {
               style={showRawVideo ? mediaTransformStyle : undefined}
             />
 
-            {isViewingOriginal && settings.mediaType === "image" && (
+            {isViewingOriginal && source.mediaType === "image" && (
               <img
-                src={settings.mediaUrl}
+                src={source.mediaUrl}
                 alt="Original Source"
                 className={cn(
                   "pointer-events-none absolute inset-0 h-full w-full select-none",
@@ -1042,7 +965,7 @@ export function DitherStudio() {
               >
                 <EyeIcon className="h-3.5 w-3.5 text-white" />
                 <span className="text-[11px] font-bold tracking-wider uppercase">
-                  SOURCE {settings.mediaType === "video" || isWebcamActive ? "VIDEO" : "PHOTO"}
+                  SOURCE {source.mediaType === "video" || isWebcamActive ? "VIDEO" : "PHOTO"}
                 </span>
                 <span className="border-l border-neutral-700 pl-2 text-[10px] text-neutral-300">
                   RAW
@@ -1059,7 +982,7 @@ export function DitherStudio() {
             )}
           </div>
 
-          {settings.mediaType === "video" && (
+          {source.mediaType === "video" && (
             <div className="absolute bottom-2.5 left-1/2 z-20 w-full max-w-md -translate-x-1/2 px-2 sm:bottom-6 sm:px-4">
               <VideoControls videoRef={videoElementRef} />
             </div>
@@ -1068,19 +991,14 @@ export function DitherStudio() {
       </main>
 
       <ControlPanel
-        settings={settings}
-        onChange={updateSettings}
         onUploadImage={handleUploadImage}
         onUploadVideo={handleUploadVideo}
         onToggleWebcam={toggleWebcam}
-        isWebcamActive={isWebcamActive}
-        onApplyPreset={updateSettings}
       />
 
       <ExportModal
         isOpen={isExportOpen}
         onClose={handleCloseExport}
-        settings={settings}
         onCaptureBlob={handleCaptureBlob}
         canvasRef={exportCanvasRef}
       />

@@ -26,376 +26,23 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import type React from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useShallow } from "zustand/react/shallow";
 import { extractPaletteFromImageData } from "@/engine/gif-export";
-import { RETRO_PALETTES } from "@/engine/palettes";
-import type { DitherSettings } from "@/engine/types";
+import { getPaletteRoles, RETRO_PALETTES } from "@/engine/palettes";
+import { getPresetSwatches, PRESET_CATEGORIES, PRESETS, SAMPLE_MEDIA } from "@/engine/presets";
 import { cn } from "@/lib/utils";
+import { useStudioStore } from "@/state/studio-store";
 import { ColorSwatchPicker, DualColorPicker } from "./ui/ColorSwatchPicker";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { SliderControl } from "./ui/SliderControl";
 
-export type { DitherSettings } from "@/engine/types";
-
 interface ControlPanelProps {
-  settings: DitherSettings;
-  onChange: (updater: Partial<DitherSettings>) => void;
   onUploadImage: (file: File) => void;
   onUploadVideo: (file: File) => void;
   onToggleWebcam: () => void;
-  isWebcamActive: boolean;
-  onApplyPreset: (preset: Partial<DitherSettings>) => void;
 }
-
-const SAMPLE_MEDIA = [
-  {
-    name: "Botanical Palm",
-    type: "image",
-    url: "/samples/botanical-palm.webp",
-  },
-  {
-    name: "Cyber Tokyo",
-    type: "image",
-    url: "/samples/cyber-tokyo.webp",
-  },
-  {
-    name: "Vintage Portrait",
-    type: "image",
-    url: "/samples/vintage-portrait.webp",
-  },
-  {
-    name: "Paper Flowers",
-    type: "image",
-    url: "/samples/paper-flowers.webp",
-  },
-  {
-    name: "Anime Skyline",
-    type: "image",
-    url: "/samples/anime-skyline.webp",
-  },
-];
-
-export interface PresetItem {
-  name: string;
-  desc: string;
-  category: "retro" | "terminal" | "print" | "mono" | "stylized";
-  colors: string[];
-  preset: Partial<DitherSettings>;
-}
-
-const PRESETS: PresetItem[] = [
-  {
-    name: "Macintosh 1-Bit",
-    desc: "1984 original Macintosh pure black & white",
-    category: "mono",
-    colors: ["#000000", "#ffffff"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "paper" as const,
-      colorBack: "#000000",
-      colorFront: "#ffffff",
-      colorHighlight: "#ffffff",
-      paletteId: "macintosh-1bit",
-      palette: ["#000000", "#ffffff"],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Floyd-Steinberg",
-    desc: "1976 classic newsprint error diffusion",
-    category: "mono",
-    colors: ["#000000", "#ffffff"],
-    preset: {
-      engine: "cpu" as const,
-      cpuAlgorithm: "floyd-steinberg" as const,
-      colorMode: "grayscale" as const,
-      pxSize: 1,
-      threshold: 0.5,
-      inverted: false,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "1-Bit Atkinson",
-    desc: "1984 Bill Atkinson HyperCard diffusion",
-    category: "mono",
-    colors: ["#000000", "#ffffff"],
-    preset: {
-      engine: "cpu" as const,
-      cpuAlgorithm: "atkinson" as const,
-      colorMode: "grayscale" as const,
-      pxSize: 1,
-      threshold: 0.5,
-      inverted: false,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Newspaper Halftone",
-    desc: "45° ink dot halftone press screen",
-    category: "print",
-    colors: ["#000000", "#ffffff"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "halftone" as const,
-      halftoneAngle: 45,
-      halftoneScale: 2.5,
-      pxSize: 1.5,
-      colorMode: "duotone" as const,
-      colorBack: "#ffffff",
-      colorFront: "#000000",
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Game Boy Pocket",
-    desc: "1996 authentic silver-gray LCD",
-    category: "retro",
-    colors: ["#2b2b26", "#706b66", "#a89f91", "#c5bcab"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "gameboy-pocket",
-      palette: ["#2b2b26", "#706b66", "#a89f91", "#c5bcab"],
-      pxSize: 2.5,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Paper Mint",
-    desc: "Navy & lime mint 8x8 ramp",
-    category: "print",
-    colors: ["#000c38", "#94ffaf", "#eaff94"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "paper" as const,
-      colorBack: "#000c38",
-      colorFront: "#94ffaf",
-      colorHighlight: "#eaff94",
-      pxSize: 2,
-      colorSteps: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Game Boy DMG",
-    desc: "1989 Nintendo 4-tone olive LCD",
-    category: "retro",
-    colors: ["#0f380f", "#306230", "#8bac0f", "#9bbc0f"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "gameboy-dmg",
-      palette: ["#0f380f", "#306230", "#8bac0f", "#9bbc0f"],
-      pxSize: 2.5,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "CGA Mode 1",
-    desc: "1981 IBM PC cyan & magenta",
-    category: "retro",
-    colors: ["#000000", "#00aaaa", "#aa00aa", "#aaaaaa"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "4x4" as const,
-      colorMode: "palette" as const,
-      paletteId: "cga-mode1",
-      palette: ["#000000", "#00aaaa", "#aa00aa", "#aaaaaa"],
-      pxSize: 2.5,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Matrix Phosphor",
-    desc: "VT100 green CRT terminal glow",
-    category: "terminal",
-    colors: ["#051505", "#0d3a14", "#18b532", "#4aff68"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "crt-green",
-      palette: ["#051505", "#0d3a14", "#18b532", "#4aff68"],
-      pxSize: 2,
-      threshold: 0.52,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Amber Terminal",
-    desc: "Warm P3 amber CRT phosphor",
-    category: "terminal",
-    colors: ["#140700", "#522300", "#ff8800", "#ffc870"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "amber-terminal",
-      palette: ["#140700", "#522300", "#ff8800", "#ffc870"],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "PICO-8 Fantasy",
-    desc: "16-color fantasy console matrix",
-    category: "retro",
-    colors: ["#1d2b53", "#ff004d", "#29adff", "#ffec27"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "4x4" as const,
-      colorMode: "palette" as const,
-      paletteId: "pico-8",
-      palette: [
-        "#000000",
-        "#1d2b53",
-        "#7e2553",
-        "#008751",
-        "#ab5236",
-        "#5f574f",
-        "#c2c3c7",
-        "#fff1e8",
-        "#ff004d",
-        "#ffa300",
-        "#ffec27",
-        "#00e436",
-        "#29adff",
-        "#83769c",
-        "#ff77a8",
-        "#ffccaa",
-      ],
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Cyber Neon",
-    desc: "Magenta & cyan 4x4 matrix",
-    category: "stylized",
-    colors: ["#080417", "#ff007f", "#00f0ff", "#ffe600"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "4x4" as const,
-      colorMode: "palette" as const,
-      paletteId: "cyberpunk-neon",
-      palette: ["#080417", "#ff007f", "#00f0ff", "#ffe600"],
-      pxSize: 2,
-      threshold: 0.48,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Commodore 64",
-    desc: "1982 C64 microcomputer 16-color",
-    category: "retro",
-    colors: ["#0000aa", "#dd8855", "#00cc55", "#eeee77"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "palette" as const,
-      paletteId: "commodore-64",
-      palette: [
-        "#000000",
-        "#ffffff",
-        "#880000",
-        "#aaffee",
-        "#cc44cc",
-        "#00cc55",
-        "#0000aa",
-        "#eeee77",
-        "#dd8855",
-        "#664400",
-        "#ff7777",
-        "#333333",
-        "#777777",
-        "#aaff66",
-        "#0088ff",
-        "#bbbbbb",
-      ],
-      pxSize: 2.5,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Manga Screentone",
-    desc: "60° dense Japanese screentone",
-    category: "print",
-    colors: ["#111113", "#f4f3ef"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "halftone" as const,
-      halftoneAngle: 60,
-      halftoneScale: 1.8,
-      pxSize: 1,
-      colorMode: "duotone" as const,
-      colorBack: "#f4f3ef",
-      colorFront: "#111113",
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Blueprint",
-    desc: "Cyanotype architectural print",
-    category: "print",
-    colors: ["#002b5c", "#76d7ea"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "crosshatch" as const,
-      colorMode: "duotone" as const,
-      colorBack: "#002b5c",
-      colorFront: "#76d7ea",
-      pxSize: 2,
-      threshold: 0.52,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "Vintage Sepia",
-    desc: "Antique 19th-century albumen photo",
-    category: "print",
-    colors: ["#1a0f07", "#8c5b32", "#f3e5cb"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "8x8" as const,
-      colorMode: "duotone" as const,
-      colorBack: "#f3e5cb",
-      colorFront: "#1a0f07",
-      pxSize: 1.5,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-  {
-    name: "PSX 15-Bit",
-    desc: "90s console 15-bit color banding",
-    category: "retro",
-    colors: ["#181820", "#387080", "#c05070", "#e8d8b0"],
-    preset: {
-      engine: "vgpu" as const,
-      ditherType: "4x4" as const,
-      colorMode: "original" as const,
-      colorSteps: 4,
-      pxSize: 2,
-      threshold: 0.5,
-      fit: "contain" as const,
-    },
-  },
-];
 
 interface SectionHeaderProps {
   title: string;
@@ -430,15 +77,24 @@ function SectionHeader({ title, icon: Icon, isOpen, onToggle }: SectionHeaderPro
   );
 }
 
-export function ControlPanel({
-  settings,
-  onChange,
-  onUploadImage,
-  onUploadVideo,
-  onToggleWebcam,
-  isWebcamActive,
-  onApplyPreset,
-}: ControlPanelProps) {
+export function ControlPanel({ onUploadImage, onUploadVideo, onToggleWebcam }: ControlPanelProps) {
+  const style = useStudioStore((st) => st.style);
+  const frame = useStudioStore((st) => st.frame);
+  const source = useStudioStore((st) => st.source);
+  const isWebcamActive = useStudioStore((st) => st.isWebcamActive);
+  const activePresetId = useStudioStore((st) => st.activePresetId);
+  const { setStyle, setFrame, setSource, applyPreset, applyPalette, resetAdjustments } =
+    useStudioStore(
+      useShallow((st) => ({
+        setStyle: st.setStyle,
+        setFrame: st.setFrame,
+        setSource: st.setSource,
+        applyPreset: st.applyPreset,
+        applyPalette: st.applyPalette,
+        resetAdjustments: st.resetAdjustments,
+      })),
+    );
+
   const [openSections, setOpenSections] = useState({
     media: true,
     dither: true,
@@ -454,59 +110,40 @@ export function ControlPanel({
   const [presetCategory, setPresetCategory] = useState<string>("all");
   const [presetSearch, setPresetSearch] = useState<string>("");
 
-  const resetAdjustments = () => {
-    onChange({
-      brightness: 0,
-      contrast: 1,
-      saturation: 1,
-      gamma: 1,
-      scale: 1,
-      rotation: 0,
-      offsetX: 0,
-      offsetY: 0,
-    });
-  };
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of PRESETS) counts[p.category] = (counts[p.category] ?? 0) + 1;
+    return counts;
+  }, []);
 
-  const handleHardwarePaletteClick = (pal: { id: string; colors: string[] }) => {
-    if (settings.colorMode === "duotone") {
-      onChange({
-        paletteId: pal.id,
-        palette: [...pal.colors],
-        colorBack: pal.colors[0],
-        colorFront: pal.colors[pal.colors.length - 1],
-      });
-    } else if (settings.colorMode === "paper") {
-      onChange({
-        paletteId: pal.id,
-        palette: [...pal.colors],
-        colorBack: pal.colors[0],
-        colorFront: pal.colors[1] || pal.colors[0],
-        colorHighlight: pal.colors[2] || pal.colors[pal.colors.length - 1],
-      });
-    } else {
-      onChange({
-        paletteId: pal.id,
-        palette: [...pal.colors],
-        colorMode: "palette",
-      });
-    }
-  };
+  const filteredPresets = useMemo(() => {
+    const query = presetSearch.trim().toLowerCase();
+    return PRESETS.filter((preset) => {
+      if (presetCategory !== "all" && preset.category !== presetCategory) return false;
+      return (
+        !query ||
+        preset.name.toLowerCase().includes(query) ||
+        preset.desc.toLowerCase().includes(query) ||
+        preset.category.toLowerCase().includes(query)
+      );
+    });
+  }, [presetCategory, presetSearch]);
 
   const [isExtractingPalette, setIsExtractingPalette] = useState(false);
   const [extractCount, setExtractCount] = useState(4);
 
   const handleExtractPalette = async () => {
-    if (settings.mediaType !== "image" || !settings.mediaUrl) {
+    if (source.mediaType !== "image" || !source.mediaUrl) {
       toast.info("Please load an image first to extract its palette!");
       return;
     }
     setIsExtractingPalette(true);
     try {
       const img = new Image();
-      if (settings.mediaUrl.startsWith("http://") || settings.mediaUrl.startsWith("https://")) {
+      if (source.mediaUrl.startsWith("http://") || source.mediaUrl.startsWith("https://")) {
         img.crossOrigin = "anonymous";
       }
-      img.src = settings.mediaUrl;
+      img.src = source.mediaUrl;
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
@@ -534,13 +171,14 @@ export function ControlPanel({
       const colors = extractPaletteFromImageData(imgData, extractCount);
 
       if (colors && colors.length > 0) {
-        onChange({
+        const roles = getPaletteRoles({ colors });
+        setStyle({
           paletteId: "custom",
           palette: colors,
           colorMode: "palette",
-          colorBack: colors[0],
-          colorFront: colors[colors.length - 1],
-          colorHighlight: colors[1] || colors[colors.length - 1],
+          colorBack: roles.back,
+          colorFront: roles.front,
+          colorHighlight: roles.highlight,
         });
         toast.success(`Extracted ${colors.length}-color palette from image!`);
       }
@@ -616,10 +254,10 @@ export function ControlPanel({
 
         <button
           type="button"
-          onClick={() => onChange({ mediaType: "procedural" })}
+          onClick={() => setSource({ mediaType: "procedural" })}
           className={cn(
             "btn-press flex items-center justify-center gap-2 border px-3 py-2.5 font-mono text-xs font-bold transition-colors",
-            settings.mediaType === "procedural" && !isWebcamActive
+            source.mediaType === "procedural" && !isWebcamActive
               ? "border-white bg-white font-bold text-black"
               : "bg-secondary/50 border-border text-white hover:bg-neutral-800",
           )}
@@ -635,13 +273,13 @@ export function ControlPanel({
         </span>
         <div className="grid grid-cols-1 gap-1.5">
           {SAMPLE_MEDIA.map((item) => {
-            const isSelected = settings.mediaUrl === item.url && settings.mediaType === "image";
+            const isSelected = source.mediaUrl === item.url && source.mediaType === "image";
             return (
               <button
                 key={item.name}
                 type="button"
                 onClick={() =>
-                  onChange({ mediaType: "image", mediaUrl: item.url, animated: false })
+                  setSource({ mediaType: "image", mediaUrl: item.url, animated: false })
                 }
                 className={cn(
                   "btn-press flex w-full items-center justify-between border px-3 py-2 text-left font-mono text-xs transition-all",
@@ -676,8 +314,8 @@ export function ControlPanel({
           Rendering Engine
         </label>
         <SegmentedControl
-          value={settings.engine}
-          onChange={(engine) => onChange({ engine })}
+          value={style.engine}
+          onChange={(engine) => setStyle({ engine })}
           options={[
             { value: "vgpu", label: "WebGPU", icon: LightningIcon },
             { value: "webgl", label: "WebGL", icon: StackIcon },
@@ -686,7 +324,7 @@ export function ControlPanel({
         />
       </div>
 
-      {settings.engine !== "cpu" ? (
+      {style.engine !== "cpu" ? (
         <div className="space-y-1.5">
           <label className="block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
             Matrix Pattern
@@ -704,12 +342,12 @@ export function ControlPanel({
                 { id: "noise", label: "Noise" },
               ] as const
             ).map((item) => {
-              const isSelected = settings.ditherType === item.id;
+              const isSelected = style.ditherType === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => onChange({ ditherType: item.id })}
+                  onClick={() => setStyle({ ditherType: item.id })}
                   className={cn(
                     "btn-press flex items-center justify-between border px-3 py-2.5 text-left font-mono text-xs font-bold transition-all",
                     isSelected
@@ -743,12 +381,12 @@ export function ControlPanel({
                 { id: "jarvis", label: "Jarvis" },
               ] as const
             ).map((item) => {
-              const isSelected = settings.cpuAlgorithm === item.id;
+              const isSelected = style.cpuAlgorithm === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => onChange({ cpuAlgorithm: item.id })}
+                  onClick={() => setStyle({ cpuAlgorithm: item.id })}
                   className={cn(
                     "btn-press flex items-center justify-between border px-3 py-2.5 text-left font-mono text-xs font-bold transition-all",
                     isSelected
@@ -769,46 +407,34 @@ export function ControlPanel({
 
       <div className="border-border/60 space-y-3.5 border-t pt-2.5">
         <SliderControl
+          setting="pxSize"
           label="Pixel Size"
-          value={settings.pxSize}
-          min={0.5}
-          max={16}
-          step={0.5}
+          value={style.pxSize}
           unit="px"
-          defaultValue={2}
-          onChange={(pxSize) => onChange({ pxSize })}
+          onChange={(pxSize) => setStyle({ pxSize })}
         />
 
         <SliderControl
+          setting="threshold"
           label="Threshold Bias"
-          value={settings.threshold}
-          min={0.0}
-          max={1.0}
-          step={0.02}
-          defaultValue={0.5}
-          onChange={(threshold) => onChange({ threshold })}
+          value={style.threshold}
+          onChange={(threshold) => setStyle({ threshold })}
         />
 
-        {settings.ditherType === "halftone" && (
+        {style.ditherType === "halftone" && (
           <>
             <SliderControl
+              setting="halftoneAngle"
               label="Screen Angle"
-              value={settings.halftoneAngle}
-              min={0}
-              max={90}
-              step={5}
+              value={style.halftoneAngle}
               unit="°"
-              defaultValue={45}
-              onChange={(halftoneAngle) => onChange({ halftoneAngle })}
+              onChange={(halftoneAngle) => setStyle({ halftoneAngle })}
             />
             <SliderControl
+              setting="halftoneScale"
               label="Dot Scale"
-              value={settings.halftoneScale}
-              min={1}
-              max={8}
-              step={0.5}
-              defaultValue={2}
-              onChange={(halftoneScale) => onChange({ halftoneScale })}
+              value={style.halftoneScale}
+              onChange={(halftoneScale) => setStyle({ halftoneScale })}
             />
           </>
         )}
@@ -819,8 +445,8 @@ export function ControlPanel({
           <span className="font-bold tracking-wide text-white uppercase">▸ Invert Output</span>
           <input
             type="checkbox"
-            checked={settings.inverted}
-            onChange={(e) => onChange({ inverted: e.target.checked })}
+            checked={style.inverted}
+            onChange={(e) => setStyle({ inverted: e.target.checked })}
             className="border-border focus:ring-ring h-4 w-4 cursor-pointer bg-black text-white accent-white focus:ring-offset-0"
           />
         </label>
@@ -835,8 +461,8 @@ export function ControlPanel({
           Color Mode
         </label>
         <SegmentedControl
-          value={settings.colorMode}
-          onChange={(colorMode) => onChange({ colorMode })}
+          value={style.colorMode}
+          onChange={(colorMode) => setStyle({ colorMode })}
           size="sm"
           options={[
             { value: "duotone", label: "Duotone" },
@@ -848,7 +474,7 @@ export function ControlPanel({
         />
       </div>
 
-      {settings.colorMode === "duotone" && (
+      {style.colorMode === "duotone" && (
         <div className="bg-secondary/30 border-border space-y-1.5 border p-3">
           <span className="mb-1.5 block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
             Duotone Shades
@@ -856,14 +482,14 @@ export function ControlPanel({
           <DualColorPicker
             backLabel="Dark Shade"
             frontLabel="Light Shade"
-            colorBack={settings.colorBack}
-            colorFront={settings.colorFront}
-            onBackChange={(colorBack) => onChange({ colorBack })}
-            onFrontChange={(colorFront) => onChange({ colorFront })}
+            colorBack={style.colorBack}
+            colorFront={style.colorFront}
+            onBackChange={(colorBack) => setStyle({ colorBack })}
+            onFrontChange={(colorFront) => setStyle({ colorFront })}
             onSwap={() =>
-              onChange({
-                colorBack: settings.colorFront,
-                colorFront: settings.colorBack,
+              setStyle({
+                colorBack: style.colorFront,
+                colorFront: style.colorBack,
               })
             }
           />
@@ -873,7 +499,7 @@ export function ControlPanel({
         </div>
       )}
 
-      {settings.colorMode === "paper" && (
+      {style.colorMode === "paper" && (
         <div className="bg-secondary/30 border-border space-y-2.5 border p-3">
           <span className="mb-1.5 block font-mono text-xs font-bold tracking-wider text-neutral-200 uppercase">
             Paper Inks
@@ -881,21 +507,21 @@ export function ControlPanel({
           <DualColorPicker
             backLabel="Background"
             frontLabel="Foreground"
-            colorBack={settings.colorBack}
-            colorFront={settings.colorFront}
-            onBackChange={(colorBack) => onChange({ colorBack })}
-            onFrontChange={(colorFront) => onChange({ colorFront })}
+            colorBack={style.colorBack}
+            colorFront={style.colorFront}
+            onBackChange={(colorBack) => setStyle({ colorBack })}
+            onFrontChange={(colorFront) => setStyle({ colorFront })}
             onSwap={() =>
-              onChange({
-                colorBack: settings.colorFront,
-                colorFront: settings.colorBack,
+              setStyle({
+                colorBack: style.colorFront,
+                colorFront: style.colorBack,
               })
             }
           />
           <ColorSwatchPicker
             label="Highlight"
-            color={settings.colorHighlight}
-            onChange={(colorHighlight) => onChange({ colorHighlight })}
+            color={style.colorHighlight}
+            onChange={(colorHighlight) => setStyle({ colorHighlight })}
           />
         </div>
       )}
@@ -933,7 +559,7 @@ export function ControlPanel({
         <button
           type="button"
           onClick={handleExtractPalette}
-          disabled={isExtractingPalette || settings.mediaType !== "image"}
+          disabled={isExtractingPalette || source.mediaType !== "image"}
           className="bg-secondary border-border btn-press flex w-full items-center justify-center gap-2 border px-3 py-2 font-mono text-xs font-bold text-white transition-colors hover:border-white hover:bg-neutral-800 disabled:opacity-40"
         >
           <SparkleIcon className="h-3.5 w-3.5 text-white" />
@@ -949,7 +575,7 @@ export function ControlPanel({
             Hardware Palettes
           </label>
           <span className="font-mono text-[10px] font-bold text-neutral-400">
-            {settings.colorMode === "duotone"
+            {style.colorMode === "duotone"
               ? "CLICK SETS DUOTONE"
               : `${RETRO_PALETTES.length} PALETTES`}
           </span>
@@ -957,18 +583,18 @@ export function ControlPanel({
 
         <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:max-h-60">
           {RETRO_PALETTES.map((pal) => {
+            const roles = getPaletteRoles(pal);
             const isSelected =
-              settings.paletteId === pal.id ||
-              (settings.colorMode === "duotone" &&
-                settings.colorBack.toLowerCase() === pal.colors[0].toLowerCase() &&
-                settings.colorFront.toLowerCase() ===
-                  pal.colors[pal.colors.length - 1].toLowerCase());
+              style.paletteId === pal.id ||
+              (style.colorMode === "duotone" &&
+                style.colorBack.toLowerCase() === roles.back.toLowerCase() &&
+                style.colorFront.toLowerCase() === roles.front.toLowerCase());
 
             return (
               <button
                 key={pal.id}
                 type="button"
-                onClick={() => handleHardwarePaletteClick(pal)}
+                onClick={() => applyPalette(pal.id)}
                 className={cn(
                   "btn-press relative flex flex-col gap-2 border p-2.5 text-left font-mono transition-all",
                   isSelected
@@ -976,8 +602,8 @@ export function ControlPanel({
                     : "bg-secondary/40 border-border text-foreground hover:border-white hover:text-white",
                 )}
                 title={
-                  settings.colorMode === "duotone"
-                    ? `Set Duotone to ${pal.name} (${pal.colors[0]} & ${pal.colors[pal.colors.length - 1]})`
+                  style.colorMode === "duotone"
+                    ? `Set Duotone to ${pal.name} (${roles.back} & ${roles.front})`
                     : `Apply ${pal.name}`
                 }
               >
@@ -998,13 +624,10 @@ export function ControlPanel({
 
       <div className="border-border/60 border-t pt-2.5">
         <SliderControl
+          setting="colorSteps"
           label="Quantization Steps"
-          value={settings.colorSteps}
-          min={1}
-          max={16}
-          step={1}
-          defaultValue={2}
-          onChange={(colorSteps) => onChange({ colorSteps })}
+          value={style.colorSteps}
+          onChange={(colorSteps) => setStyle({ colorSteps })}
         />
       </div>
     </div>
@@ -1036,8 +659,7 @@ export function ControlPanel({
         <button
           type="button"
           onClick={() => {
-            const rnd = PRESETS[Math.floor(Math.random() * PRESETS.length)];
-            if (rnd) onApplyPreset(rnd.preset);
+            applyPreset(PRESETS[Math.floor(Math.random() * PRESETS.length)].id);
           }}
           className="bg-secondary/60 border-border btn-press flex shrink-0 items-center gap-1.5 border px-2.5 py-2 font-mono text-xs font-bold text-neutral-200 transition-colors hover:border-neutral-400 hover:bg-neutral-800 hover:text-white"
           title="Apply random curated preset"
@@ -1048,17 +670,9 @@ export function ControlPanel({
       </div>
 
       <div className="flex scrollbar-none items-center gap-1.5 overflow-x-auto pb-1">
-        {[
-          { id: "all", label: "ALL" },
-          { id: "mono", label: "1-BIT" },
-          { id: "print", label: "PRINT" },
-          { id: "retro", label: "RETRO" },
-          { id: "terminal", label: "CRT" },
-          { id: "stylized", label: "STYLE" },
-        ].map((cat) => {
+        {PRESET_CATEGORIES.map((cat) => {
           const isSelected = presetCategory === cat.id;
-          const count =
-            cat.id === "all" ? PRESETS.length : PRESETS.filter((p) => p.category === cat.id).length;
+          const count = cat.id === "all" ? PRESETS.length : categoryCounts[cat.id];
           return (
             <button
               key={cat.id}
@@ -1086,42 +700,14 @@ export function ControlPanel({
       </div>
 
       <div className="max-h-64 space-y-1.5 overflow-y-auto pr-1 sm:max-h-72">
-        {PRESETS.filter((preset) => {
-          const matchesCat = presetCategory === "all" || preset.category === presetCategory;
-          const query = presetSearch.trim().toLowerCase();
-          const matchesQuery =
-            !query ||
-            preset.name.toLowerCase().includes(query) ||
-            preset.desc.toLowerCase().includes(query) ||
-            preset.category.toLowerCase().includes(query);
-          return matchesCat && matchesQuery;
-        }).map((preset) => {
-          const isCurrent =
-            (preset.preset.paletteId && settings.paletteId === preset.preset.paletteId) ||
-            (preset.preset.colorMode === "paper" &&
-              settings.colorMode === "paper" &&
-              settings.colorBack === preset.preset.colorBack) ||
-            (preset.preset.engine === "cpu" &&
-              settings.engine === "cpu" &&
-              settings.cpuAlgorithm === preset.preset.cpuAlgorithm) ||
-            (preset.name === "Newspaper Halftone" &&
-              settings.ditherType === "halftone" &&
-              settings.halftoneAngle === 45) ||
-            (preset.name === "Manga Screentone" &&
-              settings.ditherType === "halftone" &&
-              settings.halftoneAngle === 60) ||
-            (preset.name === "Blueprint" &&
-              settings.ditherType === "crosshatch" &&
-              settings.colorBack === "#002b5c") ||
-            (preset.name === "Vintage Sepia" &&
-              settings.colorMode === "duotone" &&
-              settings.colorFront === "#1a0f07");
+        {filteredPresets.map((preset) => {
+          const isCurrent = activePresetId === preset.id;
 
           return (
             <button
-              key={preset.name}
+              key={preset.id}
               type="button"
-              onClick={() => onApplyPreset(preset.preset)}
+              onClick={() => applyPreset(preset.id)}
               className={cn(
                 "btn-press group relative flex w-full flex-col gap-1.5 border p-2.5 text-left transition-all",
                 isCurrent
@@ -1146,7 +732,7 @@ export function ControlPanel({
                 <div className="flex shrink-0 items-center gap-2">
                   {isCurrent && <CheckIcon className="h-4 w-4 shrink-0 font-bold text-white" />}
                   <div className="border-border flex h-3 w-16 overflow-hidden border">
-                    {preset.colors.map((c, i) => (
+                    {getPresetSwatches(preset).map((c, i) => (
                       <div key={i} className="h-full flex-1" style={{ backgroundColor: c }} />
                     ))}
                   </div>
@@ -1159,16 +745,7 @@ export function ControlPanel({
           );
         })}
 
-        {PRESETS.filter((preset) => {
-          const matchesCat = presetCategory === "all" || preset.category === presetCategory;
-          const query = presetSearch.trim().toLowerCase();
-          return (
-            matchesCat &&
-            (!query ||
-              preset.name.toLowerCase().includes(query) ||
-              preset.desc.toLowerCase().includes(query))
-          );
-        }).length === 0 && (
+        {filteredPresets.length === 0 && (
           <div className="border-border space-y-1.5 border border-dashed p-4 text-center font-mono text-xs text-neutral-400">
             <p>No presets found matching "{presetSearch}"</p>
             <button
@@ -1194,8 +771,8 @@ export function ControlPanel({
           Framing & Fit
         </label>
         <SegmentedControl
-          value={settings.fit}
-          onChange={(fit) => onChange({ fit })}
+          value={frame.fit}
+          onChange={(fit) => setFrame({ fit })}
           options={[
             { value: "contain", label: "Fit", icon: ScanIcon },
             { value: "cover", label: "Fill", icon: CornersOutIcon },
@@ -1206,25 +783,19 @@ export function ControlPanel({
 
       <div className="border-border/60 space-y-3.5 border-t pt-2.5">
         <SliderControl
+          setting="scale"
           label="Scale"
-          value={settings.scale}
-          min={0.2}
-          max={3.0}
-          step={0.05}
+          value={frame.scale}
           unit="x"
-          defaultValue={1.0}
-          onChange={(scale) => onChange({ scale })}
+          onChange={(scale) => setFrame({ scale })}
         />
 
         <SliderControl
+          setting="rotation"
           label="Rotation"
-          value={settings.rotation}
-          min={0}
-          max={360}
-          step={5}
+          value={frame.rotation}
           unit="°"
-          defaultValue={0}
-          onChange={(rotation) => onChange({ rotation })}
+          onChange={(rotation) => setFrame({ rotation })}
         />
       </div>
 
@@ -1246,47 +817,35 @@ export function ControlPanel({
         </div>
 
         <SliderControl
+          setting="brightness"
           label="Brightness"
-          value={settings.brightness}
-          min={-0.5}
-          max={0.5}
-          step={0.02}
-          defaultValue={0}
+          value={style.brightness}
           formatValue={(v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
-          onChange={(brightness) => onChange({ brightness })}
+          onChange={(brightness) => setStyle({ brightness })}
         />
 
         <SliderControl
+          setting="contrast"
           label="Contrast"
-          value={settings.contrast}
-          min={0.2}
-          max={2.5}
-          step={0.05}
+          value={style.contrast}
           unit="x"
-          defaultValue={1.0}
-          onChange={(contrast) => onChange({ contrast })}
+          onChange={(contrast) => setStyle({ contrast })}
         />
 
         <SliderControl
+          setting="saturation"
           label="Saturation"
-          value={settings.saturation}
-          min={0.0}
-          max={2.0}
-          step={0.05}
+          value={style.saturation}
           unit="x"
-          defaultValue={1.0}
-          onChange={(saturation) => onChange({ saturation })}
+          onChange={(saturation) => setStyle({ saturation })}
         />
 
         <SliderControl
+          setting="gamma"
           label="Gamma"
-          value={settings.gamma}
-          min={0.5}
-          max={2.5}
-          step={0.05}
+          value={style.gamma}
           unit="x"
-          defaultValue={1.0}
-          onChange={(gamma) => onChange({ gamma })}
+          onChange={(gamma) => setStyle({ gamma })}
         />
       </div>
     </div>

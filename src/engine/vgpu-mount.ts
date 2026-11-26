@@ -13,7 +13,7 @@ import {
 import { parseColorToNormalizedRgba } from "@/lib/utils";
 import { paletteToVec4Array } from "./palettes";
 import ditherShader from "./shaders/dither.wgsl";
-import type { DitherSettings } from "./types";
+import type { RenderSettings } from "./types";
 
 const DITHER_TYPES: Record<string, number> = {
   noise: 1,
@@ -52,7 +52,7 @@ const PROCEDURAL_SHAPES: Record<string, number> = {
 
 export class DitherVgpuMount {
   public canvas: HTMLCanvasElement;
-  private options: DitherSettings;
+  private options: RenderSettings;
   private isDisposed = false;
   private isRendering = false;
 
@@ -80,7 +80,7 @@ export class DitherVgpuMount {
   private cachedPaletteKey = "";
   private cachedParams: Record<string, any> = {};
 
-  constructor(canvas: HTMLCanvasElement, options: DitherSettings) {
+  constructor(canvas: HTMLCanvasElement, options: RenderSettings) {
     this.canvas = canvas;
     this.options = { ...options };
 
@@ -291,7 +291,7 @@ export class DitherVgpuMount {
     }
   }
 
-  public updateOptions(newOptions: DitherSettings) {
+  public updateOptions(newOptions: RenderSettings) {
     if (this.isDisposed) return;
     const wasAnimated = this.options.animated;
     this.options = { ...newOptions };

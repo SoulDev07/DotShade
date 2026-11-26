@@ -6,6 +6,20 @@ export interface ColorPalette {
   category: "retro" | "monochrome" | "paper" | "stylized" | "custom";
   colors: string[];
   description: string;
+  /** Explicit colour roles for two/three-colour modes; defaults to first / last / second. */
+  roles?: PaletteRoles;
+}
+
+export interface PaletteRoles {
+  back: string;
+  front: string;
+  highlight: string;
+}
+
+export function getPaletteRoles(p: Pick<ColorPalette, "colors" | "roles">): PaletteRoles {
+  if (p.roles) return p.roles;
+  const last = p.colors[p.colors.length - 1];
+  return { back: p.colors[0], front: last, highlight: p.colors[1] ?? last };
 }
 
 export const RETRO_PALETTES: ColorPalette[] = [
@@ -14,6 +28,7 @@ export const RETRO_PALETTES: ColorPalette[] = [
     name: "Paper Mint",
     category: "paper",
     colors: ["#000c38", "#94ffaf", "#eaff94"],
+    roles: { back: "#000c38", front: "#94ffaf", highlight: "#eaff94" },
     description:
       "Classic Paper Shaders 3-color palette with deep navy, mint ink, and neon lime highlights.",
   },
@@ -284,9 +299,7 @@ export const RETRO_PALETTES: ColorPalette[] = [
   },
 ];
 
-/**
- * Map of palette ID to palette definition for quick O(1) lookups.
- */
+/** Palette registry indexed by ID. */
 export const PALETTE_MAP = new Map<string, ColorPalette>(
   RETRO_PALETTES.map((palette) => [palette.id, palette]),
 );

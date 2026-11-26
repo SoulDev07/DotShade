@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import { toast } from "sonner";
-import type { DitherSettings } from "@/engine/types";
+import type { RenderSettings } from "@/engine/types";
 import { DitherVgpuMount } from "@/engine/vgpu-mount";
 import { DitherWebGLMount } from "@/engine/webgl-mount";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 export type ActiveDitherMount = DitherWebGLMount | DitherVgpuMount;
 
 export interface DitherCanvasProps {
-  settings: DitherSettings;
+  settings: RenderSettings;
   src?: string | HTMLImageElement | HTMLVideoElement | null;
   className?: string;
   style?: React.CSSProperties;
