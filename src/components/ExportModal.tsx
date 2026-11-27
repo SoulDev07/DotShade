@@ -8,11 +8,11 @@ import {
   VideoCameraIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { getCaptureSource } from "@/engine/capture-registry";
 import { DEFAULT_COLORS } from "@/engine/defaults";
-import { ClientGifEncoder } from "@/engine/gif-export";
+import { createGifEncoder } from "@/engine/gif-client";
 import type { StyleSettings } from "@/engine/types";
 import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/state/studio-store";
@@ -40,11 +40,9 @@ type MediaOutput = InstanceType<typeof import("mediabunny").Output>;
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCaptureBlob: (type: "image/png" | "image/webp" | "image/jpeg") => Promise<Blob | null>;
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
 }
 
-export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: ExportModalProps) {
+export function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const style = useStudioStore((st) => st.style);
   const source = useStudioStore((st) => st.source);
   const isMotionMedia =
@@ -92,7 +90,7 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
       const mimeType =
         imageFormat === "png" ? "image/png" : imageFormat === "webp" ? "image/webp" : "image/jpeg";
 
-      const blob = await onCaptureBlob(mimeType);
+      const blob = (await getCaptureSource()?.toBlob(mimeType, 0.95)) ?? null;
       if (!blob) throw new Error("Failed to generate image blob");
 
       const url = URL.createObjectURL(blob);
@@ -118,7 +116,7 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
   const handleCopyImage = async () => {
     setIsExporting(true);
     try {
-      const blob = await onCaptureBlob("image/png");
+      const blob = (await getCaptureSource()?.toBlob("image/png")) ?? null;
       if (blob && navigator.clipboard && window.ClipboardItem) {
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         toast.success("Image copied to clipboard!");
@@ -134,7 +132,7 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
   };
 
   const handleExportWebm = async () => {
-    const canvas = canvasRef.current;
+    const canvas = getCaptureSource()?.canvas;
     if (!canvas) return;
 
     setIsRecording(true);
@@ -200,8 +198,9 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
   };
 
   const handleExportMp4 = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const capture = getCaptureSource();
+    const canvas = capture?.canvas;
+    if (!capture || !canvas) return;
 
     if (typeof window === "undefined" || typeof VideoEncoder === "undefined") {
       toast.info("WebCodecs MP4 encoder not supported in this browser; using WebM.");
@@ -227,19 +226,16 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
         return handleExportWebm();
       }
 
-      const evenWidth = canvas.width - (canvas.width % 2);
-      const evenHeight = canvas.height - (canvas.height % 2);
-      const isOdd = canvas.width % 2 !== 0 || canvas.height % 2 !== 0;
+      const evenWidth = Math.max(2, canvas.width - (canvas.width % 2));
+      const evenHeight = Math.max(2, canvas.height - (canvas.height % 2));
 
-      let sourceCanvas: HTMLCanvasElement = canvas;
-      let offscreenCtx: CanvasRenderingContext2D | null = null;
-
-      if (isOdd) {
-        sourceCanvas = document.createElement("canvas");
-        sourceCanvas.width = evenWidth;
-        sourceCanvas.height = evenHeight;
-        offscreenCtx = sourceCanvas.getContext("2d");
-      }
+      // Frames are always copied through a 2D canvas: GPU canvases are only readable in the
+      // same task as the draw, which `capture.drawTo` guarantees.
+      const sourceCanvas = document.createElement("canvas");
+      sourceCanvas.width = evenWidth;
+      sourceCanvas.height = evenHeight;
+      const frameCtx = sourceCanvas.getContext("2d");
+      if (!frameCtx) throw new Error("Could not create frame canvas for MP4 export");
 
       const fps = 30;
       const target = new BufferTarget();
@@ -263,9 +259,7 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
       try {
         const startedAt = performance.now();
         for (let i = 0; i < totalFrames; i++) {
-          if (offscreenCtx) {
-            offscreenCtx.drawImage(canvas, 0, 0, evenWidth, evenHeight);
-          }
+          capture.drawTo(frameCtx, evenWidth, evenHeight);
 
           await videoSource.add(i * frameDurationSec, frameDurationSec);
           setRecordProgress(Math.min(100, Math.round(((i + 1) / totalFrames) * 100)));
@@ -318,12 +312,14 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
   };
 
   const handleExportGif = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const capture = getCaptureSource();
+    const canvas = capture?.canvas;
+    if (!capture || !canvas) return;
 
     setIsExporting(true);
     setGifProgress(0);
 
+    let encoder: Awaited<ReturnType<typeof createGifEncoder>> | null = null;
     try {
       const maxDim = 640;
       let exportW = canvas.width || 640;
@@ -344,21 +340,19 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
       const ctx = offscreen.getContext("2d", { willReadFrequently: true });
       if (!ctx) throw new Error("Could not initialize offscreen context for GIF capture");
 
-      const encoder = new ClientGifEncoder(exportW, exportH);
-      encoder.start(getGifPalette(style), 0);
+      encoder = await createGifEncoder(exportW, exportH, getGifPalette(style));
 
       const delayMs = Math.round(1000 / gifFps);
 
       for (let i = 0; i < gifFrames; i++) {
         ctx.clearRect(0, 0, exportW, exportH);
-        ctx.drawImage(canvas, 0, 0, exportW, exportH);
-        const frameData = ctx.getImageData(0, 0, exportW, exportH);
-        encoder.addFrame(frameData, delayMs);
+        capture.drawTo(ctx, exportW, exportH);
+        encoder.addFrame(ctx.getImageData(0, 0, exportW, exportH), delayMs);
         setGifProgress(Math.round(((i + 1) / gifFrames) * 100));
         await new Promise((r) => setTimeout(r, delayMs));
       }
 
-      const gifBlob = encoder.finish();
+      const gifBlob = await encoder.finish();
       const url = URL.createObjectURL(gifBlob);
       const a = document.createElement("a");
       a.href = url;
@@ -375,6 +369,7 @@ export function ExportModal({ isOpen, onClose, onCaptureBlob, canvasRef }: Expor
       console.error("GIF export error:", err);
       toast.error("Failed to generate GIF.");
     } finally {
+      encoder?.dispose();
       setIsExporting(false);
     }
   };

@@ -10,51 +10,43 @@ import {
   type Texture,
   texture,
 } from "vgpu";
-import { parseColorToNormalizedRgba } from "@/lib/utils";
+import { hexToNormalizedRgba } from "@/lib/color";
+import { getPixelRatio } from "@/lib/dpr";
+import { DEFAULT_COLORS } from "./defaults";
+import { FrameScheduler } from "./frame-scheduler";
+import {
+  COLOR_MODE_IDS,
+  DITHER_TYPE_IDS,
+  type DitherMount,
+  FIT_MODE_IDS,
+  getSourceSize,
+  type MountSource,
+  PROCEDURAL_SHAPE_IDS,
+  type SnapshotType,
+} from "./mount-types";
 import { paletteToVec4Array } from "./palettes";
 import ditherShader from "./shaders/dither.wgsl";
 import type { RenderSettings } from "./types";
 
-const DITHER_TYPES: Record<string, number> = {
-  noise: 1,
-  "2x2": 2,
-  "4x4": 3,
-  "8x8": 4,
-  "16x16": 5,
-  halftone: 6,
-  crosshatch: 7,
-  clustered: 8,
-};
+/**
+ * One GPU device is shared by every mount: engine switches and remounts only create and
+ * dispose surfaces, textures and effects, never the device itself.
+ */
+let sharedGpu: Promise<Gpu> | null = null;
+function getSharedGpu(): Promise<Gpu> {
+  if (!sharedGpu) {
+    sharedGpu = init().catch((err) => {
+      sharedGpu = null;
+      throw err;
+    });
+  }
+  return sharedGpu;
+}
 
-const COLOR_MODES: Record<string, number> = {
-  paper: 1,
-  duotone: 2,
-  original: 3,
-  palette: 4,
-  grayscale: 5,
-};
-
-const FIT_MODES: Record<string, number> = {
-  contain: 1,
-  cover: 2,
-  fill: 3,
-};
-
-const PROCEDURAL_SHAPES: Record<string, number> = {
-  simplex: 1,
-  warp: 2,
-  dots: 3,
-  waves: 4,
-  ripple: 5,
-  swirl: 6,
-  sphere: 7,
-};
-
-export class DitherVgpuMount {
+export class DitherVgpuMount implements DitherMount {
   public canvas: HTMLCanvasElement;
   private options: RenderSettings;
   private isDisposed = false;
-  private isRendering = false;
 
   private gpu: Gpu | null = null;
   private vgpuSurface: Surface | null = null;
@@ -63,9 +55,10 @@ export class DitherVgpuMount {
   private sourceTexture: Texture | null = null;
   private dummyTexture: Texture | null = null;
 
-  private rafId: number | null = null;
-  private startTime = performance.now();
-  private imageSource: HTMLImageElement | HTMLVideoElement | ImageBitmap | null = null;
+  private scheduler: FrameScheduler;
+  private currentTime = 0;
+  private videoDirty = false;
+  private imageSource: MountSource | null = null;
   private imageAspectRatio = 1;
   private hasImage = false;
   private isReady = false;
@@ -78,7 +71,8 @@ export class DitherVgpuMount {
   private cachedColorFront = "";
   private cachedColorHighlight = "";
   private cachedPaletteKey = "";
-  private cachedParams: Record<string, any> = {};
+  private cachedParams: Record<string, unknown> & Record<`palette_${number}`, number[]> =
+    {} as never;
 
   constructor(canvas: HTMLCanvasElement, options: RenderSettings) {
     this.canvas = canvas;
@@ -122,6 +116,30 @@ export class DitherVgpuMount {
     }
 
     this.updateCachedUniforms();
+
+    this.scheduler = new FrameScheduler(
+      (dt) => {
+        if (this.isContinuous()) this.currentTime += dt * this.options.animationSpeed;
+        this.render();
+      },
+      () => {
+        this.videoDirty = true;
+      },
+    );
+  }
+
+  /** Procedural animation runs every frame; still images and video redraw on demand. */
+  private isContinuous(): boolean {
+    if (this.imageSource instanceof HTMLVideoElement) return this.scheduler.isPollingVideo;
+    return this.options.animated && !this.hasImage;
+  }
+
+  private syncLoopPolicy() {
+    this.scheduler.setContinuous(this.isContinuous());
+  }
+
+  public invalidate() {
+    this.scheduler.invalidate();
   }
 
   public async init(): Promise<boolean> {
@@ -136,7 +154,7 @@ export class DitherVgpuMount {
     }
 
     try {
-      this.gpu = await init();
+      this.gpu = await getSharedGpu();
       if (!this.gpu || this.isDisposed) return false;
 
       this.vgpuSurface = surface(this.gpu, this.canvas, { dpr: 1 });
@@ -163,12 +181,8 @@ export class DitherVgpuMount {
 
       this.ditherEffect = effect(this.gpu, ditherShader);
       this.isReady = true;
-
-      this.render();
-
-      if (this.options.animated) {
-        this.startAnimation();
-      }
+      this.syncLoopPolicy();
+      this.invalidate();
 
       return true;
     } catch (err) {
@@ -177,24 +191,13 @@ export class DitherVgpuMount {
     }
   }
 
-  public setImage(source: HTMLImageElement | HTMLVideoElement | ImageBitmap | null) {
+  public setImage(source: MountSource | null) {
     if (this.isDisposed) return;
     this.imageSource = source;
+    this.scheduler.watchVideo(source instanceof HTMLVideoElement ? source : null);
 
     if (source) {
-      let width = 0;
-      let height = 0;
-      if (source instanceof HTMLImageElement) {
-        width = source.naturalWidth || source.width || 1;
-        height = source.naturalHeight || source.height || 1;
-      } else if (source instanceof HTMLVideoElement) {
-        width = source.videoWidth || source.width || 1;
-        height = source.videoHeight || source.height || 1;
-      } else if (source instanceof ImageBitmap) {
-        width = source.width || 1;
-        height = source.height || 1;
-      }
-
+      const { width, height } = getSourceSize(source);
       this.imageAspectRatio = width / Math.max(1, height);
       this.hasImage = true;
       this.updateSourceTexture(source, width, height);
@@ -203,7 +206,9 @@ export class DitherVgpuMount {
       this.imageAspectRatio = 1;
     }
 
-    this.render();
+    this.videoDirty = false;
+    this.syncLoopPolicy();
+    this.invalidate();
   }
 
   private updateSourceTexture(source: GPUCopyExternalImageSource, width: number, height: number) {
@@ -241,15 +246,15 @@ export class DitherVgpuMount {
   private updateCachedUniforms() {
     const opt = this.options;
     const p = this.cachedParams;
-    p.ditherType = DITHER_TYPES[opt.ditherType] || 4;
+    p.ditherType = DITHER_TYPE_IDS[opt.ditherType] || 4;
     p.pxSize = opt.pxSize;
     p.threshold = opt.threshold;
     p.halftoneAngle = opt.halftoneAngle;
     p.halftoneScale = opt.halftoneScale;
-    p.colorMode = COLOR_MODES[opt.colorMode] || 1;
+    p.colorMode = COLOR_MODE_IDS[opt.colorMode] || 1;
     p.colorSteps = opt.colorSteps;
     p.inverted = opt.inverted ? 1 : 0;
-    p.fit = FIT_MODES[opt.fit] || 2;
+    p.fit = FIT_MODE_IDS[opt.fit] || 2;
     p.scale = opt.scale;
     p.rotation = opt.rotation;
     p.offsetX = opt.offsetX;
@@ -258,23 +263,25 @@ export class DitherVgpuMount {
     p.contrast = opt.contrast;
     p.saturation = opt.saturation;
     p.gamma = opt.gamma;
-    p.proceduralShape = PROCEDURAL_SHAPES[opt.proceduralShape] || 1;
+    p.proceduralShape = PROCEDURAL_SHAPE_IDS[opt.proceduralShape] || 1;
 
     if (opt.colorBack !== this.cachedColorBack) {
-      p.colorBack = parseColorToNormalizedRgba(opt.colorBack);
+      p.colorBack = hexToNormalizedRgba(opt.colorBack);
       this.cachedColorBack = opt.colorBack;
     }
     if (opt.colorFront !== this.cachedColorFront) {
-      p.colorFront = parseColorToNormalizedRgba(opt.colorFront);
+      p.colorFront = hexToNormalizedRgba(opt.colorFront);
       this.cachedColorFront = opt.colorFront;
     }
     if (opt.colorHighlight !== this.cachedColorHighlight) {
-      p.colorHighlight = parseColorToNormalizedRgba(opt.colorHighlight);
+      p.colorHighlight = hexToNormalizedRgba(opt.colorHighlight);
       this.cachedColorHighlight = opt.colorHighlight;
     }
 
     const paletteColors =
-      opt.palette && opt.palette.length > 0 ? opt.palette : ["#000000", "#ffffff"];
+      opt.palette && opt.palette.length > 0
+        ? opt.palette
+        : [DEFAULT_COLORS.back, DEFAULT_COLORS.front];
     const paletteKey = paletteColors.join(",");
     if (paletteKey !== this.cachedPaletteKey) {
       paletteToVec4Array(paletteColors, 16, this.cachedPaletteArray);
@@ -293,37 +300,24 @@ export class DitherVgpuMount {
 
   public updateOptions(newOptions: RenderSettings) {
     if (this.isDisposed) return;
-    const wasAnimated = this.options.animated;
     this.options = { ...newOptions };
     this.updateCachedUniforms();
-    if (newOptions.animated !== wasAnimated) {
-      if (newOptions.animated) {
-        this.startAnimation();
-      } else {
-        this.stopAnimation();
-      }
-    }
-    this.render();
+    this.syncLoopPolicy();
+    this.invalidate();
   }
 
+  /** Draws one frame synchronously. Uploads a new video frame first when one is pending. */
   public render() {
     if (this.isDisposed || !this.isReady || !this.ditherEffect || !this.gpu || !this.vgpuSurface)
       return;
-    if (this.isRendering) return;
-    this.isRendering = true;
 
-    const opt = this.options;
-    const now = performance.now();
-    const elapsedTime = ((now - this.startTime) / 1000) * (opt.animationSpeed || 1);
-
-    if (
-      this.imageSource instanceof HTMLVideoElement &&
-      this.imageSource.readyState >= 2 &&
-      !this.imageSource.paused
-    ) {
-      const w = this.imageSource.videoWidth || 1;
-      const h = this.imageSource.videoHeight || 1;
-      this.updateSourceTexture(this.imageSource, w, h);
+    if (this.imageSource instanceof HTMLVideoElement) {
+      const polling = this.scheduler.isPollingVideo && !this.imageSource.paused;
+      if ((this.videoDirty || polling) && this.imageSource.readyState >= 2) {
+        this.videoDirty = false;
+        const { width, height } = getSourceSize(this.imageSource);
+        this.updateSourceTexture(this.imageSource, width, height);
+      }
     }
 
     const currentTexture =
@@ -331,10 +325,10 @@ export class DitherVgpuMount {
 
     this.cachedResolution[0] = this.canvas.width || 800;
     this.cachedResolution[1] = this.canvas.height || 600;
-    this.cachedParams.pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    this.cachedParams.pixelRatio = getPixelRatio();
     this.cachedParams.imageAspectRatio = this.imageAspectRatio;
     this.cachedParams.hasImage = this.hasImage ? 1 : 0;
-    this.cachedParams.time = elapsedTime;
+    this.cachedParams.time = this.currentTime;
 
     try {
       this.ditherEffect.set({
@@ -344,39 +338,19 @@ export class DitherVgpuMount {
       });
 
       frame(this.gpu, (f) => {
-        f.pass(this.vgpuSurface!, this.ditherEffect!);
+        f.pass(this.vgpuSurface as Surface, this.ditherEffect as Effect);
       });
     } catch (e) {
       console.error("vgpu render error:", e);
-    } finally {
-      this.isRendering = false;
     }
   }
 
-  public startAnimation() {
-    if (this.rafId !== null) return;
-    const loop = () => {
-      if (this.isDisposed) {
-        this.rafId = null;
-        return;
-      }
-      this.render();
-      this.rafId = requestAnimationFrame(loop);
-    };
-    this.rafId = requestAnimationFrame(loop);
+  public captureTo(ctx: CanvasRenderingContext2D, width: number, height: number) {
+    this.render();
+    ctx.drawImage(this.canvas, 0, 0, width, height);
   }
 
-  public stopAnimation() {
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
-    }
-  }
-
-  public async getSnapshotBlob(
-    type: "image/png" | "image/webp" | "image/jpeg" = "image/png",
-    quality = 0.95,
-  ): Promise<Blob | null> {
+  public snapshotBlob(type: SnapshotType = "image/png", quality = 0.95): Promise<Blob | null> {
     this.render();
     return new Promise((resolve) => {
       this.canvas.toBlob((blob) => resolve(blob), type, quality);
@@ -385,14 +359,14 @@ export class DitherVgpuMount {
 
   public dispose() {
     this.isDisposed = true;
-    this.stopAnimation();
+    this.scheduler.dispose();
     this.sourceTexture?.destroy();
     this.sourceTexture = null;
     this.dummyTexture?.destroy();
     this.dummyTexture = null;
     this.vgpuSurface?.dispose();
     this.vgpuSurface = null;
-    this.gpu?.dispose();
+    // The Gpu device is shared across mounts and intentionally left alive.
     this.gpu = null;
   }
 }

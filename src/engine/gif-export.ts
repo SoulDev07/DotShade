@@ -1,5 +1,5 @@
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
-import { colord } from "@/lib/utils";
+import { parseHex, rgbToHex } from "@/lib/color";
 
 export class ClientGifEncoder {
   private gif: ReturnType<typeof GIFEncoder>;
@@ -25,10 +25,7 @@ export class ClientGifEncoder {
     this.frameCount = 0;
 
     if (palette && palette.length > 0) {
-      this.palette = palette.slice(0, 256).map((hex) => {
-        const c = colord(hex).toRgb();
-        return [c.r, c.g, c.b];
-      });
+      this.palette = palette.slice(0, 256).map((hex) => parseHex(hex));
     } else {
       this.palette = null;
     }
@@ -59,5 +56,5 @@ export class ClientGifEncoder {
 export function extractPaletteFromImageData(imageData: ImageData, maxColors = 8): string[] {
   const count = Math.min(256, Math.max(2, maxColors));
   const rawPalette = quantize(imageData.data, count);
-  return rawPalette.map(([r, g, b]: number[]) => colord({ r, g, b }).toHex());
+  return rawPalette.map(([r, g, b]: number[]) => rgbToHex(r, g, b));
 }

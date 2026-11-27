@@ -1,3 +1,4 @@
+import { parseHexInto, type Rgb } from "@/lib/color";
 import { DEFAULT_COLORS } from "./defaults";
 import type { ColorMode, CpuAlgorithm } from "./types";
 
@@ -276,22 +277,10 @@ function getErrorBuffer(pixelCount: number): Float32Array {
   return errorBufferCache;
 }
 
-function parseHex(hex: string, out: [number, number, number]): void {
-  let h = hex.trim();
-  if (h.charCodeAt(0) === 35) h = h.slice(1);
-  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-  const n = parseInt(h, 16);
-  out[0] = (n >> 16) & 255;
-  out[1] = (n >> 8) & 255;
-  out[2] = n & 255;
-}
-
-type Rgb = [number, number, number];
-
 function parseColor(hex: string | undefined, fallback: string): Rgb {
   const rgb: Rgb = [0, 0, 0];
-  parseHex(hex || fallback, rgb);
-  if (Number.isNaN(rgb[0])) parseHex(fallback, rgb);
+  parseHexInto(hex || fallback, rgb);
+  if (Number.isNaN(rgb[0])) parseHexInto(fallback, rgb);
   return rgb;
 }
 
@@ -367,7 +356,7 @@ export function processCpuDitheringData(
           : new Float64Array(count * 3);
       const rgb: Rgb = [0, 0, 0];
       for (let i = 0; i < count; i++) {
-        parseHex(palette[i], rgb);
+        parseHexInto(palette[i], rgb);
         rgbToLab(rgb[0], rgb[1], rgb[2], paletteLab, i * 3);
       }
       lutPauseIndices = buildPaletteLut(paletteLab, count);
@@ -378,7 +367,7 @@ export function processCpuDitheringData(
     palFlat = new Float32Array(palette.length * 3);
     const rgb: Rgb = [0, 0, 0];
     for (let i = 0; i < palette.length; i++) {
-      parseHex(palette[i], rgb);
+      parseHexInto(palette[i], rgb);
       palFlat[i * 3] = rgb[0];
       palFlat[i * 3 + 1] = rgb[1];
       palFlat[i * 3 + 2] = rgb[2];

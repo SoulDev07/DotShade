@@ -1,4 +1,4 @@
-import { parseColorToNormalizedRgba } from "@/lib/utils";
+import { hexToNormalizedRgba } from "@/lib/color";
 
 export interface ColorPalette {
   id: string;
@@ -316,7 +316,7 @@ export function paletteToVec4Array(
       : new Float32Array(maxColors * 4);
   for (let i = 0; i < maxColors; i++) {
     const colorHex = i < colors.length ? colors[i] : colors[colors.length - 1] || "#000000";
-    const [r, g, b, a] = parseColorToNormalizedRgba(colorHex);
+    const [r, g, b, a] = hexToNormalizedRgba(colorHex);
     result[i * 4 + 0] = r;
     result[i * 4 + 1] = g;
     result[i * 4 + 2] = b;

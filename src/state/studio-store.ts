@@ -17,6 +17,14 @@ export interface MediaDimensions {
   height: number;
 }
 
+/** The current image source, decoded once and shared by every consumer. */
+export interface DecodedImage {
+  url: string;
+  bitmap: ImageBitmap;
+  width: number;
+  height: number;
+}
+
 interface StudioState {
   style: StyleSettings;
   frame: FrameSettings;
@@ -28,6 +36,7 @@ interface StudioState {
   zoom: number;
   isWebcamActive: boolean;
   mediaDimensions: MediaDimensions | null;
+  decodedImage: DecodedImage | null;
 
   setStyle: (partial: Partial<StyleSettings>) => void;
   setFrame: (partial: Partial<FrameSettings>) => void;
@@ -43,6 +52,7 @@ interface StudioState {
   setZoom: (value: number | ((prev: number) => number)) => void;
   setWebcamActive: (value: boolean) => void;
   setMediaDimensions: (value: MediaDimensions | null) => void;
+  setDecodedImage: (value: DecodedImage | null) => void;
 }
 
 /** Blob URLs are revoked shortly after replacement so in-flight loads can finish. */
@@ -68,6 +78,7 @@ export const useStudioStore = create<StudioState>()(
     zoom: 1,
     isWebcamActive: false,
     mediaDimensions: null,
+    decodedImage: null,
 
     setStyle: (partial) =>
       set((s) => ({ style: { ...s.style, ...partial }, activePresetId: null })),
@@ -187,6 +198,7 @@ export const useStudioStore = create<StudioState>()(
     setZoom: (value) => set((s) => ({ zoom: resolve(value, s.zoom) })),
     setWebcamActive: (value) => set({ isWebcamActive: value }),
     setMediaDimensions: (value) => set({ mediaDimensions: value }),
+    setDecodedImage: (value) => set({ decodedImage: value }),
   })),
 );
 
